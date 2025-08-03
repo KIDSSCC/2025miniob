@@ -188,6 +188,7 @@ int main(int argc, char **argv)
 
   set_signal_handler(quit_signal_handle);
 
+  // 服务端启动，命令行参数解析
   parse_parameter(argc, argv);
 
   rc = init(the_process_param());
