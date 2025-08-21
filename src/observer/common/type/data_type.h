@@ -31,6 +31,7 @@ public:
 
   virtual ~DataType() = default;
 
+  // 根据 AttrType 获取对应的 DataType 实例
   inline static DataType *type_instance(AttrType attr_type)
   {
     return type_instances_.at(static_cast<int>(attr_type)).get();

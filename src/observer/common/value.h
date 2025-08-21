@@ -31,6 +31,7 @@ class Value final
 public:
   friend class DataType;
   friend class IntegerType;
+  friend class DateType;
   friend class FloatType;
   friend class BooleanType;
   friend class CharType;

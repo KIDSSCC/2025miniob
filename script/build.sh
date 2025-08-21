@@ -1,4 +1,7 @@
 #!/bin/bash
+# Usage:
+# ./build.sh
+# ./build.sh -d
 
 # 遇到错误时返回
 set -e
@@ -37,4 +40,4 @@ if [ "$d_flag" = true ]; then
     # 在这里编写需要在有 -d 选项时执行的操作
 fi
 
-make -j
+make -j4
