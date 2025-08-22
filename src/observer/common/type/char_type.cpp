@@ -17,7 +17,7 @@ See the Mulan PSL v2 for more details. */
 
 bool parse_date(const std::string& date_str, int& result){
   // 用正则表达式匹配 YYYY-MM-DD
-  static const std::regex pattern(R"(^(\d{4})-(\d{2})-(\d{2})$)");
+  static const std::regex pattern(R"(^(\d{4})[-](\d{1,2})[-](\d{1,2})$)");
   std::smatch match;
 
   if (!std::regex_match(date_str, match, pattern)) {
