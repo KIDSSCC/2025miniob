@@ -13,6 +13,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/sys/rc.h"
 #include "common/type/data_type.h"
 
+#include "common/type/date_type.h"
+
 /**
  * @brief 固定长度的字符串类型
  * @ingroup DataType

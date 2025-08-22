@@ -34,4 +34,8 @@ public:
   RC set_value_from_str(Value &val, const string &data) const override;
 
   RC to_string(const Value &val, string &result) const override;
+
+  int cast_cost(AttrType type);
+  static bool is_leap_year(int year);
+  static int days_in_month(int year, int month);
 };

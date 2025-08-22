@@ -149,6 +149,14 @@ void Value::set_int(int val)
   length_           = sizeof(val);
 }
 
+void Value::set_date(int val)
+{
+  reset();
+  attr_type_        = AttrType::DATES;
+  value_.int_value_ = val;
+  length_           = sizeof(val);
+}
+
 void Value::set_float(float val)
 {
   reset();

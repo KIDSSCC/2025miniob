@@ -164,12 +164,16 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
                                      ? static_cast<Expression *>(new FieldExpr(filter_obj_right.field))
                                      : static_cast<Expression *>(new ValueExpr(filter_obj_right.value)));
 
+    // 条件过滤语句，左右Value类型不一致时，按照转换开销进行转换并比较
     if (left->value_type() != right->value_type()) {
       auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
       auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
       if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
+        // 左转右开销低于右转左
         ExprType left_type = left->type();
         auto cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
+
+        // 如果左边是ValueExpr，直接转换为ValueExpr，否则转换为CastExpr
         if (left_type == ExprType::VALUE) {
           Value left_val;
           if (OB_FAIL(rc = cast_expr->try_get_value(left_val)))
@@ -182,8 +186,11 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
           left = std::move(cast_expr);
         }
       } else if (right_to_left_cost < left_to_right_cost && right_to_left_cost != INT32_MAX) {
+        // 右转左开销低于左转右
         ExprType right_type = right->type();
         auto cast_expr = make_unique<CastExpr>(std::move(right), left->value_type());
+
+        // 如果右边是ValueExpr，直接转换为ValueExpr，否则转换为CastExpr
         if (right_type == ExprType::VALUE) {
           Value right_val;
           if (OB_FAIL(rc = cast_expr->try_get_value(right_val)))

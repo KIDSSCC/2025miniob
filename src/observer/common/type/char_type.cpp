@@ -28,9 +28,12 @@ bool parse_date(const std::string& date_str, int& result){
     int month = std::stoi(match[2].str());
     int day   = std::stoi(match[3].str());
 
-    // 合法性检查
+    // 月份合法性检查
     if (month < 1 || month > 12) return false;
-    if (day < 1 || day > 31) return false;
+
+    // 天数合法性检查
+    int max_day = DateType::days_in_month(year, month);
+    if (day < 1 || day > max_day) return false;
 
     result = year * 10000 + month * 100 + day; // 转换为 YYYYMMDD 格式
     return true;
@@ -65,9 +68,7 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
         return RC::INVALID_ARGUMENT;  
       }
       else{
-        result.set_type(AttrType::DATES);
-        result.set_length(4);
-        result.value_.int_value_ = date_value;
+        result.set_date(date_value);
         return RC::SUCCESS;
       }
     }
@@ -80,6 +81,9 @@ int CharType::cast_cost(AttrType type)
 {
   if (type == AttrType::CHARS) {
     return 0;
+  }
+  if (type == AttrType::DATES) {
+    return 1; // 假设转换到日期类型的开销为1
   }
   return INT32_MAX;
 }

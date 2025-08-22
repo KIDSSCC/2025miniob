@@ -66,4 +66,37 @@ int compare_string(void *arg1, int arg1_max_length, void *arg2, int arg2_max_len
   return 0;
 }
 
+int compare_date(void *arg1, void *arg2)
+{
+  int v1 = *(int *)arg1;
+  int v2 = *(int *)arg2;
+
+  int year1 = v1 / 10000;
+  int month1 = (v1 / 100) % 100;
+  int day1 = v1 % 100;
+  int year2 = v2 / 10000;
+  int month2 = (v2 / 100) % 100;
+  int day2 = v2 % 100;
+
+  if (year1 > year2) {
+    return 1;
+  } else if (year1 < year2) {
+    return -1;
+  }
+
+  if (month1 > month2) {
+    return 1;
+  } else if (month1 < month2) {
+    return -1;
+  }
+
+  if (day1 > day2) {
+    return 1;
+  } else if (day1 < day2) {
+    return -1;
+  }
+
+  return 0;
+}
+
 }  // namespace common
