@@ -90,9 +90,12 @@ RC DateType::set_value_from_str(Value &val, const string &data) const
 
 RC DateType::to_string(const Value &val, string &result) const
 {
-  // stringstream ss;
-  // ss << val.value_.int_value_;
-  // result = ss.str();
-  // return RC::SUCCESS;
-  return RC::UNSUPPORTED;
+  stringstream ss;
+  int date_value = val.value_.int_value_;
+  int year = date_value / 10000;
+  int month = (date_value / 100) % 100;
+  int day = date_value % 100;
+  ss << year << "-" << (month < 10 ? "0" : "") << month << "-" << (day < 10 ? "0" : "") << day;
+  result = ss.str();
+  return RC::SUCCESS;
 }

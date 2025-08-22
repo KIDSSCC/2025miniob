@@ -28,7 +28,6 @@ using namespace common;
 
 RC ParseStage::handle_request(SQLStageEvent *sql_event)
 {
-  LOG_INFO("ParseStage::handle_request, sql: %s", sql_event->sql().c_str());
   RC rc = RC::SUCCESS;
   LOG_INFO("parse stage start, sql: %s", sql_event->sql().c_str());
   SqlResult         *sql_result = sql_event->session_event()->sql_result();
@@ -36,13 +35,17 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
 
   ParsedSqlResult parsed_sql_result;
 
+  // 解析sql语句并记录ParsedSqlResult
   parse(sql.c_str(), &parsed_sql_result);
+
+  // sql语句解析结果为空
   if (parsed_sql_result.sql_nodes().empty()) {
     sql_result->set_return_code(RC::SUCCESS);
     sql_result->set_state_string("");
     return RC::INTERNAL;
   }
 
+  // 同时解析到多条sql语句
   if (parsed_sql_result.sql_nodes().size() > 1) {
     LOG_WARN("got multi sql commands but only 1 will be handled");
   }
@@ -56,6 +59,7 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
     return rc;
   }
 
+  // 设置要返回的sqlNode
   sql_event->set_sql_node(std::move(sql_node));
 
   return RC::SUCCESS;

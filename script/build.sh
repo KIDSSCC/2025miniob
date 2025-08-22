@@ -40,4 +40,4 @@ if [ "$d_flag" = true ]; then
     # 在这里编写需要在有 -d 选项时执行的操作
 fi
 
-make -j4
+make -j16

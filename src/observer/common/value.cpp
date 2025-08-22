@@ -28,6 +28,7 @@ Value::Value(bool val) { set_boolean(val); }
 
 Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
+// 拷贝构造
 Value::Value(const Value &other)
 {
   this->attr_type_ = other.attr_type_;
@@ -44,6 +45,7 @@ Value::Value(const Value &other)
   }
 }
 
+// 移动构造
 Value::Value(Value &&other)
 {
   this->attr_type_ = other.attr_type_;
@@ -54,6 +56,7 @@ Value::Value(Value &&other)
   other.length_    = 0;
 }
 
+// 拷贝赋值
 Value &Value::operator=(const Value &other)
 {
   if (this == &other) {
@@ -75,6 +78,7 @@ Value &Value::operator=(const Value &other)
   return *this;
 }
 
+// 移动赋值
 Value &Value::operator=(Value &&other)
 {
   if (this == &other) {
@@ -90,6 +94,7 @@ Value &Value::operator=(Value &&other)
   return *this;
 }
 
+// 重置 Value 对象
 void Value::reset()
 {
   switch (attr_type_) {
@@ -107,6 +112,7 @@ void Value::reset()
   own_data_  = false;
 }
 
+// 自动根据attr设置数据
 void Value::set_data(char *data, int length)
 {
   switch (attr_type_) {
@@ -124,6 +130,10 @@ void Value::set_data(char *data, int length)
     case AttrType::BOOLEANS: {
       value_.bool_value_ = *(int *)data != 0;
       length_            = length;
+    } break;
+    case AttrType::DATES: {
+      value_.int_value_ = *(int *)data;
+      length_           = length;
     } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
@@ -175,6 +185,7 @@ void Value::set_string(const char *s, int len /*= 0*/)
   }
 }
 
+// 自动根据other_value的类型设置当前值
 void Value::set_value(const Value &value)
 {
   switch (value.attr_type_) {

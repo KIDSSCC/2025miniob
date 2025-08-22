@@ -13,6 +13,33 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/char_type.h"
 #include "common/value.h"
 
+#include <regex>
+
+bool parse_date(const std::string& date_str, int& result){
+  // 用正则表达式匹配 YYYY-MM-DD
+  static const std::regex pattern(R"(^(\d{4})-(\d{2})-(\d{2})$)");
+  std::smatch match;
+
+  if (!std::regex_match(date_str, match, pattern)) {
+    return false; // 格式不符
+  }
+  try{
+    int year  = std::stoi(match[1].str());
+    int month = std::stoi(match[2].str());
+    int day   = std::stoi(match[3].str());
+
+    // 合法性检查
+    if (month < 1 || month > 12) return false;
+    if (day < 1 || day > 31) return false;
+
+    result = year * 10000 + month * 100 + day; // 转换为 YYYYMMDD 格式
+    return true;
+  } catch (...){
+    LOG_ERROR("Failed to parse date string: %s", date_str.c_str());
+    return false; // 转换失败
+  }
+}
+
 int CharType::compare(const Value &left, const Value &right) const
 {
   ASSERT(left.attr_type() == AttrType::CHARS && right.attr_type() == AttrType::CHARS, "invalid type");
@@ -29,6 +56,21 @@ RC CharType::set_value_from_str(Value &val, const string &data) const
 RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
 {
   switch (type) {
+    case AttrType::DATES:{
+      // 字符串转换为日期类型
+      string str = val.get_string();
+      int date_value = 0;
+      if (!parse_date(str, date_value)) {
+        LOG_WARN("Invalid date format: %s", str.c_str());
+        return RC::INVALID_ARGUMENT;  
+      }
+      else{
+        result.set_type(AttrType::DATES);
+        result.set_length(4);
+        result.value_.int_value_ = date_value;
+        return RC::SUCCESS;
+      }
+    }
     default: return RC::UNIMPLEMENTED;
   }
   return RC::SUCCESS;

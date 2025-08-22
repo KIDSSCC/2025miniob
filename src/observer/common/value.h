@@ -19,6 +19,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/attr_type.h"
 #include "common/type/data_type.h"
 
+#include "common/log/log.h"
+
 /**
  * @brief 属性的值
  * @ingroup DataType
@@ -83,10 +85,12 @@ public:
 
   static RC cast_to(const Value &value, AttrType to_type, Value &result)
   {
+    LOG_DEBUG("cast value from %s to %s", attr_type_to_string(value.attr_type()), attr_type_to_string(to_type));
     return DataType::type_instance(value.attr_type())->cast_to(value, to_type, result);
   }
 
   void set_type(AttrType type) { this->attr_type_ = type; }
+  void set_length(int length) { this->length_ = length; }
   void set_data(char *data, int length);
   void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
   void set_value(const Value &value);
