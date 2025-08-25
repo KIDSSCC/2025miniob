@@ -56,6 +56,8 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
   Optimizer optimizer;
   // TODO: error handle
   unique_ptr<PhysicalOperator> physical_operator;
+
+  // cascade级联选项是通过set语句手动启用的，一般可能用不上
   if (sql_event->session_event()->session()->use_cascade()) {
     physical_operator = optimizer.optimize(logical_operator.get());
     if (!physical_operator) {
@@ -121,6 +123,7 @@ RC OptimizeStage::rewrite(unique_ptr<LogicalOperator> &logical_operator)
   return rc;
 }
 
+// 调用逻辑计划生成器
 RC OptimizeStage::create_logical_plan(SQLStageEvent *sql_event, unique_ptr<LogicalOperator> &logical_operator)
 {
   Stmt *stmt = sql_event->stmt();

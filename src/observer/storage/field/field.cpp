@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 
 void Field::set_int(Record &record, int value)
 {
+  // 将一个整型拷贝到record中
   ASSERT(field_->type() == AttrType::INTS, "could not set int value to a non-int field");
   ASSERT(field_->len() == sizeof(value), "invalid field len");
 
@@ -28,8 +29,10 @@ void Field::set_int(Record &record, int value)
 
 int Field::get_int(const Record &record)
 {
+  // 从一条record中获取整型值
   Value value(field_->type(), const_cast<char *>(record.data() + field_->offset()), field_->len());
   return value.get_int();
 }
 
+// 从record中获取数据
 const char *Field::get_data(const Record &record) { return record.data() + field_->offset(); }

@@ -52,6 +52,7 @@ public:
   virtual Index *find_index(const char *index_name) const                                    = 0;
   virtual Index *find_index_by_field(const char *field_name) const                           = 0;
   virtual RC     open()                                                                      = 0;
+  virtual const vector<Index *> &indexes() const = 0;
   // TODO: remove this function
   virtual RC init() = 0;
 

@@ -974,6 +974,13 @@ RC BplusTreeHandler::close()
   return RC::SUCCESS;
 }
 
+RC BplusTreeHandler::drop(BufferPoolManager &bpm, const char *file_name)
+{
+  // 无需关闭，想办法删除
+  bpm.delete_file(file_name);
+  return RC::SUCCESS;
+}
+
 RC BplusTreeHandler::print_leaf(Frame *frame)
 {
   BplusTreeMiniTransaction mtr(*this);

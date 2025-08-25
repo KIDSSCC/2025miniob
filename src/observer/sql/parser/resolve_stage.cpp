@@ -27,6 +27,7 @@ See the Mulan PSL v2 for more details. */
 
 using namespace common;
 
+// sqlNode转换为对应的stmt对象
 RC ResolveStage::handle_request(SQLStageEvent *sql_event)
 {
   RC            rc            = RC::SUCCESS;

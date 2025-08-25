@@ -128,6 +128,39 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
   return rc;
 }
 
+RC Table::drop()
+{
+  RC rc = RC::SUCCESS;
+
+  // 从engine_侧删除所有索引
+  auto all_index = engine_->indexes();
+  for(Index* idx : all_index){
+    rc = idx->drop();
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to drop index. table name=%s, index name=%s", table_meta_.name(), idx->index_meta().name());
+      return rc;
+    }
+  }
+
+  // 删除元数据文件
+  string meta_file = table_meta_file(db_->path().c_str(), table_meta_.name());
+  if (remove(meta_file.c_str()) != 0) {
+    LOG_ERROR("Failed to remove table meta file. file name=%s, errmsg=%s", meta_file.c_str(), strerror(errno));
+    rc = RC::FILE_REMOVE;
+  } else {
+    LOG_INFO("Successfully remove table meta file. file name=%s", meta_file.c_str());
+  }
+
+  // 删除数据文件
+  string data_file = table_data_file(db_->path().c_str(), table_meta_.name());
+  BufferPoolManager &bpm       = db_->buffer_pool_manager();
+  bpm.close_file(data_file.c_str());
+  bpm.delete_file(data_file.c_str());
+  LOG_INFO("Successfully remove table data file. file name=%s", data_file.c_str());
+
+  return rc;
+}
+
 RC Table::open(Db *db, const char *meta_file, const char *base_dir)
 {
   // 加载元数据文件

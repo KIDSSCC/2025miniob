@@ -160,7 +160,7 @@ RC Db::create_table(const char *table_name, span<const AttrInfoSqlNode> attribut
   }
 
   // 文件路径可以移到Table模块
-  string  table_file_path = table_meta_file(path_.c_str(), table_name);
+  string  table_file_path = table_meta_file(path_.c_str(), table_name);     // .table文件
   Table  *table           = new Table();
   int32_t table_id        = next_table_id_++;
   rc = table->create(this, table_id, table_file_path.c_str(), table_name, path_.c_str(), attributes, primary_keys, storage_format,
@@ -176,8 +176,31 @@ RC Db::create_table(const char *table_name, span<const AttrInfoSqlNode> attribut
   return RC::SUCCESS;
 }
 
+RC Db::drop_table(const char *table_name)
+{
+  RC rc = RC::SUCCESS;
+
+  Table* table = find_table(table_name);
+  if(table == nullptr) {
+    LOG_WARN("%s has not been opened before.", table_name);
+    return rc;
+  }
+
+  // 调用table->drop删除表的元数据文件和数据文件，并清理相关资源
+  rc = table->drop();
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to drop table. table name=%s, rc=%d:%s", table_name, rc, strrc(rc));
+    return rc;
+  }
+
+  opened_tables_.erase(table_name);
+  LOG_INFO("Drop table success. table name=%s", table_name);
+  return rc;
+}
+
 Table *Db::find_table(const char *table_name) const
 {
+  // 直接在unordered_map容器中进行查找
   unordered_map<string, Table *>::const_iterator iter = opened_tables_.find(table_name);
   if (iter != opened_tables_.end()) {
     return iter->second;
@@ -187,6 +210,7 @@ Table *Db::find_table(const char *table_name) const
 
 Table *Db::find_table(int32_t table_id) const
 {
+  // 根据每一个table对象记录的table_id进行查询
   for (auto pair : opened_tables_) {
     if (pair.second->table_id() == table_id) {
       return pair.second;
@@ -238,6 +262,7 @@ const char *Db::name() const { return name_.c_str(); }
 
 void Db::all_tables(vector<string> &table_names) const
 {
+  // 遍历unordered_map容器，获取所有的表名
   for (const auto &table_item : opened_tables_) {
     table_names.emplace_back(table_item.first);
   }
@@ -317,6 +342,7 @@ RC Db::recover()
 
 RC Db::init_meta()
 {
+  // 获取DB元数据文件路径
   filesystem::path db_meta_file_path = db_meta_file(path_.c_str(), name_.c_str());
   if (!filesystem::exists(db_meta_file_path)) {
     check_point_lsn_ = 0;
@@ -324,6 +350,7 @@ RC Db::init_meta()
     return RC::SUCCESS;
   }
 
+  // 打开元数据文件
   RC  rc = RC::SUCCESS;
   int fd = open(db_meta_file_path.c_str(), O_RDONLY);
   if (fd < 0) {
@@ -345,6 +372,7 @@ RC Db::init_meta()
       return RC::IOERR_TOO_LONG;
     }
 
+    // 正确读取了元数据文件
     buffer[n]        = '\0';
     check_point_lsn_ = atoll(buffer);  // 当前元数据就这一个数字
     LOG_INFO("Successfully read db meta file. db=%s, file=%s, check_point_lsn=%ld", 

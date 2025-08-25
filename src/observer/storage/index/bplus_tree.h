@@ -477,6 +477,7 @@ public:
    * 关闭句柄indexHandle对应的索引文件
    */
   RC close();
+  RC drop(BufferPoolManager &bpm, const char *file_name);
 
   /**
    * @brief 此函数向IndexHandle对应的索引中插入一个索引项。

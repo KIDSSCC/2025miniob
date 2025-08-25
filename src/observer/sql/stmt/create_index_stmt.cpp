@@ -21,10 +21,15 @@ See the Mulan PSL v2 for more details. */
 using namespace std;
 using namespace common;
 
+// 创建索引语句
+// db: 当前操作的数据库
+// create_index: 解析器生成的create index语句
+// stmt: 输出参数，创建成功后返回CreateIndexStmt对象
 RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt *&stmt)
 {
   stmt = nullptr;
 
+  // 创建索引需同时指定表名、索引名、字段名
   const char *table_name = create_index.relation_name.c_str();
   if (is_blank(table_name) || is_blank(create_index.index_name.c_str()) ||
       is_blank(create_index.attribute_name.c_str())) {

@@ -44,6 +44,7 @@ public:
 
   Index *find_index(const char *index_name) const override;
   Index *find_index_by_field(const char *field_name) const override;
+  const vector<Index *> &indexes() const  { return indexes_; }
   RC     open() override;
   // init_record_handler
   RC init() override;

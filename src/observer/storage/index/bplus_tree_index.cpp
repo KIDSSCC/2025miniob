@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "storage/index/bplus_tree_index.h"
 #include "common/log/log.h"
+#include "storage/common/meta_util.h"
 #include "storage/table/table.h"
 #include "storage/db/db.h"
 
@@ -77,6 +78,20 @@ RC BplusTreeIndex::close()
     inited_ = false;
   }
   LOG_INFO("Successfully close index.");
+  return RC::SUCCESS;
+}
+
+RC BplusTreeIndex::drop()
+{
+  // 先关闭，再调用删除
+  if(inited_){
+    BufferPoolManager &bpm = table_->db()->buffer_pool_manager();
+    string          index_file = table_index_file(table_->db()->path().c_str(), table_->name(), this->index_meta_.name());
+    index_handler_.close();
+    index_handler_.drop(bpm, index_file.c_str());
+    inited_ = false;
+  }
+  LOG_INFO("Successfully drop index.");
   return RC::SUCCESS;
 }
 

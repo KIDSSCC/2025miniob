@@ -36,11 +36,13 @@ FieldMeta::FieldMeta(const char *name, AttrType attr_type, int attr_offset, int 
 
 RC FieldMeta::init(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool visible, int field_id)
 {
+  // 字段名称
   if (common::is_blank(name)) {
     LOG_WARN("Name cannot be empty");
     return RC::INVALID_ARGUMENT;
   }
 
+  // 检查有效性
   if (AttrType::UNDEFINED == attr_type || attr_offset < 0 || attr_len <= 0) {
     LOG_WARN("Invalid argument. name=%s, attr_type=%d, attr_offset=%d, attr_len=%d",
               name, attr_type, attr_offset, attr_len);
@@ -72,6 +74,7 @@ int FieldMeta::field_id() const { return field_id_; }
 
 void FieldMeta::desc(ostream &os) const
 {
+  // 序列化
   os << "field name=" << name_ << ", type=" << attr_type_to_string(attr_type_) << ", len=" << attr_len_
      << ", visible=" << (visible_ ? "yes" : "no");
 }

@@ -50,11 +50,13 @@ RC TableMeta::init(int32_t table_id, const char *name, const vector<FieldMeta> *
                    span<const AttrInfoSqlNode> attributes, const vector<string> &primary_keys, StorageFormat storage_format,
                    StorageEngine storage_engine)
 {
+  // 表名
   if (common::is_blank(name)) {
     LOG_ERROR("Name cannot be empty");
     return RC::INVALID_ARGUMENT;
   }
 
+  // 字段的数量
   if (attributes.size() == 0) {
     LOG_ERROR("Invalid argument. name=%s, field_num=%d", name, attributes.size());
     return RC::INVALID_ARGUMENT;
@@ -64,7 +66,7 @@ RC TableMeta::init(int32_t table_id, const char *name, const vector<FieldMeta> *
 
   int field_offset  = 0;
   int trx_field_num = 0;
-
+  // 全部字段包含事务字段和属性字段，先排列事务字段
   if (trx_fields != nullptr) {
     trx_fields_ = *trx_fields;
 
