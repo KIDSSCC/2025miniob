@@ -134,10 +134,10 @@ RC Table::drop()
 
   // 从engine_侧删除所有索引
   auto all_index = engine_->indexes();
-  for(Index* idx : all_index){
-    rc = idx->drop();
+  for(int i = 0; i<(int)all_index.size();i++){
+    rc = all_index[i]->drop();
     if (rc != RC::SUCCESS) {
-      LOG_ERROR("Failed to drop index. table name=%s, index name=%s", table_meta_.name(), idx->index_meta().name());
+      LOG_ERROR("Failed to drop index. table name=%s, index name=%s", table_meta_.name(), all_index[i]->index_meta().name());
       return rc;
     }
   }
@@ -154,7 +154,7 @@ RC Table::drop()
   // 删除数据文件
   string data_file = table_data_file(db_->path().c_str(), table_meta_.name());
   BufferPoolManager &bpm       = db_->buffer_pool_manager();
-  bpm.close_file(data_file.c_str());
+  // bpm.close_file(data_file.c_str());
   bpm.delete_file(data_file.c_str());
   LOG_INFO("Successfully remove table data file. file name=%s", data_file.c_str());
 

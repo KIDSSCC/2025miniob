@@ -282,7 +282,6 @@ RC DiskBufferPool::close_file()
   if (file_desc_ < 0) {
     return rc;
   }
-
   hdr_frame_->unpin();
 
   // TODO: 理论上是在回放时回滚未提交事务，但目前没有undo log，因此不下刷数据page，只通过redo log回放

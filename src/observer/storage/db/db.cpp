@@ -192,6 +192,7 @@ RC Db::drop_table(const char *table_name)
     LOG_ERROR("Failed to drop table. table name=%s, rc=%d:%s", table_name, rc, strrc(rc));
     return rc;
   }
+  delete table;
 
   opened_tables_.erase(table_name);
   LOG_INFO("Drop table success. table name=%s", table_name);
