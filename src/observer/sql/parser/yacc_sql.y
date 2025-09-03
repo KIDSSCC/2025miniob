@@ -478,6 +478,8 @@ update_stmt:      /*  update 语句的语法解析树*/
         $$->update.conditions.swap(*$7);
         delete $7;
       }
+
+      delete $6;
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/

@@ -1,7 +1,6 @@
-CREATE TABLE date_table(id int, u_date date);
-CREATE INDEX index_id on date_table(u_date);
-INSERT INTO date_table VALUES (1,'2020-01-21');
-INSERT INTO date_table VALUES (2,'2020-10-21');
-INSERT INTO date_table VALUES (3,'2020-1-01');
+CREATE TABLE update_table_1(id int, t_name char(20), col1 int, col2 int);
+CREATE INDEX index_id on update_table_1(id);
+INSERT INTO update_table_1 VALUES (43, '5WPUZQMS31444U', 25, 6);
+INSERT INTO update_table_1 VALUES (86, 'MHFUIHOGL', 3, 58);
 
-SELECT * FROM date_table WHERE u_date>'2020-1-20';
+UPDATE update_table_1 SET t_name='6' WHERE id=43;

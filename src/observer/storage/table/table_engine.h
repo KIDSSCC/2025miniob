@@ -39,6 +39,7 @@ public:
 
   virtual RC insert_record(Record &record)                                                        = 0;
   virtual RC delete_record(const Record &record)                                                  = 0;
+  virtual RC update_record(const Record &old_record, const Record &new_record)                  = 0;
   virtual RC insert_record_with_trx(Record &record, Trx *trx)                                     = 0;
   virtual RC delete_record_with_trx(const Record &record, Trx *trx)                               = 0;
   virtual RC update_record_with_trx(const Record &old_record, const Record &new_record, Trx *trx) = 0;

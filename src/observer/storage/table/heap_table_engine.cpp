@@ -39,12 +39,15 @@ HeapTableEngine::~HeapTableEngine()
 RC HeapTableEngine::insert_record(Record &record)
 {
   RC rc = RC::SUCCESS;
+
+  // 先直接通过record_handler插入记录，并获取rid
   rc    = record_handler_->insert_record(record.data(), table_meta_->record_size(), &record.rid());
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Insert record failed. table name=%s, rc=%s", table_meta_->name(), strrc(rc));
     return rc;
   }
 
+  // 再将记录插入到各个索引中，若插入索引失败，则回滚删除之前的插入操作
   rc = insert_entry_of_indexes(record.data(), record.rid());
   if (rc != RC::SUCCESS) {  // 可能出现了键值重复
     RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false /*error_on_not_exists*/);
@@ -87,6 +90,27 @@ RC HeapTableEngine::delete_record(const Record &record)
            table_meta_->name(), index->index_meta().name(), record.rid().to_string().c_str(), strrc(rc));
   }
   rc = record_handler_->delete_record(&record.rid());
+  return rc;
+}
+
+RC HeapTableEngine::update_record(const Record &old_record, const Record &new_record)
+{
+  RC rc = RC::SUCCESS;
+
+  // 先删除
+  rc = this->delete_record(old_record);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to delete old record during update. table=%s, rc=%s", table_meta_->name(), strrc(rc));
+    return rc;
+  }
+
+  // 再插入
+  rc = this->insert_record(const_cast<Record&>(new_record));
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to insert new record during update. table=%s, rc=%s", table_meta_->name(), strrc(rc));
+    return rc;
+  }
+
   return rc;
 }
 

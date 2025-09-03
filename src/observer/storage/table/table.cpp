@@ -259,6 +259,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   for (int i = 0; i < value_num && OB_SUCC(rc); i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &    value = values[i];
+    // 对比要插入的新的value的类型和表中对应字段的类型是否一致，如果类型不一致，尝试通过cast_to将转换生成新的real_value
     if (field->type() != value.attr_type()) {
       Value real_value;
       rc = Value::cast_to(value, field->type(), real_value);
@@ -280,6 +281,27 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
 
   record.set_data_owner(record_data, record_size);
   return RC::SUCCESS;
+}
+
+RC Table::make_record_from_record(const Record &src_record, Record &dest_record, int field_idx, const Value *new_value)
+{
+  RC rc = RC::SUCCESS;
+
+  dest_record = Record(src_record); // 先拷贝旧的record
+  const FieldMeta *field = table_meta_.field(field_idx);
+  if(field->type() != new_value->attr_type()){
+    Value real_value;
+    rc = Value::cast_to(*new_value, field->type(), real_value);
+    if (OB_FAIL(rc)) {
+        LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
+            table_meta_.name(), field->name(), (*new_value).to_string().c_str());
+    }
+    rc = set_value_to_record(dest_record.data(), real_value, field);
+  } else {
+    rc = set_value_to_record(dest_record.data(), *new_value, field);
+  }
+  
+  return rc;
 }
 
 RC Table::set_value_to_record(char *record_data, const Value &value, const FieldMeta *field)
@@ -313,6 +335,11 @@ RC Table::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_
 RC Table::delete_record(const Record &record)
 {
   return engine_->delete_record(record);
+}
+
+RC Table::update_record(const Record &old_record, const Record &new_record)
+{
+  return engine_->update_record(old_record, new_record);
 }
 
 Index *Table::find_index(const char *index_name) const
