@@ -1,6 +1,5 @@
-CREATE TABLE update_table_1(id int, t_name char(20), col1 int, col2 int);
-CREATE INDEX index_id on update_table_1(id);
-INSERT INTO update_table_1 VALUES (43, '5WPUZQMS31444U', 25, 6);
-INSERT INTO update_table_1 VALUES (86, 'MHFUIHOGL', 3, 58);
-
-UPDATE update_table_1 SET t_name='6' WHERE id=43;
+create table t1 (id int, t_name char(20), col1 int, col2 int);
+create index index_id on t1(id);
+insert into t1 values(38, 'BL', 34, 55);
+insert into t1 values(88, 'DLGDOPGI', 61, 57);
+update t1 set id=37 where t_name = 'BL';

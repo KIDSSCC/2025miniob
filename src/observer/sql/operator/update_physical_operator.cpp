@@ -53,7 +53,6 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   for (Record &record : records_) {
     // 根据旧的record创建新的record
     Record new_record;
-    LOG_TRACE("field_index_ is %d", field_index_);
     rc = table_->make_record_from_record(record, new_record, field_index_, &new_value_);
     rc = trx_->update_record(table_, record, new_record);
     if (rc != RC::SUCCESS) {

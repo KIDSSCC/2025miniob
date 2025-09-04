@@ -258,6 +258,7 @@ public:
   const RID    &rid() const { return rid_; }
   void          set_key(const string &key) { key_ = key; }
   const string &key() const { return key_; }
+  const bool    is_owner() const {return owner_;}
 
 private:
   RID    rid_;

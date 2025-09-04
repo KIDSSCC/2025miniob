@@ -1798,7 +1798,6 @@ RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid)
     return RC::NOMEM;
   }
   char *key = static_cast<char *>(pkey.get());
-
   memcpy(key, user_key, file_header_.attr_length);
   memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
 

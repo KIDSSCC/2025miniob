@@ -287,7 +287,7 @@ RC Table::make_record_from_record(const Record &src_record, Record &dest_record,
 {
   RC rc = RC::SUCCESS;
 
-  dest_record = Record(src_record); // 先拷贝旧的record
+  dest_record.copy_data(src_record.data(), src_record.len()); // 先拷贝旧的record
   const FieldMeta *field = table_meta_.field(field_idx);
   if(field->type() != new_value->attr_type()){
     Value real_value;
