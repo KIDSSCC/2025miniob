@@ -143,6 +143,15 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     case GREAT_THAN: {
       result = (cmp_result > 0);
     } break;
+    case LIKE_OP: {
+      int like_result = left.like(right);
+      if (like_result < 0) {
+        LOG_WARN("failed to compare value with like operator");
+        rc = RC::INTERNAL;
+      } else {
+        result = (like_result != 0);
+      }
+    } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
       rc = RC::INTERNAL;
@@ -256,6 +265,7 @@ ConjunctionExpr::ConjunctionExpr(Type type, vector<unique_ptr<Expression>> &chil
 
 RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
 {
+  // tuple为当前要进行判断的record，判断的结果写入value
   RC rc = RC::SUCCESS;
   if (children_.empty()) {
     value.set_boolean(true);

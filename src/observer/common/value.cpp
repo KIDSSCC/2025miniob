@@ -250,6 +250,15 @@ string Value::to_string() const
 
 int Value::compare(const Value &other) const { return DataType::type_instance(this->attr_type_)->compare(*this, other); }
 
+int Value::like(const Value &othrt) const
+{
+  if (this->attr_type_ != AttrType::CHARS || othrt.attr_type_ != AttrType::CHARS) {
+    LOG_WARN("LIKE operator only supports CHARS type");
+    return -1; // or some error code
+  }
+  return DataType::type_instance(AttrType::CHARS)->like_compare(*this, othrt);
+}
+
 int Value::get_int() const
 {
   switch (attr_type_) {

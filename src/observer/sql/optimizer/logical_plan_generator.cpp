@@ -155,11 +155,14 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
   return RC::SUCCESS;
 }
 
+// 针对条件过滤谓词生成逻辑计划
 RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
   RC                                  rc = RC::SUCCESS;
   vector<unique_ptr<Expression>> cmp_exprs;
   const vector<FilterUnit *>    &filter_units = filter_stmt->filter_units();
+
+  // 将FilterUnit逐一转换为ComparisonExpr
   for (const FilterUnit *filter_unit : filter_units) {
     const FilterObj &filter_obj_left  = filter_unit->left();
     const FilterObj &filter_obj_right = filter_unit->right();
@@ -181,6 +184,8 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
         ExprType left_type = left->type();
         auto cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
 
+        // 左值可能是一个字段，也可能是一个值，无论是哪一种，都首先生成了一个CastExpr。
+        // 如果左值是一个常量值，则直接通过CastExpr获取其值，形成一个ValueExpr，如果左值是一个字段，则保留为CastExpr
         // 如果左边是ValueExpr，直接转换为ValueExpr，否则转换为CastExpr
         if (left_type == ExprType::VALUE) {
           Value left_val;
@@ -224,6 +229,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
 
   unique_ptr<PredicateLogicalOperator> predicate_oper;
   if (!cmp_exprs.empty()) {
+    // conjunction_expr，将若干ComparisonExpr以何种逻辑进行连接，默认是and逻辑
     unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
     predicate_oper = unique_ptr<PredicateLogicalOperator>(new PredicateLogicalOperator(std::move(conjunction_expr)));
   }
@@ -290,6 +296,7 @@ RC LogicalPlanGenerator::create_plan(DeleteStmt *delete_stmt, unique_ptr<Logical
 
   unique_ptr<LogicalOperator> predicate_oper;
 
+  // 在包含where字段时，predicate_oper最终获得一个PredicateLogicalOperator
   RC rc = create_plan(filter_stmt, predicate_oper);
   if (rc != RC::SUCCESS) {
     return rc;

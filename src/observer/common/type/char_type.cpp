@@ -50,6 +50,66 @@ int CharType::compare(const Value &left, const Value &right) const
       (void *)left.value_.pointer_value_, left.length_, (void *)right.value_.pointer_value_, right.length_);
 }
 
+int CharType::like_compare(const Value &left, const Value &right) const
+{
+  ASSERT(left.attr_type() == AttrType::CHARS && right.attr_type() == AttrType::CHARS, "invalid type");
+  const char *str = left.value_.pointer_value_;
+  const char *pat = right.value_.pointer_value_;
+  int         slen = left.length_;
+  int         plen = right.length_;
+
+  int i = 0;        // left 当前匹配位置
+  int j = 0;        // right 当前匹配位置
+  int last_star = -1;   // 最近一个 '%' 在 right 中的位置
+  int last_star_pos_in_left = 0; // 当时 left 的位置，用于回溯
+  while (i < slen) {
+    if(j < plen){
+      char p = pat[j];
+      if (p == '%') {
+        // 记录 '%' 的位置，并尝试匹配零个字符
+        last_star = j;
+        last_star_pos_in_left = i;
+        j++;  // 移动到下一个模式字符
+        continue;
+      }
+      // 普通字符或 '_' 匹配
+      bool matched = false;
+      if (p == '_') {
+        // '_' 匹配一个非单引号字符
+        if (str[i] != '\'') {
+            matched = true;
+        }
+      }else{
+        // 普通字符必须完全相等，且不能是 '\''
+        if (str[i] == p && str[i] != '\'') {
+            matched = true;
+        }
+      }
+      if (matched) {
+        i++;
+        j++;
+        continue;
+      }
+    }
+    // 如果当前无法匹配，且之前有 '%'，尝试让 '%' 多吞一个字符
+    if (last_star != -1) {
+      // 回溯：让 '%' 多覆盖一个字符
+      last_star_pos_in_left++;
+      i = last_star_pos_in_left;
+      j = last_star + 1;  // 模式回到 '%' 后一位
+      continue;
+    }
+    // 无法匹配，且无回溯点
+    return 0;
+  }
+  // left 已匹配完，跳过 right 末尾所有连续的 '%'
+  while (j < plen && pat[j] == '%') {
+      j++;
+  }
+  // 所有模式字符都处理完才算匹配成功
+  return j == plen;
+}
+
 RC CharType::set_value_from_str(Value &val, const string &data) const
 {
   val.set_string(data.c_str());

@@ -24,6 +24,7 @@ class Db;
 class Table;
 class FieldMeta;
 
+// 用于比较的对象，可能是表中的某一字段，也可能是某一常量值
 struct FilterObj
 {
   bool  is_attr;
@@ -43,6 +44,7 @@ struct FilterObj
   }
 };
 
+// 最小的比较单元，包含左值，比较，右值
 class FilterUnit
 {
 public:

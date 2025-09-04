@@ -100,6 +100,8 @@ public:
 
   int compare(const Value &other) const;
 
+  int like(const Value &othrt) const;
+
   const char *data() const;
 
   int      length() const { return length_; }

@@ -48,6 +48,9 @@ public:
    */
   virtual int compare(const Value &left, const Value &right) const { return INT32_MAX; }
 
+  // 检查 left like right 是否成立，成立返回1，不成立返回0
+  virtual int like_compare(const Value &left, const Value &right) const { return INT32_MAX; }
+
   /**
    * @brief 计算 left + right，并将结果保存到 result 中
    */

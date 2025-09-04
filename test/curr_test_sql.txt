@@ -1,5 +1,6 @@
-create table t1 (id int, t_name char(20), col1 int, col2 int);
-create index index_id on t1(id);
-insert into t1 values(38, 'BL', 34, 55);
-insert into t1 values(88, 'DLGDOPGI', 61, 57);
-update t1 set id=37 where t_name = 'BL';
+CREATE TABLE like_table(id int, name char(30));
+insert into like_table VALUES (0, 'coconut');
+insert into like_table VALUES (1, 'apple');
+insert into like_table VALUES (2, 'banana');
+insert into like_table VALUES (3, 'pineapple');
+SELECT * FROM like_table WHERE name LIKE 'c%';

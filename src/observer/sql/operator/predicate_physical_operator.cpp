@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 
 PredicatePhysicalOperator::PredicatePhysicalOperator(std::unique_ptr<Expression> expr) : expression_(std::move(expr))
 {
+  // 谓词算子用于过滤的表达式，必须能够针对一个tuple进行bool类型的判断，从而选择是否接收
   ASSERT(expression_->value_type() == AttrType::BOOLEANS, "predicate's expression should be BOOLEAN type");
 }
 
@@ -30,6 +31,7 @@ RC PredicatePhysicalOperator::open(Trx *trx)
     return RC::INTERNAL;
   }
 
+  // 谓词算子的子算子，一般可以是table_get算子
   return children_[0]->open(trx);
 }
 
@@ -46,12 +48,14 @@ RC PredicatePhysicalOperator::next()
       break;
     }
 
+    // 谓词算子的表达式一般可以是 ConjunctionExpr，通过ConjunctionExpr计算tuple的值
     Value value;
     rc = expression_->get_value(*tuple, value);
     if (rc != RC::SUCCESS) {
       return rc;
     }
 
+    // 不断循环，直至找到一个使 ConjunctionExpr 表达式为true的tuple
     if (value.get_boolean()) {
       return rc;
     }

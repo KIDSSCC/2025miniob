@@ -37,6 +37,7 @@ RC FilterStmt::create(Db *db, Table *default_table, unordered_map<string, Table 
   for (int i = 0; i < condition_num; i++) {
     FilterUnit *filter_unit = nullptr;
 
+    // 逐一遍历ConditionSqlNode，创建ConditionSqlNode
     rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
     if (rc != RC::SUCCESS) {
       delete tmp_stmt;
@@ -53,6 +54,7 @@ RC FilterStmt::create(Db *db, Table *default_table, unordered_map<string, Table 
 RC get_table_and_field(Db *db, Table *default_table, unordered_map<string, Table *> *tables,
     const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field)
 {
+  // 确定attr这一属性对应的表的Table指针，赋值到table上
   if (common::is_blank(attr.relation_name.c_str())) {
     table = default_table;
   } else if (nullptr != tables) {
@@ -68,6 +70,7 @@ RC get_table_and_field(Db *db, Table *default_table, unordered_map<string, Table
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
+  // 确定attr所对应的字段
   field = table->table_meta().field(attr.attribute_name.c_str());
   if (nullptr == field) {
     LOG_WARN("no such field in table: table %s, field %s", table->name(), attr.attribute_name.c_str());
