@@ -89,7 +89,8 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
         condition_node.left_expression.reset(left.release());
       }
     }
-
+    condition_expessions.clear();
+    
     if(condition_node.right_is_attr == 2){
       // 右值为表达式
       RC rc = expression_binder.bind_expression(condition_node.right_expression, condition_expessions);
