@@ -152,6 +152,15 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
         result = (like_result != 0);
       }
     } break;
+    case NOT_LIKE:{
+      int like_result = left.like(right);
+      if (like_result < 0) {
+        LOG_WARN("failed to compare value with like operator");
+        rc = RC::INTERNAL;
+      } else {
+        result = (like_result == 0);
+      }
+    } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
       rc = RC::INTERNAL;
