@@ -186,7 +186,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     }
 
     // 条件过滤语句，左右Value类型不一致时，按照转换开销进行转换并比较
-    
+
     if (left->value_type() != right->value_type()) {
       auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
       auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
@@ -390,12 +390,15 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
     return rc;
   };
   
-
   for (unique_ptr<Expression> &expression : query_expressions) {
     bind_group_by_expr(expression);
   }
-
+  
+  LOG_DEBUG("size of query_expressions is %d", query_expressions.size());
   for (unique_ptr<Expression> &expression : query_expressions) {
+    if(expression == nullptr){
+      LOG_DEBUG("expression is nullptr");
+    }
     find_unbound_column(expression);
   }
 

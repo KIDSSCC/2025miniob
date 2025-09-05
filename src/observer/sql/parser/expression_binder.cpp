@@ -355,6 +355,7 @@ RC ExpressionBinder::bind_arithmetic_expression(
   
 
   bound_expressions.emplace_back(std::move(expr));
+  LOG_DEBUG("bound_expressions size is %d", bound_expressions.size());
   return RC::SUCCESS;
 }
 
