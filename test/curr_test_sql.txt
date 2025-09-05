@@ -1,6 +1,5 @@
-CREATE TABLE like_table(id int, name char(30));
-insert into like_table VALUES (0, 'coconut');
-insert into like_table VALUES (1, 'apple');
-insert into like_table VALUES (2, 'banana');
-insert into like_table VALUES (3, 'pineapple');
-SELECT * FROM like_table WHERE name LIKE 'c%';
+create table exp_table(id int, col1 int, col2 int, col3 float, col4 float);
+create table exp_table2(id int, col1 int);
+insert into exp_table VALUES (8, 5, 4, 8.7, 2.34);
+insert into exp_table VALUES (3, 1, 5, 2.03, 3.53);
+select * from exp_table where 8+col2 < 14;

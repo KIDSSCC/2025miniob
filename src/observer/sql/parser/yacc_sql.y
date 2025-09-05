@@ -630,54 +630,90 @@ condition_list:
     }
     ;
 condition:
-    rel_attr comp_op value
+    expression comp_op expression
     {
       $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
+      Expression * left_exp = $1;
+      Expression * right_exp = $3;
+      if(left_exp->type()==ExprType::UNBOUND_FIELD){
+        // 左值是一个字段
+        $$->left_is_attr = 1;
+        $$->left_attr.relation_name = static_cast<UnboundFieldExpr*>(left_exp)->table_name();
+        $$->left_attr.attribute_name = static_cast<UnboundFieldExpr*>(left_exp)->field_name();
+      }else if(left_exp->type()==ExprType::VALUE){
+        // 左值是一个常量值
+        $$->left_is_attr = 0;
+        $$->left_value =  static_cast<ValueExpr*>(left_exp)->get_value();
+      }else{
+        // TODO: 左值是一个表达式
+      }
 
+      if(right_exp->type()==ExprType::UNBOUND_FIELD){
+        // 右值是一个字段
+        $$->right_is_attr = 1;
+        $$->right_attr.relation_name = static_cast<UnboundFieldExpr*>(right_exp)->table_name();
+        $$->right_attr.attribute_name = static_cast<UnboundFieldExpr*>(right_exp)->field_name();
+      }else if(right_exp->type()==ExprType::VALUE){
+        // 右值是一个常量值
+        $$->right_is_attr = 0;
+        $$->right_value =  static_cast<ValueExpr*>(right_exp)->get_value();
+      }else{
+        // TODO: 右值是一个表达式
+      }
+
+      $$->comp = $2;
       delete $1;
       delete $3;
-    }
-    | value comp_op value 
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
 
-      delete $1;
-      delete $3;
     }
-    | rel_attr comp_op rel_attr
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
+    // rel_attr comp_op value
+    // {
+    //   $$ = new ConditionSqlNode;
+    //   $$->left_is_attr = 1;
+    //   $$->left_attr = *$1;
+    //   $$->right_is_attr = 0;
+    //   $$->right_value = *$3;
+    //   $$->comp = $2;
 
-      delete $1;
-      delete $3;
-    }
-    | value comp_op rel_attr
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
+    //   delete $1;
+    //   delete $3;
+    // }
+    // | value comp_op value 
+    // {
+    //   $$ = new ConditionSqlNode;
+    //   $$->left_is_attr = 0;
+    //   $$->left_value = *$1;
+    //   $$->right_is_attr = 0;
+    //   $$->right_value = *$3;
+    //   $$->comp = $2;
 
-      delete $1;
-      delete $3;
-    }
+    //   delete $1;
+    //   delete $3;
+    // }
+    // | rel_attr comp_op rel_attr
+    // {
+    //   $$ = new ConditionSqlNode;
+    //   $$->left_is_attr = 1;
+    //   $$->left_attr = *$1;
+    //   $$->right_is_attr = 1;
+    //   $$->right_attr = *$3;
+    //   $$->comp = $2;
+
+    //   delete $1;
+    //   delete $3;
+    // }
+    // | value comp_op rel_attr
+    // {
+    //   $$ = new ConditionSqlNode;
+    //   $$->left_is_attr = 0;
+    //   $$->left_value = *$1;
+    //   $$->right_is_attr = 1;
+    //   $$->right_attr = *$3;
+    //   $$->comp = $2;
+
+    //   delete $1;
+    //   delete $3;
+    // }
     ;
 
 comp_op:
