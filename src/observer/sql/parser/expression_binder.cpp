@@ -314,10 +314,18 @@ RC ExpressionBinder::bind_arithmetic_expression(
   }
 
   auto arithmetic_expr = static_cast<ArithmeticExpr *>(expr.get());
+  LOG_DEBUG("type of arithmetic_expr is %d", arithmetic_expr->arithmetic_type());
 
   vector<unique_ptr<Expression>> child_bound_expressions;
   unique_ptr<Expression>        &left_expr  = arithmetic_expr->left();
   unique_ptr<Expression>        &right_expr = arithmetic_expr->right();
+
+  if(left_expr==nullptr){
+    LOG_DEBUG("left expr is nullptr");
+  }
+  if(right_expr==nullptr){
+    LOG_DEBUG("right expr is nullptr");
+  }
 
   RC rc = bind_expression(left_expr, child_bound_expressions);
   if (OB_FAIL(rc)) {
@@ -355,7 +363,7 @@ RC ExpressionBinder::bind_arithmetic_expression(
   
 
   bound_expressions.emplace_back(std::move(expr));
-  LOG_DEBUG("bound_expressions size is %d", bound_expressions.size());
+  
   return RC::SUCCESS;
 }
 

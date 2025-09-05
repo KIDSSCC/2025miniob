@@ -385,6 +385,10 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
     } else if (expr->type() == ExprType::FIELD) {
       found_unbound_column = true;
     }else {
+      LOG_DEBUG("Access Here");
+      if(expr == nullptr){
+        LOG_DEBUG("expr is nullptr");
+      }
       rc = ExpressionIterator::iterate_child_expr(*expr, find_unbound_column);
     }
     return rc;
@@ -396,10 +400,10 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
   
   LOG_DEBUG("size of query_expressions is %d", query_expressions.size());
   for (unique_ptr<Expression> &expression : query_expressions) {
-    if(expression == nullptr){
-      LOG_DEBUG("expression is nullptr");
-    }
+    LOG_DEBUG("expr type is %d", expression->type());
+    LOG_DEBUG("arith type is %d", static_cast<ArithmeticExpr*>(expression.get())->arithmetic_type());
     find_unbound_column(expression);
+    LOG_DEBUG("finish find_unbound_column");
   }
 
   // collect all aggregate expressions

@@ -21,7 +21,7 @@ using namespace std;
 RC ExpressionIterator::iterate_child_expr(Expression &expr, function<RC(unique_ptr<Expression> &)> callback)
 {
   RC rc = RC::SUCCESS;
-
+  LOG_DEBUG("Access Here");
   switch (expr.type()) {
     case ExprType::CAST: {
       auto &cast_expr = static_cast<CastExpr &>(expr);
@@ -50,10 +50,10 @@ RC ExpressionIterator::iterate_child_expr(Expression &expr, function<RC(unique_p
     } break;
 
     case ExprType::ARITHMETIC: {
-
+      LOG_DEBUG("check arithmetic expr");
       auto &arithmetic_expr = static_cast<ArithmeticExpr &>(expr);
       rc = callback(arithmetic_expr.left());
-      if (OB_SUCC(rc)) {
+      if (OB_SUCC(rc) && arithmetic_expr.right()!=nullptr) {
         rc = callback(arithmetic_expr.right());
       }
     } break;
