@@ -89,3 +89,14 @@ RC IntegerType::to_string(const Value &val, string &result) const
   result = ss.str();
   return RC::SUCCESS;
 }
+
+int IntegerType::cast_cost(AttrType type)
+{
+  if (type == AttrType::INTS) {
+    return 0;
+  }
+  if (type == AttrType::FLOATS) {
+    return 1; // int -> float 设置为1， float -> int设置为2，优先转换为float
+  }
+  return INT32_MAX;
+}

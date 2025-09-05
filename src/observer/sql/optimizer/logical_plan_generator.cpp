@@ -184,21 +184,11 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     }else{
       right = move(const_cast<FilterObj &>(filter_obj_right).expr);
     }
-    // unique_ptr<Expression> left(filter_obj_left.is_attr
-    //                                 ? static_cast<Expression *>(new FieldExpr(filter_obj_left.field))
-    //                                 : static_cast<Expression *>(new ValueExpr(filter_obj_left.value)));
-
-    // unique_ptr<Expression> right(filter_obj_right.is_attr
-    //                                  ? static_cast<Expression *>(new FieldExpr(filter_obj_right.field))
-    //                                  : static_cast<Expression *>(new ValueExpr(filter_obj_right.value)));
 
     // 条件过滤语句，左右Value类型不一致时，按照转换开销进行转换并比较
     if (left->value_type() != right->value_type()) {
       auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
       auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
-
-      LOG_DEBUG("left type is %s, right type is %s", attr_type_to_string(left->value_type()), attr_type_to_string(right->value_type()));
-      LOG_DEBUG("l2r cost is %d, r2l cost is %d", left_to_right_cost, right_to_left_cost);
 
       if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
         // 左转右开销低于右转左

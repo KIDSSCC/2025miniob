@@ -537,8 +537,6 @@ expression_list:
 expression:
     expression '+' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
-      // auto value_type = $$->value_type();
-      // LOG_DEBUG("arithmetic_expression type is %s", attr_type_to_string(value_type));
     }
     | expression '-' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::SUB, $1, $3, sql_string, &@$);

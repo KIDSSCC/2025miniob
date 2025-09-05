@@ -68,7 +68,7 @@ int DateType::cast_cost(AttrType type)
     return 0;
   }
   if (type == AttrType::CHARS) {
-    return 2; // 假设转换到日期类型的开销为1
+    return 2; // date -> char设置为2， char -> date设置为1。比较时优先转换为char
   }
   return INT32_MAX;
 }
