@@ -27,21 +27,28 @@ class FieldMeta;
 // 用于比较的对象，可能是表中的某一字段，也可能是某一常量值
 struct FilterObj
 {
-  bool  is_attr;
+  int  is_attr;
   Field field;
   Value value;
+  unique_ptr<Expression> expr;
 
   void init_attr(const Field &field)
   {
-    is_attr     = true;
+    is_attr     = 1;
     this->field = field;
   }
 
   void init_value(const Value &value)
   {
-    is_attr     = false;
+    is_attr     = 0;
     this->value = value;
   }
+
+  void init_expr(unique_ptr<Expression> expr){
+    is_attr     = 2;
+    this->expr  = move(expr);
+  }
+
 };
 
 // 最小的比较单元，包含左值，比较，右值
@@ -55,8 +62,8 @@ public:
 
   CompOp comp() const { return comp_; }
 
-  void set_left(const FilterObj &obj) { left_ = obj; }
-  void set_right(const FilterObj &obj) { right_ = obj; }
+  void set_left(FilterObj &obj) { left_ = std::move(obj); }
+  void set_right(FilterObj &obj) { right_ = std::move(obj); }
 
   const FilterObj &left() const { return left_; }
   const FilterObj &right() const { return right_; }

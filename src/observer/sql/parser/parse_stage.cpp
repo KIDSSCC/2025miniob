@@ -29,7 +29,6 @@ using namespace common;
 RC ParseStage::handle_request(SQLStageEvent *sql_event)
 {
   RC rc = RC::SUCCESS;
-  LOG_INFO("parse stage start, sql: %s", sql_event->sql().c_str());
   SqlResult         *sql_result = sql_event->session_event()->sql_result();
   const string &sql        = sql_event->sql();
 

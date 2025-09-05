@@ -323,6 +323,7 @@ bool ArithmeticExpr::equal(const Expression &other) const
 }
 AttrType ArithmeticExpr::value_type() const
 {
+  // LOG_DEBUG("in AttrType ArithmeticExpr::value_type, left type is %s, right type is %s", attr_type_to_string(left_->value_type()), attr_type_to_string(right_->value_type()));
   if (!right_) {
     return left_->value_type();
   }

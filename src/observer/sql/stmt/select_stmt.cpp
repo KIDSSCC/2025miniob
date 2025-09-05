@@ -73,6 +73,38 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     }
   }
 
+  // where谓词的condition部分也可能包含expression, 在stmt层面对其进行重新绑定
+  vector<unique_ptr<Expression>> condition_expessions;
+  for(ConditionSqlNode& condition_node : select_sql.conditions){
+    if(condition_node.left_is_attr == 2){
+      // 左值为表达式
+      RC rc = expression_binder.bind_expression(condition_node.left_expression, condition_expessions);
+      if (OB_FAIL(rc)) {
+        LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+        return rc;
+      }
+      // 替换左值表达式
+      unique_ptr<Expression> &left = condition_expessions[0];
+      if (left.get() != condition_node.left_expression.get()) {
+        condition_node.left_expression.reset(left.release());
+      }
+    }
+
+    if(condition_node.right_is_attr == 2){
+      // 右值为表达式
+      RC rc = expression_binder.bind_expression(condition_node.right_expression, condition_expessions);
+      if (OB_FAIL(rc)) {
+        LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+        return rc;
+      }
+      // 替换右值表达式
+      unique_ptr<Expression> &right = condition_expessions[0];
+      if (right.get() != condition_node.right_expression.get()) {
+        condition_node.right_expression.reset(right.release());
+      }
+    }
+  }
+
   vector<unique_ptr<Expression>> group_by_expressions;
   for (unique_ptr<Expression> &expression : select_sql.group_by) {
     RC rc = expression_binder.bind_expression(expression, group_by_expressions);

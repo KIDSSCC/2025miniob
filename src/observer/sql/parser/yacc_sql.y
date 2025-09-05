@@ -537,6 +537,8 @@ expression_list:
 expression:
     expression '+' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
+      // auto value_type = $$->value_type();
+      // LOG_DEBUG("arithmetic_expression type is %s", attr_type_to_string(value_type));
     }
     | expression '-' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::SUB, $1, $3, sql_string, &@$);
@@ -620,12 +622,12 @@ condition_list:
     }
     | condition {
       $$ = new vector<ConditionSqlNode>;
-      $$->emplace_back(*$1);
+      $$->emplace_back(std::move(*$1));
       delete $1;
     }
     | condition AND condition_list {
       $$ = $3;
-      $$->emplace_back(*$1);
+      $$->emplace_back(std::move(*$1));
       delete $1;
     }
     ;
@@ -640,12 +642,17 @@ condition:
         $$->left_is_attr = 1;
         $$->left_attr.relation_name = static_cast<UnboundFieldExpr*>(left_exp)->table_name();
         $$->left_attr.attribute_name = static_cast<UnboundFieldExpr*>(left_exp)->field_name();
+        delete $1;
       }else if(left_exp->type()==ExprType::VALUE){
         // 左值是一个常量值
         $$->left_is_attr = 0;
         $$->left_value =  static_cast<ValueExpr*>(left_exp)->get_value();
+        delete $1;
       }else{
         // TODO: 左值是一个表达式
+        ASSERT(left_exp->type()==ExprType::ARITHMETIC, "condition left element must be field, value, or expression");
+        $$->left_is_attr = 2;
+        $$->left_expression = unique_ptr<Expression>(left_exp);
       }
 
       if(right_exp->type()==ExprType::UNBOUND_FIELD){
@@ -653,67 +660,21 @@ condition:
         $$->right_is_attr = 1;
         $$->right_attr.relation_name = static_cast<UnboundFieldExpr*>(right_exp)->table_name();
         $$->right_attr.attribute_name = static_cast<UnboundFieldExpr*>(right_exp)->field_name();
+        delete $3;
       }else if(right_exp->type()==ExprType::VALUE){
         // 右值是一个常量值
         $$->right_is_attr = 0;
         $$->right_value =  static_cast<ValueExpr*>(right_exp)->get_value();
+        delete $3;
       }else{
         // TODO: 右值是一个表达式
+        ASSERT(right_exp->type()==ExprType::ARITHMETIC, "condition right element must be field, value, or expression");
+        $$->right_is_attr = 2;
+        $$->right_expression = unique_ptr<Expression>(right_exp);
       }
 
       $$->comp = $2;
-      delete $1;
-      delete $3;
-
     }
-    // rel_attr comp_op value
-    // {
-    //   $$ = new ConditionSqlNode;
-    //   $$->left_is_attr = 1;
-    //   $$->left_attr = *$1;
-    //   $$->right_is_attr = 0;
-    //   $$->right_value = *$3;
-    //   $$->comp = $2;
-
-    //   delete $1;
-    //   delete $3;
-    // }
-    // | value comp_op value 
-    // {
-    //   $$ = new ConditionSqlNode;
-    //   $$->left_is_attr = 0;
-    //   $$->left_value = *$1;
-    //   $$->right_is_attr = 0;
-    //   $$->right_value = *$3;
-    //   $$->comp = $2;
-
-    //   delete $1;
-    //   delete $3;
-    // }
-    // | rel_attr comp_op rel_attr
-    // {
-    //   $$ = new ConditionSqlNode;
-    //   $$->left_is_attr = 1;
-    //   $$->left_attr = *$1;
-    //   $$->right_is_attr = 1;
-    //   $$->right_attr = *$3;
-    //   $$->comp = $2;
-
-    //   delete $1;
-    //   delete $3;
-    // }
-    // | value comp_op rel_attr
-    // {
-    //   $$ = new ConditionSqlNode;
-    //   $$->left_is_attr = 0;
-    //   $$->left_value = *$1;
-    //   $$->right_is_attr = 1;
-    //   $$->right_attr = *$3;
-    //   $$->comp = $2;
-
-    //   delete $1;
-    //   delete $3;
-    // }
     ;
 
 comp_op:
