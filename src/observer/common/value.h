@@ -90,6 +90,7 @@ public:
   }
 
   void set_type(AttrType type) { this->attr_type_ = type; }
+  void set_null() {this->is_null_ = true;}
   void set_length(int length) { this->length_ = length; }
   void set_data(char *data, int length);
   void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
@@ -106,6 +107,7 @@ public:
 
   int      length() const { return length_; }
   AttrType attr_type() const { return attr_type_; }
+  bool    is_null() const { return is_null_; }
 
 public:
   /**
@@ -138,4 +140,6 @@ private:
 
   /// 是否申请并占有内存, 目前对于 CHARS 类型 own_data_ 为true, 其余类型 own_data_ 为false
   bool own_data_ = false;
+
+  bool is_null_ = false;
 };

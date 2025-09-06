@@ -117,6 +117,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         LE
         GE
         NE
+        NULL_T
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -168,6 +169,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <rel_attr>            rel_attr
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
+%type <attr_info>           attr_def_with_null
 %type <value_list>          value_list
 %type <condition_list>      where
 %type <condition_list>      condition_list
@@ -322,7 +324,6 @@ drop_index_stmt:      /*drop index 语句的语法解析树*/
 create_table_stmt:    /*create table 语句的语法解析树*/
     CREATE TABLE ID LBRACE attr_def_list primary_key RBRACE storage_format
     {
-      // cout << "create table stmt" << endl;
       $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
       CreateTableSqlNode &create_table = $$->create_table;
       create_table.relation_name = $3;
@@ -342,17 +343,35 @@ create_table_stmt:    /*create table 语句的语法解析树*/
     ;
     
 attr_def_list:
-    attr_def
+    attr_def_with_null
     {
       $$ = new vector<AttrInfoSqlNode>;
       $$->emplace_back(*$1);
       delete $1;
     }
-    | attr_def_list COMMA attr_def
+    | attr_def_list COMMA attr_def_with_null
     {
       $$ = $1;
       $$->emplace_back(*$3);
       delete $3;
+    }
+    ;
+
+attr_def_with_null:
+    attr_def
+    {
+      $$ = $1;
+      $$->allow_null = true;
+    }
+    | attr_def NULL_T
+    {
+      $$ = $1;
+      $$->allow_null = true;
+    }
+    | attr_def NOT NULL_T
+    {
+      $$ = $1;
+      $$->allow_null = false;
     }
     ;
     
@@ -440,6 +459,10 @@ value:
     |FLOAT {
       $$ = new Value((float)$1);
       @$ = @1;
+    }
+    | NULL_T {
+      $$ = new Value();
+      $$->set_null();
     }
     |SSS {
       char *tmp = common::substr($1,1,strlen($1)-2);

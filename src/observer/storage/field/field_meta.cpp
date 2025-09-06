@@ -23,18 +23,19 @@ const static Json::StaticString FIELD_NAME("name");
 const static Json::StaticString FIELD_TYPE("type");
 const static Json::StaticString FIELD_OFFSET("offset");
 const static Json::StaticString FIELD_LEN("len");
+const static Json::StaticString FIELD_NULL("null");
 const static Json::StaticString FIELD_VISIBLE("visible");
 const static Json::StaticString FIELD_FIELD_ID("FIELD_id");
 
-FieldMeta::FieldMeta() : attr_type_(AttrType::UNDEFINED), attr_offset_(-1), attr_len_(0), visible_(false), field_id_(0) {}
+FieldMeta::FieldMeta() : attr_type_(AttrType::UNDEFINED), attr_offset_(-1), attr_len_(0), allow_null_(false), visible_(false), field_id_(0) {}
 
-FieldMeta::FieldMeta(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool visible, int field_id)
+FieldMeta::FieldMeta(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool allow_null, bool visible, int field_id)
 {
-  [[maybe_unused]] RC rc = this->init(name, attr_type, attr_offset, attr_len, visible, field_id);
+  [[maybe_unused]] RC rc = this->init(name, attr_type, attr_offset, attr_len, allow_null, visible, field_id);
   ASSERT(rc == RC::SUCCESS, "failed to init field meta. rc=%s", strrc(rc));
 }
 
-RC FieldMeta::init(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool visible, int field_id)
+RC FieldMeta::init(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool allow_null, bool visible, int field_id)
 {
   // 字段名称
   if (common::is_blank(name)) {
@@ -53,6 +54,7 @@ RC FieldMeta::init(const char *name, AttrType attr_type, int attr_offset, int at
   attr_type_   = attr_type;
   attr_len_    = attr_len;
   attr_offset_ = attr_offset;
+  allow_null_   = allow_null;
   visible_     = visible;
   field_id_ = field_id;
 
@@ -68,6 +70,8 @@ int FieldMeta::offset() const { return attr_offset_; }
 
 int FieldMeta::len() const { return attr_len_; }
 
+bool FieldMeta::allow_null() const { return allow_null_; }
+
 bool FieldMeta::visible() const { return visible_; }
 
 int FieldMeta::field_id() const { return field_id_; }
@@ -76,7 +80,7 @@ void FieldMeta::desc(ostream &os) const
 {
   // 序列化
   os << "field name=" << name_ << ", type=" << attr_type_to_string(attr_type_) << ", len=" << attr_len_
-     << ", visible=" << (visible_ ? "yes" : "no");
+     << ", allow_null = " << allow_null_ << ", visible=" << (visible_ ? "yes" : "no");
 }
 
 void FieldMeta::to_json(Json::Value &json_value) const
@@ -85,6 +89,7 @@ void FieldMeta::to_json(Json::Value &json_value) const
   json_value[FIELD_TYPE]    = attr_type_to_string(attr_type_);
   json_value[FIELD_OFFSET]  = attr_offset_;
   json_value[FIELD_LEN]     = attr_len_;
+  json_value[FIELD_NULL]    = allow_null_;
   json_value[FIELD_VISIBLE] = visible_;
   json_value[FIELD_FIELD_ID] = field_id_;
 }
@@ -100,6 +105,7 @@ RC FieldMeta::from_json(const Json::Value &json_value, FieldMeta &field)
   const Json::Value &type_value    = json_value[FIELD_TYPE];
   const Json::Value &offset_value  = json_value[FIELD_OFFSET];
   const Json::Value &len_value     = json_value[FIELD_LEN];
+  const Json::Value &null_value   = json_value[FIELD_NULL];
   const Json::Value &visible_value = json_value[FIELD_VISIBLE];
   const Json::Value &field_id_value = json_value[FIELD_FIELD_ID];
 
@@ -120,6 +126,10 @@ RC FieldMeta::from_json(const Json::Value &json_value, FieldMeta &field)
     LOG_ERROR("Len is not an integer. json value=%s", len_value.toStyledString().c_str());
     return RC::INTERNAL;
   }
+  if (!null_value.isBool()){
+    LOG_ERROR("NULL field is not a bool value. json value=%s", null_value.toStyledString().c_str());
+    return RC::INTERNAL;
+  }
   if (!visible_value.isBool()) {
     LOG_ERROR("Visible field is not a bool value. json value=%s", visible_value.toStyledString().c_str());
     return RC::INTERNAL;
@@ -138,7 +148,8 @@ RC FieldMeta::from_json(const Json::Value &json_value, FieldMeta &field)
   const char *name    = name_value.asCString();
   int         offset  = offset_value.asInt();
   int         len     = len_value.asInt();
+  bool        allow_null = null_value.asBool();
   bool        visible = visible_value.asBool();
   int         field_id  = field_id_value.asInt();
-  return field.init(name, type, offset, len, visible, field_id);
+  return field.init(name, type, offset, len, allow_null, visible, field_id);
 }

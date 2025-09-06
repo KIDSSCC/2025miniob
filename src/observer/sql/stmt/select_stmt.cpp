@@ -140,9 +140,6 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->query_expressions_.swap(bound_expressions);
   select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->group_by_.swap(group_by_expressions);
-  LOG_DEBUG("bound_expressions size is %d", select_stmt->query_expressions_.size());
-  LOG_DEBUG("expr type is %d", select_stmt->query_expressions_[0]->type());
-  LOG_DEBUG("arith type is %d", static_cast<ArithmeticExpr*>(select_stmt->query_expressions_[0].get())->arithmetic_type());
   stmt                      = select_stmt;
   return RC::SUCCESS;
 }

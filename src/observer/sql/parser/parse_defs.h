@@ -150,6 +150,7 @@ struct AttrInfoSqlNode
   AttrType type;    ///< Type of attribute
   string   name;    ///< Attribute name
   size_t   length;  ///< Length of attribute
+  bool    allow_null;   // 该字段是否可以为null
 };
 
 /**

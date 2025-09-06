@@ -20,6 +20,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/trx/trx.h"
 #include "json/json.h"
 
+#include <cmath>
+
 static const Json::StaticString FIELD_TABLE_ID("table_id");
 static const Json::StaticString FIELD_TABLE_NAME("table_name");
 static const Json::StaticString FIELD_STORAGE_FORMAT("storage_format");
@@ -67,26 +69,28 @@ RC TableMeta::init(int32_t table_id, const char *name, const vector<FieldMeta> *
   int field_offset  = 0;
   int trx_field_num = 0;
   // 全部字段包含事务字段和属性字段，先排列事务字段
-  if (trx_fields != nullptr) {
+
+  if(trx_fields!=nullptr){
     trx_fields_ = *trx_fields;
-
-    fields_.resize(attributes.size() + trx_fields->size());
-    for (size_t i = 0; i < trx_fields->size(); i++) {
-      const FieldMeta &field_meta = (*trx_fields)[i];
-      fields_[i] = FieldMeta(field_meta.name(), field_meta.type(), field_offset, field_meta.len(), false /*visible*/, field_meta.field_id());
-      field_offset += field_meta.len();
-    }
-
-    trx_field_num = static_cast<int>(trx_fields->size());
-  } else {
-    fields_.resize(attributes.size());
   }
+  // 在trx_fields_多炫一个null_bitmap字段
+  int bitmap_len = ceil((float)(attributes.size()) / 8.0);
+  trx_fields_.push_back(FieldMeta("null_bitmap", AttrType::CHARS, 0, bitmap_len, false, false, -1));
+
+  fields_.resize(attributes.size() + trx_fields_.size());
+  for (size_t i = 0; i < trx_fields_.size(); i++) {
+    const FieldMeta &field_meta = trx_fields_[i];
+    fields_[i] = FieldMeta(field_meta.name(), field_meta.type(), field_offset, field_meta.len(), field_meta.allow_null(), false /*visible*/, field_meta.field_id());
+    field_offset += field_meta.len();
+  }
+  trx_field_num = static_cast<int>(trx_fields_.size());
+
 
   for (size_t i = 0; i < attributes.size(); i++) {
     const AttrInfoSqlNode &attr_info = attributes[i];
     // `i` is the col_id of fields[i]
     rc = fields_[i + trx_field_num].init(
-      attr_info.name.c_str(), attr_info.type, field_offset, attr_info.length, true /*visible*/, i);
+      attr_info.name.c_str(), attr_info.type, field_offset, attr_info.length, attr_info.allow_null, true /*visible*/, i);
     if (OB_FAIL(rc)) {
       LOG_ERROR("Failed to init field meta. table name=%s, field name: %s", name, attr_info.name.c_str());
       return rc;

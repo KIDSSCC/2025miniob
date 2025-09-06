@@ -110,7 +110,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
 
   const vector<Table *> &tables = select_stmt->tables();
   for (Table *table : tables) {
-
+    // 将本次查询涉及的所有的表通过join连接起来
     unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
     if (table_oper == nullptr) {
       table_oper = std::move(table_get_oper);
@@ -385,10 +385,6 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
     } else if (expr->type() == ExprType::FIELD) {
       found_unbound_column = true;
     }else {
-      LOG_DEBUG("Access Here");
-      if(expr == nullptr){
-        LOG_DEBUG("expr is nullptr");
-      }
       rc = ExpressionIterator::iterate_child_expr(*expr, find_unbound_column);
     }
     return rc;
@@ -398,12 +394,8 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
     bind_group_by_expr(expression);
   }
   
-  LOG_DEBUG("size of query_expressions is %d", query_expressions.size());
   for (unique_ptr<Expression> &expression : query_expressions) {
-    LOG_DEBUG("expr type is %d", expression->type());
-    LOG_DEBUG("arith type is %d", static_cast<ArithmeticExpr*>(expression.get())->arithmetic_type());
     find_unbound_column(expression);
-    LOG_DEBUG("finish find_unbound_column");
   }
 
   // collect all aggregate expressions
