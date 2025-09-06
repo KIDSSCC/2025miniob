@@ -20,6 +20,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/data_type.h"
 
 #include "common/log/log.h"
+#include <bitset>
+#include <algorithm>
 
 /**
  * @brief 属性的值
@@ -48,6 +50,7 @@ public:
   explicit Value(int val);
   explicit Value(float val);
   explicit Value(bool val);
+  explicit Value(string str);
   explicit Value(const char *s, int len = 0);
 
   Value(const Value &other);
@@ -86,7 +89,16 @@ public:
   static RC cast_to(const Value &value, AttrType to_type, Value &result)
   {
     LOG_DEBUG("cast value from %s to %s", attr_type_to_string(value.attr_type()), attr_type_to_string(to_type));
-    return DataType::type_instance(value.attr_type())->cast_to(value, to_type, result);
+
+    // 检查要转换的值是否为NULL
+    if(value.is_null()){
+      LOG_DEBUG("cast NULL to %s NULL", attr_type_to_string(to_type));
+      result.set_type(to_type);
+      result.set_null();
+      return RC::SUCCESS;
+    }else{
+      return DataType::type_instance(value.attr_type())->cast_to(value, to_type, result);
+    }
   }
 
   void set_type(AttrType type) { this->attr_type_ = type; }
@@ -125,6 +137,10 @@ public:
   void set_date(int val);
   void set_string(const char *s, int len = 0);
   void set_string_from_other(const Value &other);
+
+  void set_bitmap(int idx, bool is_null);
+  bool get_bitmap(int idx);
+  string print_bitmap() const;
 
 private:
   AttrType attr_type_ = AttrType::UNDEFINED;

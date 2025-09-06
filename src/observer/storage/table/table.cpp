@@ -256,17 +256,39 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   char *record_data = (char *)malloc(record_size);
   memset(record_data, 0, record_size);
 
+  // 事务字段部分的最后一个字段，是null_bitmap
+  const FieldMeta * null_bit_field = table_meta_.field(normal_field_start_index - 1);
+  int bitmap_len = null_bit_field->len();
+  LOG_DEBUG("bitmap len is %d", bitmap_len);
+  string bitmap_init(bitmap_len, '\0');
+  LOG_INFO("new string len is %d", string(bitmap_init.c_str()).size());
+  LOG_INFO("prepare to create bitmap");
+  Value null_bitmap(bitmap_init);
+
   for (int i = 0; i < value_num && OB_SUCC(rc); i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &    value = values[i];
+    // 检查当前值是否为NULL，以及当前字段是否允许value
+    if(value.is_null()){
+      if(!field->allow_null()){
+        LOG_ERROR("set null to a field which not allowed null, table_name is %s, field name:%s", table_meta_.name(), field->name());
+        rc = RC::INVALID_ARGUMENT;
+        break;
+      }else{
+        // 当前值为null，该字段也允许null
+        null_bitmap.set_bitmap(i, true);
+      }
+    }
+    
     // 对比要插入的新的value的类型和表中对应字段的类型是否一致，如果类型不一致，尝试通过cast_to将转换生成新的real_value
     if (field->type() != value.attr_type()) {
+      // NULL字段会首先落入这一层判定
       Value real_value;
       rc = Value::cast_to(value, field->type(), real_value);
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
-            table_meta_.name(), field->name(), value.to_string().c_str());
-        break;
+          table_meta_.name(), field->name(), value.to_string().c_str());
+          break;
       }
       rc = set_value_to_record(record_data, real_value, field);
     } else {
@@ -278,6 +300,10 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
     free(record_data);
     return rc;
   }
+
+  // 写入null_bitmap
+  set_value_to_record(record_data, null_bitmap, null_bit_field);
+  LOG_DEBUG("bitmap is %s", null_bitmap.print_bitmap().c_str());
 
   record.set_data_owner(record_data, record_size);
   return RC::SUCCESS;
@@ -313,7 +339,9 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
       copy_len = data_len + 1;
     }
   }
-  memcpy(record_data + field->offset(), value.data(), copy_len);
+  if(!value.is_null()){
+    memcpy(record_data + field->offset(), value.data(), copy_len);
+  }
   return RC::SUCCESS;
 }
 

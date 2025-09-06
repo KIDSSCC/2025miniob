@@ -28,12 +28,24 @@ Value::Value(bool val) { set_boolean(val); }
 
 Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
+Value::Value(string str){
+  reset();
+  attr_type_ = AttrType::CHARS;
+  
+  own_data_ = true;
+  length_ = str.size();
+  value_.pointer_value_ = new char[length_ + 1];
+  memcpy(value_.pointer_value_, str.c_str(), length_);
+  value_.pointer_value_[length_] = '\0';
+}
+
 // 拷贝构造
 Value::Value(const Value &other)
 {
   this->attr_type_ = other.attr_type_;
   this->length_    = other.length_;
   this->own_data_  = other.own_data_;
+  this->is_null_  = other.is_null_;
   switch (this->attr_type_) {
     case AttrType::CHARS: {
       set_string_from_other(other);
@@ -52,6 +64,7 @@ Value::Value(Value &&other)
   this->length_    = other.length_;
   this->own_data_  = other.own_data_;
   this->value_     = other.value_;
+  this->is_null_  = other.is_null_;
   other.own_data_  = false;
   other.length_    = 0;
 }
@@ -66,6 +79,7 @@ Value &Value::operator=(const Value &other)
   this->attr_type_ = other.attr_type_;
   this->length_    = other.length_;
   this->own_data_  = other.own_data_;
+  this->is_null_  = other.is_null_;
   switch (this->attr_type_) {
     case AttrType::CHARS: {
       set_string_from_other(other);
@@ -88,6 +102,7 @@ Value &Value::operator=(Value &&other)
   this->attr_type_ = other.attr_type_;
   this->length_    = other.length_;
   this->own_data_  = other.own_data_;
+  this->is_null_  = other.is_null_;
   this->value_     = other.value_;
   other.own_data_  = false;
   other.length_    = 0;
@@ -110,11 +125,13 @@ void Value::reset()
   attr_type_ = AttrType::UNDEFINED;
   length_    = 0;
   own_data_  = false;
+  is_null_  = false;
 }
 
 // 自动根据attr设置数据
 void Value::set_data(char *data, int length)
 {
+  this->is_null_  = false;
   switch (attr_type_) {
     case AttrType::CHARS: {
       set_string(data, length);
@@ -182,9 +199,9 @@ void Value::set_string(const char *s, int len /*= 0*/)
   } else {
     own_data_ = true;
     if (len > 0) {
-      len = strnlen(s, len);
+      len = std::min((int)string(s).size(), len);
     } else {
-      len = strlen(s);
+      len = (int)string(s).size();
     }
     value_.pointer_value_ = new char[len + 1];
     length_               = len;
@@ -196,6 +213,11 @@ void Value::set_string(const char *s, int len /*= 0*/)
 // 自动根据other_value的类型设置当前值
 void Value::set_value(const Value &value)
 {
+  if(value.is_null()){
+    this->set_null();
+    this->set_type(value.attr_type());
+    return;
+  }
   switch (value.attr_type_) {
     case AttrType::INTS: {
       set_int(value.get_int());
@@ -354,4 +376,58 @@ bool Value::get_boolean() const
     }
   }
   return false;
+}
+
+void Value::set_bitmap(int idx, bool is_null){
+  ASSERT(this->attr_type_ == AttrType::CHARS, "Only CHAR type can be used as a bitmap");
+  ASSERT(this->value_.pointer_value_ != nullptr, "Bitmap pointer is null");
+
+  // 计算字节位置
+  int byte_index = idx / 8;
+  int bit_offset = idx % 8;
+
+  unsigned char *bitmap = reinterpret_cast<unsigned char *>(this->value_.pointer_value_);
+  if (is_null) {
+    // 设置对应位为 1
+    bitmap[byte_index] |= (1u << bit_offset);
+  } else {
+    // 清除对应位为 0
+    bitmap[byte_index] &= ~(1u << bit_offset);
+  }
+}
+
+bool Value::get_bitmap(int idx){
+  ASSERT(this->attr_type_ == AttrType::CHARS, "Only CHAR type can be used as a bitmap");
+  ASSERT(this->value_.pointer_value_ != nullptr, "Bitmap pointer is null");
+
+  // 定位到字节和位偏移
+  int byte_index = idx / 8;
+  int bit_offset = idx % 8;
+
+  const unsigned char *bitmap = reinterpret_cast<const unsigned char *>(this->value_.pointer_value_);
+
+  // 取出该位
+  return (bitmap[byte_index] >> bit_offset) & 1u;
+
+}
+
+string Value::print_bitmap() const {
+  ASSERT(this->attr_type_ == AttrType::CHARS, "Only CHAR type can be used as a bitmap");
+  ASSERT(this->value_.pointer_value_ != nullptr, "Bitmap pointer is null");
+
+  const unsigned char *bitmap = reinterpret_cast<const unsigned char *>(this->value_.pointer_value_);
+  std::string result;
+
+  // 从最高字节到最低字节遍历
+  LOG_DEBUG("this->length is %d", this->length_);
+  for (int byte_index = this->length_ - 1; byte_index >= 0; --byte_index) {
+    std::bitset<8> bits(bitmap[byte_index]);
+    result += bits.to_string();
+
+    if (byte_index > 0) {
+      result += " "; // 在每个字节后插入空格（除了最后一个）
+    }
+  }
+
+  return result;
 }
