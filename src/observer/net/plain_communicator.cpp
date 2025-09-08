@@ -200,6 +200,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   const TupleSchema &schema   = sql_result->tuple_schema();
   const int          cell_num = schema.cell_num();
 
+  // 先输出表头
   for (int i = 0; i < cell_num; i++) {
     const TupleCellSpec &spec  = schema.cell_at(i);
     const char          *alias = spec.alias();

@@ -262,6 +262,10 @@ const char *Value::data() const
 string Value::to_string() const
 {
   string res;
+  if(this->is_null()){
+    res = "NULL";
+    return res;
+  }
   RC     rc = DataType::type_instance(this->attr_type_)->to_string(*this, res);
   if (OB_FAIL(rc)) {
     LOG_WARN("failed to convert value to string. type=%s", attr_type_to_string(this->attr_type_));
@@ -419,7 +423,6 @@ string Value::print_bitmap() const {
   std::string result;
 
   // 从最高字节到最低字节遍历
-  LOG_DEBUG("this->length is %d", this->length_);
   for (int byte_index = this->length_ - 1; byte_index >= 0; --byte_index) {
     std::bitset<8> bits(bitmap[byte_index]);
     result += bits.to_string();

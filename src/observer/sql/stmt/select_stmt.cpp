@@ -72,7 +72,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
       return rc;
     }
   }
-
+  
   // where谓词的condition部分也可能包含expression, 在stmt层面对其进行重新绑定
   vector<unique_ptr<Expression>> condition_expessions;
   for(ConditionSqlNode& condition_node : select_sql.conditions){

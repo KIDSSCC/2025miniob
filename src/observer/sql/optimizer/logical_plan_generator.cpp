@@ -349,6 +349,8 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
   vector<unique_ptr<Expression>> &group_by_expressions = select_stmt->group_by();
   vector<Expression *> aggregate_expressions;
   vector<unique_ptr<Expression>> &query_expressions = select_stmt->query_expressions();
+
+  // 绑定聚合部分
   function<RC(unique_ptr<Expression>&)> collector = [&](unique_ptr<Expression> &expr) -> RC {
     RC rc = RC::SUCCESS;
     if (expr->type() == ExprType::AGGREGATION) {
@@ -359,6 +361,7 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
     return rc;
   };
 
+  // 绑定分组部分
   function<RC(unique_ptr<Expression>&)> bind_group_by_expr = [&](unique_ptr<Expression> &expr) -> RC {
     RC rc = RC::SUCCESS;
     for (size_t i = 0; i < group_by_expressions.size(); i++) {

@@ -192,12 +192,27 @@ public:
       LOG_WARN("invalid argument. index=%d", index);
       return RC::INVALID_ARGUMENT;
     }
+    
+    // 在获取某一索引处的Value时，需要额外判断其是否为null
+    Value null_bitmap;
+    auto table_meta = table_->table_meta();
+    auto null_bitmap_field = table_meta.field(table_->table_meta().sys_field_num()-1);
+
+    null_bitmap.reset();
+    null_bitmap.set_type(AttrType::CHARS);
+    null_bitmap.set_data(this->record_->data() + null_bitmap_field->offset(), null_bitmap_field->len());
 
     FieldExpr       *field_expr = speces_[index];
     const FieldMeta *field_meta = field_expr->field().meta();
     cell.reset();
     cell.set_type(field_meta->type());
     cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+
+    int field_id = field_meta->field_id();
+    bool is_null = null_bitmap.get_bitmap(field_id);
+    if(is_null){
+      cell.set_null();
+    }
     return RC::SUCCESS;
   }
 
@@ -241,6 +256,8 @@ public:
   Record &record() { return *record_; }
 
   const Record &record() const { return *record_; }
+
+  const Table* get_table() const {return table_; };
 
 private:
   Record             *record_ = nullptr;
