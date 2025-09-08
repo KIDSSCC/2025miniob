@@ -161,6 +161,22 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
         result = (like_result == 0);
       }
     } break;
+    case IS_T:{
+      // is 判断只适用于NULL
+      if(left.is_null() && right.is_null()){
+        result = true;
+      }else{
+        result = false;
+      }
+    } break;
+    case IS_NOT:{
+      // is 判断只适用于NULL
+      if(left.is_null() && right.is_null()){
+        result = false;
+      }else{
+        result = true;
+      }
+    } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
       rc = RC::INTERNAL;

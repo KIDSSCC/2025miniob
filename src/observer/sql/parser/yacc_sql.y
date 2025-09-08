@@ -118,6 +118,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         GE
         NE
         NULL_T
+        IS
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -707,6 +708,8 @@ comp_op:
     | NE { $$ = NOT_EQUAL; }
     | LIKE { $$ = LIKE_OP; }
     | NOT LIKE {$$ = NOT_LIKE; }
+    | IS  { $$ = IS_T; }
+    | IS NOT { $$ = IS_NOT; }
     ;
 
 // your code here

@@ -186,7 +186,6 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     }
 
     // 条件过滤语句，左右Value类型不一致时，按照转换开销进行转换并比较
-
     if (left->value_type() != right->value_type()) {
       auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
       auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
@@ -234,7 +233,6 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
         return rc;
       }
     }
-
     ComparisonExpr *cmp_expr = new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));
     cmp_exprs.emplace_back(cmp_expr);
   }
@@ -254,6 +252,14 @@ int LogicalPlanGenerator::implicit_cast_cost(AttrType from, AttrType to)
 {
   if (from == to) {
     return 0;
+  }
+
+  if (to == AttrType::UNDEFINED){
+    return INT32_MAX;
+  }
+
+  if(from == AttrType::UNDEFINED){
+    return INT32_MIN;
   }
   return DataType::type_instance(from)->cast_cost(to);
 }
