@@ -63,27 +63,52 @@ public:
 
   static RC add(const Value &left, const Value &right, Value &result)
   {
-    return DataType::type_instance(result.attr_type())->add(left, right, result);
+    if(left.is_null() || right.is_null()){
+      result.set_null();
+      return RC::SUCCESS;
+    }else{
+      return DataType::type_instance(result.attr_type())->add(left, right, result);
+    }
   }
 
   static RC subtract(const Value &left, const Value &right, Value &result)
   {
-    return DataType::type_instance(result.attr_type())->subtract(left, right, result);
+    if(left.is_null() || right.is_null()){
+      result.set_null();
+      return RC::SUCCESS;
+    }else{
+      return DataType::type_instance(result.attr_type())->subtract(left, right, result);
+    }
   }
 
   static RC multiply(const Value &left, const Value &right, Value &result)
   {
-    return DataType::type_instance(result.attr_type())->multiply(left, right, result);
+    if(left.is_null() || right.is_null()){
+      result.set_null();
+      return RC::SUCCESS;
+    }else{
+      return DataType::type_instance(result.attr_type())->multiply(left, right, result);
+    }
   }
 
   static RC divide(const Value &left, const Value &right, Value &result)
   {
-    return DataType::type_instance(result.attr_type())->divide(left, right, result);
+    if(left.is_null() || right.is_null()){
+      result.set_null();
+      return RC::SUCCESS;
+    }else{
+      return DataType::type_instance(result.attr_type())->divide(left, right, result);
+    }
   }
 
   static RC negative(const Value &value, Value &result)
   {
-    return DataType::type_instance(result.attr_type())->negative(value, result);
+    if(value.is_null()){
+      result.set_null();
+      return RC::SUCCESS;
+    }else{
+      return DataType::type_instance(result.attr_type())->negative(value, result);
+    }
   }
 
   static RC cast_to(const Value &value, AttrType to_type, Value &result)

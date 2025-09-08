@@ -124,6 +124,12 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
   RC  rc         = RC::SUCCESS;
   int cmp_result = left.compare(right);
   result         = false;
+
+  // 比较运算，针对NULL的运算结果均为false
+  if(comp_ < IS_T &&(left.is_null()||right.is_null())){
+    result = false;
+    return rc;
+  }
   switch (comp_) {
     case EQUAL_TO: {
       result = (0 == cmp_result);
