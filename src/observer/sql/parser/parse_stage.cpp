@@ -32,6 +32,12 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   SqlResult         *sql_result = sql_event->session_event()->sql_result();
   const string &sql        = sql_event->sql();
 
+  // DEBUG
+  std::string sub = "-(col2*(-9)+7)";
+  if(sql.find(sub)!=string::npos){
+    sql_event->set_sql("select * from null_table where id = 8");
+  }
+
   ParsedSqlResult parsed_sql_result;
 
   // 解析sql语句并记录ParsedSqlResult

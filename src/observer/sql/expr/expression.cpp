@@ -378,10 +378,6 @@ RC ArithmeticExpr::calc_value(const Value &left_value, const Value &right_value,
     } break;
 
     case Type::DIV: {
-      LOG_DEBUG("prepare to divide, left attr is %s, right attr is %s, target type is %s", 
-        attr_type_to_string(left_value.attr_type()), 
-        attr_type_to_string(right_value.attr_type()),
-        attr_type_to_string(target_type));
       Value::divide(left_value, right_value, value);
     } break;
 
