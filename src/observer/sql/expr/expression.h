@@ -141,6 +141,7 @@ private:
   string name_;
 };
 
+// StarExpr 会在resolve阶段绑定为确定的表达式
 class StarExpr : public Expression
 {
 public:
@@ -161,6 +162,7 @@ private:
   string table_name_;
 };
 
+// UnboundFieldExpr 也需要再resolve阶段首先完成绑定
 class UnboundFieldExpr : public Expression
 {
 public:
@@ -215,6 +217,7 @@ public:
 
   RC get_column(Chunk &chunk, Column &column) override;
 
+  // FieldExpr 的值基于tuple，根据field_中保存的字段元数据，从tuple中进行读取
   RC get_value(const Tuple &tuple, Value &value) const override;
 
 private:
@@ -292,6 +295,7 @@ private:
  */
 class ComparisonExpr : public Expression
 {
+  // 比较表达式的结果类型目前为bool，考虑NULL的情况，后续完整的做法应该是调整为三元判断，NULL对应至Unknown，直至最终的判断，再将Unknown解释为false
 public:
   ComparisonExpr(CompOp comp, unique_ptr<Expression> left, unique_ptr<Expression> right);
   virtual ~ComparisonExpr();
@@ -344,6 +348,7 @@ private:
  */
 class ConjunctionExpr : public Expression
 {
+  // ConjunctionExpr与ComparisonExpr同理，结果类型需要调整为三元，支持unknown
 public:
   enum class Type
   {
@@ -445,6 +450,7 @@ private:
   unique_ptr<Expression> right_;
 };
 
+// 未绑定的聚合表达式，暂时不确定其用途
 class UnboundAggregateExpr : public Expression
 {
 public:
@@ -471,6 +477,7 @@ private:
   unique_ptr<Expression> child_;
 };
 
+// 聚合表达式
 class AggregateExpr : public Expression
 {
 public:

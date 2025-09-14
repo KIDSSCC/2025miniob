@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 using namespace std;
 using namespace common;
 
+// 构造函数，获取原始的聚合表达式及内部的聚合字段
 GroupByPhysicalOperator::GroupByPhysicalOperator(vector<Expression *> &&expressions)
 {
   aggregate_expressions_ = std::move(expressions);
@@ -33,6 +34,7 @@ GroupByPhysicalOperator::GroupByPhysicalOperator(vector<Expression *> &&expressi
   });
 }
 
+// 获取每一个聚合表达式的聚合器
 void GroupByPhysicalOperator::create_aggregator_list(AggregatorList &aggregator_list)
 {
   aggregator_list.clear();
@@ -43,6 +45,7 @@ void GroupByPhysicalOperator::create_aggregator_list(AggregatorList &aggregator_
   });
 }
 
+// 根据一条tuple记录更新所有的聚合器，tuple的具体格式还需要进一步确认
 RC GroupByPhysicalOperator::aggregate(AggregatorList &aggregator_list, const Tuple &tuple)
 {
   ASSERT(static_cast<int>(aggregator_list.size()) == tuple.cell_num(), 

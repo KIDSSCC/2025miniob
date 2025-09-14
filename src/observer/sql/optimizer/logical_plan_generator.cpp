@@ -146,6 +146,22 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
     last_oper = &group_by_oper;
   }
 
+  // TODO:这里还需要叠加一层having的处理
+  unique_ptr<LogicalOperator> having_predicate_oper;
+  rc = create_plan(select_stmt->having_stmt(), having_predicate_oper);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("failed to create having predicate logical plan. rc=%s", strrc(rc));
+    return rc;
+  }
+  if (having_predicate_oper) {
+    if (*last_oper) {
+      having_predicate_oper->add_child(std::move(*last_oper));
+    }
+
+    last_oper = &having_predicate_oper;
+  }
+
+  // table_get -> predicate -> group_by -> having -> project
   auto project_oper = make_unique<ProjectLogicalOperator>(std::move(select_stmt->query_expressions()));
   if (*last_oper) {
     project_oper->add_child(std::move(*last_oper));
@@ -356,7 +372,7 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
   vector<Expression *> aggregate_expressions;
   vector<unique_ptr<Expression>> &query_expressions = select_stmt->query_expressions();
 
-  // 绑定聚合部分
+  // 绑定聚合部分，主要是收集所有的聚合函数并确定其在结果列中的位置
   function<RC(unique_ptr<Expression>&)> collector = [&](unique_ptr<Expression> &expr) -> RC {
     RC rc = RC::SUCCESS;
     if (expr->type() == ExprType::AGGREGATION) {
@@ -367,7 +383,7 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
     return rc;
   };
 
-  // 绑定分组部分
+  // 绑定分组部分，主要是确定查询字段在分组字段中的位置，这里假设分组字段都是单一字段，无表达式
   function<RC(unique_ptr<Expression>&)> bind_group_by_expr = [&](unique_ptr<Expression> &expr) -> RC {
     RC rc = RC::SUCCESS;
     for (size_t i = 0; i < group_by_expressions.size(); i++) {
@@ -384,6 +400,7 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
     return rc;
   };
 
+  // 检查所有的非聚合查询字段是否均在分组字段中出现了
  bool found_unbound_column = false;
   function<RC(unique_ptr<Expression>&)> find_unbound_column = [&](unique_ptr<Expression> &expr) -> RC {
     RC rc = RC::SUCCESS;
@@ -392,6 +409,7 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
     } else if (expr->pos() != -1) {
       // do nothing
     } else if (expr->type() == ExprType::FIELD) {
+      // pos为-1说明该字段未在分组字段中出现，标记found_unbound_column
       found_unbound_column = true;
     }else {
       rc = ExpressionIterator::iterate_child_expr(*expr, find_unbound_column);
@@ -400,6 +418,7 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
   };
   
   for (unique_ptr<Expression> &expression : query_expressions) {
+    LOG_INFO("pos is %d", expression->pos());
     bind_group_by_expr(expression);
   }
   

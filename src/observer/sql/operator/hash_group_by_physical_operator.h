@@ -46,6 +46,8 @@ private:
   /// 聚合出来的一组数据
   using GroupType = tuple<ValueListTuple, GroupValueType>;
 
+  // GroupType中的第一个ValueListTuple，是当前分组的标识符，GroupValueType中的第一个元素为聚合器，第二个元素为CompositeTuple
+
 private:
   RC find_group(const Tuple &child_tuple, GroupType *&found_group);
 

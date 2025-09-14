@@ -34,3 +34,92 @@ RC SumAggregator::evaluate(Value& result)
   result = value_;
   return RC::SUCCESS;
 }
+
+RC CountAggregator::accumulate(const Value &value){
+  
+  if(value_.attr_type() == AttrType::UNDEFINED){
+    value_.set_int(1);
+    return RC::SUCCESS;
+  }
+  Value i1(1);
+
+  Value::add(i1, value_, value_);
+  return RC::SUCCESS;
+}
+
+RC CountAggregator::evaluate(Value& result){
+  result = value_;
+  return RC::SUCCESS;
+}
+
+RC AvgAggregator::accumulate(const Value &value){
+  // 传入的value必须为int或者float类型，并最终都转换为
+  Value real_value;
+  RC rc = Value::cast_to(value, AttrType::FLOATS, real_value);
+  if(OB_FAIL(rc)){
+    LOG_DEBUG("Failed to cast %s to float when avg aggragate", attr_type_to_string(value.attr_type()));
+    return rc;
+  }
+
+  if(value_.attr_type() == AttrType::UNDEFINED){
+    value_ = real_value;
+    count = 1;
+    return RC::SUCCESS;
+  }
+
+  Value::add(value_, real_value, value_);
+  count += 1;
+  return RC::SUCCESS;
+}
+
+RC AvgAggregator::evaluate(Value& result){
+  value_.set_float(value_.get_float() / count);
+  result = value_;
+  return RC::SUCCESS;
+}
+
+RC MaxAggregator::accumulate(const Value &value){
+  if(value_.attr_type() == AttrType::UNDEFINED){
+    value_ = value;
+  }
+
+  ASSERT(value_.attr_type() == value.attr_type(), "value type is different, %s and %s", 
+    attr_type_to_string(value_.attr_type()), 
+    attr_type_to_string(value.attr_type())
+  );
+
+  int comp = value_.compare(value);
+  if(comp == -1){
+    value_ = value;
+  }
+
+  return RC::SUCCESS;
+}
+
+RC MaxAggregator::evaluate(Value& result){
+  result = value_;
+  return RC::SUCCESS;
+}
+
+RC MinAggregator::accumulate(const Value &value){
+  if(value_.attr_type() == AttrType::UNDEFINED){
+    value_ = value;
+  }
+
+  ASSERT(value_.attr_type() == value.attr_type(), "value type is different, %s and %s", 
+    attr_type_to_string(value_.attr_type()), 
+    attr_type_to_string(value.attr_type())
+  );
+
+  int comp = value_.compare(value);
+  if(comp == 1){
+    value_ = value;
+  }
+
+  return RC::SUCCESS;
+}
+
+RC MinAggregator::evaluate(Value& result){
+  result = value_;
+  return RC::SUCCESS;
+}

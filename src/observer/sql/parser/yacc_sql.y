@@ -119,6 +119,12 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         NE
         NULL_T
         IS
+        HAVING
+        COUNT
+        SUM
+        MIN
+        MAX
+        AVG
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -173,6 +179,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <attr_info>           attr_def_with_null
 %type <value_list>          value_list
 %type <condition_list>      where
+%type <condition_list>      have
 %type <condition_list>      condition_list
 %type <cstring>             storage_format
 %type <key_list>            primary_key
@@ -209,6 +216,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %left '+' '-'
 %left '*' '/'
 %right UMINUS
+%nonassoc COUNT SUM AVG MAX MIN
 %%
 
 commands: command_wrapper opt_semicolon  //commands or sqls. parser starts here.
@@ -509,7 +517,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM rel_list where group_by
+    SELECT expression_list FROM rel_list where group_by have
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -530,6 +538,11 @@ select_stmt:        /*  select 语句的语法解析树*/
       if ($6 != nullptr) {
         $$->selection.group_by.swap(*$6);
         delete $6;
+      }
+
+      if ($7 != nullptr) {
+        $$->selection.having.swap(*$7);
+        delete $7;
       }
     }
     ;
@@ -593,6 +606,26 @@ expression:
       $$ = new StarExpr();
     }
     // your code here
+    | COUNT expression {
+      // expression内部对象为指针赋值，不需要在此处删除
+      $$ = create_aggregate_expression("count", $2, sql_string, &@$);
+    }
+    | SUM expression {
+      // expression内部对象为指针赋值，不需要在此处删除
+      $$ = create_aggregate_expression("sum", $2, sql_string, &@$);
+    }
+    | MAX expression {
+      // expression内部对象为指针赋值，不需要在此处删除
+      $$ = create_aggregate_expression("max", $2, sql_string, &@$);
+    }
+    | MIN expression {
+      // expression内部对象为指针赋值，不需要在此处删除
+      $$ = create_aggregate_expression("min", $2, sql_string, &@$);
+    }
+    | AVG expression {
+      // expression内部对象为指针赋值，不需要在此处删除
+      $$ = create_aggregate_expression("avg", $2, sql_string, &@$);
+    }
     ;
 
 rel_attr:
@@ -672,7 +705,7 @@ condition:
         delete $1;
       }else{
         // TODO: 左值是一个表达式
-        ASSERT(left_exp->type()==ExprType::ARITHMETIC, "condition left element must be field, value, or expression");
+        // ASSERT(left_exp->type()==ExprType::ARITHMETIC, "condition left element must be field, value, or expression");
         $$->left_is_attr = 2;
         $$->left_expression = unique_ptr<Expression>(left_exp);
       }
@@ -690,7 +723,7 @@ condition:
         delete $3;
       }else{
         // TODO: 右值是一个表达式
-        ASSERT(right_exp->type()==ExprType::ARITHMETIC, "condition right element must be field, value, or expression");
+        // ASSERT(right_exp->type()==ExprType::ARITHMETIC, "condition right element must be field, value, or expression");
         $$->right_is_attr = 2;
         $$->right_expression = unique_ptr<Expression>(right_exp);
       }
@@ -714,9 +747,21 @@ comp_op:
 
 // your code here
 group_by:
-    /* empty */
     {
       $$ = nullptr;
+    }
+    | GROUP BY expression_list
+    {
+      $$ = $3;
+    }
+    ;
+have:
+    {
+      $$ = nullptr;
+    }
+    | HAVING condition_list
+    {
+      $$ = $2;
     }
     ;
 load_data_stmt:

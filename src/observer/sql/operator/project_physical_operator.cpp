@@ -58,6 +58,9 @@ RC ProjectPhysicalOperator::close()
 Tuple *ProjectPhysicalOperator::current_tuple()
 {
   tuple_.set_tuple(children_[0]->current_tuple());
+
+  // const Tuple *child_tuple = tuple_.get_tuple();
+
   return &tuple_;
 }
 

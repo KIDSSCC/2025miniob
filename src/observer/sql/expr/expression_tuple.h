@@ -19,6 +19,9 @@ See the Mulan PSL v2 for more details. */
 #include "common/value.h"
 #include "common/sys/rc.h"
 
+// ExpressionTuple记录了若干表达式（ExprPointerType一般会是Expression*)
+// 其中的每一个cell是一个表达式的值，表达式的值在计算时需要结合child_tuple_完成
+
 template <typename ExprPointerType>
 class ExpressionTuple : public Tuple
 {
@@ -27,6 +30,8 @@ public:
   virtual ~ExpressionTuple() = default;
 
   void set_tuple(const Tuple *tuple) { child_tuple_ = tuple; }
+
+  const Tuple *get_tuple() const { return child_tuple_; }
 
   int cell_num() const override { return static_cast<int>(expressions_.size()); }
 

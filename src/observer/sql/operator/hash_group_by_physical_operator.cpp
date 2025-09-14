@@ -37,6 +37,7 @@ RC HashGroupByPhysicalOperator::open(Trx *trx)
     return rc;
   }
 
+  // value_expressions_计算聚合时用到的表达式
   ExpressionTuple<Expression *> group_value_expression_tuple(value_expressions_);
 
   ValueListTuple group_by_evaluated_tuple;
@@ -121,7 +122,10 @@ Tuple *HashGroupByPhysicalOperator::current_tuple()
 {
   if (current_group_ != groups_.end()) {
     GroupValueType &group_value = get<1>(*current_group_);
-    return &get<1>(group_value);
+    // 返回的结果为CompositeTuple
+    Tuple* res = &get<1>(group_value);
+
+    return res;
   }
   return nullptr;
 }

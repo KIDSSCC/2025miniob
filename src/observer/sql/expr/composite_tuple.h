@@ -45,6 +45,8 @@ public:
   void   add_tuple(unique_ptr<Tuple> tuple);
   Tuple &tuple_at(size_t index);
 
+  size_t tuple_count() const { return tuples_.size(); }
+
 private:
   vector<unique_ptr<Tuple>> tuples_;
 };

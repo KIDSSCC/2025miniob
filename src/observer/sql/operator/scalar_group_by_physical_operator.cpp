@@ -20,12 +20,14 @@ See the Mulan PSL v2 for more details. */
 using namespace std;
 using namespace common;
 
+// 全局聚合，没有分组字段
 ScalarGroupByPhysicalOperator::ScalarGroupByPhysicalOperator(vector<Expression *> &&expressions)
     : GroupByPhysicalOperator(std::move(expressions))
 {}
 
 RC ScalarGroupByPhysicalOperator::open(Trx *trx)
 {
+  // groupby 算子的子节点一般为tableget或predicate
   ASSERT(children_.size() == 1, "group by operator only support one child, but got %d", children_.size());
 
   PhysicalOperator &child = *children_[0];
@@ -35,6 +37,7 @@ RC ScalarGroupByPhysicalOperator::open(Trx *trx)
     return rc;
   }
 
+  // value_expressions_: 内部的聚合字段
   ExpressionTuple<Expression *> group_value_expression_tuple(value_expressions_);
 
   ValueListTuple group_by_evaluated_tuple;
@@ -54,6 +57,7 @@ RC ScalarGroupByPhysicalOperator::open(Trx *trx)
       AggregatorList aggregator_list;
       create_aggregator_list(aggregator_list);
 
+      // 将子节点返回的tuple转换为 valuelisttuple
       ValueListTuple child_tuple_to_value;
       rc = ValueListTuple::make(*child_tuple, child_tuple_to_value);
       if (OB_FAIL(rc)) {
@@ -84,6 +88,9 @@ RC ScalarGroupByPhysicalOperator::open(Trx *trx)
 
   // 得到最终聚合后的值
   if (group_value_) {
+    // evaluate计算的过程中，会向group_value_的CompositeTuple中添加一个新的ValueListTuple,
+    // 最终，CompositeTuple中会有两个ValueListTuple, 其一为该组第一个tuple的完整数据，其二为最终聚合的结果。
+    // 该组的第一个完整tuple，据猜测应该是标识该组聚合结果，在无分组字段的scalar_group_by中，这个tuple没有什么意义
     rc = evaluate(*group_value_);
   }
 

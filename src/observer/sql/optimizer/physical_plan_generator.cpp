@@ -391,6 +391,7 @@ RC PhysicalPlanGenerator::create_plan(GroupByLogicalOperator &logical_oper, uniq
         std::move(logical_oper.aggregate_expressions()));
   }
 
+  // GroupByLogicalOperator的子节点应该为predicate节点或直接为tableget节点
   ASSERT(logical_oper.children().size() == 1, "group by operator should have 1 child");
 
   LogicalOperator             &child_oper = *logical_oper.children().front();

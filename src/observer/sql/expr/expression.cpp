@@ -55,6 +55,7 @@ bool ValueExpr::equal(const Expression &other) const
   if (other.type() != ExprType::VALUE) {
     return false;
   }
+  // 暂时不确定是否需要针对NULL进行调整
   const auto &other_value_expr = static_cast<const ValueExpr &>(other);
   return value_.compare(other_value_expr.get_value()) == 0;
 }
@@ -600,6 +601,22 @@ unique_ptr<Aggregator> AggregateExpr::create_aggregator() const
   switch (aggregate_type_) {
     case Type::SUM: {
       aggregator = make_unique<SumAggregator>();
+      break;
+    }
+    case Type::COUNT:{
+      aggregator = make_unique<CountAggregator>();
+      break;
+    }
+    case Type::AVG:{
+      aggregator = make_unique<AvgAggregator>();
+      break;
+    }
+    case Type::MAX:{
+      aggregator = make_unique<MaxAggregator>();
+      break;
+    }
+    case Type::MIN:{
+      aggregator = make_unique<MinAggregator>();
       break;
     }
     default: {

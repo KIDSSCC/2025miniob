@@ -46,6 +46,7 @@ class Table;
  */
 class TupleSchema
 {
+  // 元祖的结构信息，本身不存储真实数据，只是记录元数据
 public:
   void append_cell(const TupleCellSpec &cell) { cells_.push_back(cell); }
   void append_cell(const char *table, const char *field) { append_cell(TupleCellSpec(table, field)); }
@@ -94,6 +95,7 @@ public:
 
   virtual string to_string() const
   {
+    // 遍历当前tuple的所有cell，调用其输出
     string    str;
     const int cell_num = this->cell_num();
     for (int i = 0; i < cell_num - 1; i++) {
@@ -113,6 +115,7 @@ public:
 
   virtual RC compare(const Tuple &other, int &result) const
   {
+    // 先比较两个元祖长度是否一致，长度一致下，再逐一比较其中的cell
     RC rc = RC::SUCCESS;
 
     const int this_cell_num  = this->cell_num();
@@ -153,7 +156,7 @@ public:
 /**
  * @brief 一行数据的元组
  * @ingroup Tuple
- * @details 直接就是获取表中的一条记录
+ * @details 直接就是获取表中的一条记录，对应到最原始的，表中的一条记录
  */
 class RowTuple : public Tuple
 {
@@ -317,6 +320,7 @@ public:
   }
 #endif
 private:
+  // tuple_ 是映射前的原始数据，例如：一个完整的rowtuple，expressions_为对应的映射规则，里面可能是fieldExpr(最基础的情况),也可能是ArithmeticExpr等表达式
   vector<unique_ptr<Expression>> expressions_;
   Tuple                         *tuple_ = nullptr;
 };
@@ -373,6 +377,7 @@ public:
 
   static RC make(const Tuple &tuple, ValueListTuple &value_list)
   {
+    // 将另一个tuple中的值逐一构造成 valuelisttuple
     const int cell_num = tuple.cell_num();
     for (int i = 0; i < cell_num; i++) {
       Value cell;
