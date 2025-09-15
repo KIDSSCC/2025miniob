@@ -411,8 +411,14 @@ RC ExpressionBinder::bind_aggregate_expression(
   if (nullptr == expr) {
     return RC::SUCCESS;
   }
-
+  
   auto unbound_aggregate_expr = static_cast<UnboundAggregateExpr *>(expr.get());
+
+  // count(*, id)类型的错误检查，这一类聚合表达式valid被置位
+  if(!unbound_aggregate_expr->get_valid()){
+    return RC::INVALID_ARGUMENT;
+  }
+
   const char *aggregate_name = unbound_aggregate_expr->aggregate_name();
   AggregateExpr::Type aggregate_type;
   RC rc = AggregateExpr::type_from_string(aggregate_name, aggregate_type);

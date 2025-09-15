@@ -50,6 +50,16 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   return expr;
 }
 
+UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate_name,
+                                           unique_ptr<Expression> child,
+                                           const char *sql_string,
+                                           YYLTYPE *llocp)
+{
+  UnboundAggregateExpr *expr = new UnboundAggregateExpr(aggregate_name, std::move(child));
+  expr->set_name(token_name(sql_string, llocp));
+  return expr;
+}
+
 %}
 
 %define api.pure full
@@ -605,26 +615,67 @@ expression:
     | '*' {
       $$ = new StarExpr();
     }
-    // your code here
-    | COUNT expression {
+    // // your code here
+    // | COUNT expression {
+    //   // expression内部对象为指针赋值，不需要在此处删除
+    //   $$ = create_aggregate_expression("count", $2, sql_string, &@$);
+    // }
+    // | SUM expression {
+    //   // expression内部对象为指针赋值，不需要在此处删除
+    //   $$ = create_aggregate_expression("sum", $2, sql_string, &@$);
+    // }
+    // | MAX expression {
+    //   // expression内部对象为指针赋值，不需要在此处删除
+    //   $$ = create_aggregate_expression("max", $2, sql_string, &@$);
+    // }
+    // | MIN expression {
+    //   // expression内部对象为指针赋值，不需要在此处删除
+    //   $$ = create_aggregate_expression("min", $2, sql_string, &@$);
+    // }
+    // | AVG expression {
+    //   // expression内部对象为指针赋值，不需要在此处删除
+    //   $$ = create_aggregate_expression("avg", $2, sql_string, &@$);
+    // }
+    | COUNT LBRACE expression_list RBRACE{
       // expression内部对象为指针赋值，不需要在此处删除
-      $$ = create_aggregate_expression("count", $2, sql_string, &@$);
+      unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
+      $$ = create_aggregate_expression_with_ptr("count", std::move(sub_expr), sql_string, &@$);
+      if((*$3).size() != 1){
+        static_cast<UnboundAggregateExpr*>($$)->set_valid(false);
+      }
+      delete $3;
     }
-    | SUM expression {
-      // expression内部对象为指针赋值，不需要在此处删除
-      $$ = create_aggregate_expression("sum", $2, sql_string, &@$);
+    | SUM LBRACE expression_list RBRACE {
+      unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
+      $$ = create_aggregate_expression_with_ptr("sum", std::move(sub_expr), sql_string, &@$);
+      if((*$3).size() != 1){
+        static_cast<UnboundAggregateExpr*>($$)->set_valid(false);
+      }
+      delete $3;
     }
-    | MAX expression {
-      // expression内部对象为指针赋值，不需要在此处删除
-      $$ = create_aggregate_expression("max", $2, sql_string, &@$);
+    | MAX LBRACE expression_list RBRACE {
+      unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
+      $$ = create_aggregate_expression_with_ptr("max", std::move(sub_expr), sql_string, &@$);
+      if((*$3).size() != 1){
+        static_cast<UnboundAggregateExpr*>($$)->set_valid(false);
+      }
+      delete $3;
     }
-    | MIN expression {
-      // expression内部对象为指针赋值，不需要在此处删除
-      $$ = create_aggregate_expression("min", $2, sql_string, &@$);
+    | MIN LBRACE expression_list RBRACE {
+      unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
+      $$ = create_aggregate_expression_with_ptr("min", std::move(sub_expr), sql_string, &@$);
+      if((*$3).size() != 1){
+        static_cast<UnboundAggregateExpr*>($$)->set_valid(false);
+      }
+      delete $3;
     }
-    | AVG expression {
-      // expression内部对象为指针赋值，不需要在此处删除
-      $$ = create_aggregate_expression("avg", $2, sql_string, &@$);
+    | AVG LBRACE expression_list RBRACE {
+      unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
+      $$ = create_aggregate_expression_with_ptr("avg", std::move(sub_expr), sql_string, &@$);
+      if((*$3).size() != 1){
+        static_cast<UnboundAggregateExpr*>($$)->set_valid(false);
+      }
+      delete $3;
     }
     ;
 

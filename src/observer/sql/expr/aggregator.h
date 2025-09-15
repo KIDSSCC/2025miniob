@@ -44,6 +44,8 @@ class CountAggregator : public Aggregator
 {
 public:
   CountAggregator(bool accept_null){
+    this->value_.set_null(false);
+    this->value_.set_int(0);
     this->accept_null_ = accept_null;
   }
   RC accumulate(const Value &value) override;

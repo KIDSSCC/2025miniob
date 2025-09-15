@@ -472,9 +472,13 @@ public:
   RC       get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
   AttrType value_type() const override { return child_->value_type(); }
 
+  void set_valid(bool is_valid){this->valid = is_valid;}
+  bool get_valid(){return this->valid;}
+
 private:
   string                 aggregate_name_;
   unique_ptr<Expression> child_;
+  bool valid = true;
 };
 
 // 聚合表达式

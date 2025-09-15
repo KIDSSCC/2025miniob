@@ -131,7 +131,7 @@ public:
   }
 
   void set_type(AttrType type) { this->attr_type_ = type; }
-  void set_null() {this->is_null_ = true;}
+  void set_null(bool is_null = true) {this->is_null_ = is_null;}
   void set_length(int length) { this->length_ = length; }
   void set_data(char *data, int length);
   void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
