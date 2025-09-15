@@ -308,8 +308,20 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
 RC Table::make_record_from_record(const Record &src_record, Record &dest_record, int field_idx, const Value *new_value)
 {
   RC rc = RC::SUCCESS;
-
   dest_record.copy_data(src_record.data(), src_record.len()); // 先拷贝旧的record
+
+  const int normal_field_start_index = table_meta_.sys_field_num();
+  const FieldMeta * null_bit_field = table_meta_.field(normal_field_start_index - 1);
+
+  Value null_bitmap;
+  null_bitmap.reset();
+  null_bitmap.set_type(AttrType::CHARS);
+  null_bitmap.set_data(dest_record.data() + null_bit_field->offset(), null_bit_field->len());
+
+  if(new_value->is_null()){
+    null_bitmap.set_bitmap(field_idx - normal_field_start_index, true);
+  }
+
   const FieldMeta *field = table_meta_.field(field_idx);
   if(field->type() != new_value->attr_type()){
     Value real_value;
@@ -322,6 +334,8 @@ RC Table::make_record_from_record(const Record &src_record, Record &dest_record,
   } else {
     rc = set_value_to_record(dest_record.data(), *new_value, field);
   }
+
+  rc = set_value_to_record(dest_record.data(), null_bitmap, null_bit_field);
   
   return rc;
 }
