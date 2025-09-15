@@ -566,7 +566,11 @@ calc_stmt:
     ;
 
 expression_list:
-    expression
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | expression
     {
       $$ = new vector<unique_ptr<Expression>>;
       $$->emplace_back($1);
@@ -615,33 +619,15 @@ expression:
     | '*' {
       $$ = new StarExpr();
     }
-    // // your code here
-    // | COUNT expression {
-    //   // expression内部对象为指针赋值，不需要在此处删除
-    //   $$ = create_aggregate_expression("count", $2, sql_string, &@$);
-    // }
-    // | SUM expression {
-    //   // expression内部对象为指针赋值，不需要在此处删除
-    //   $$ = create_aggregate_expression("sum", $2, sql_string, &@$);
-    // }
-    // | MAX expression {
-    //   // expression内部对象为指针赋值，不需要在此处删除
-    //   $$ = create_aggregate_expression("max", $2, sql_string, &@$);
-    // }
-    // | MIN expression {
-    //   // expression内部对象为指针赋值，不需要在此处删除
-    //   $$ = create_aggregate_expression("min", $2, sql_string, &@$);
-    // }
-    // | AVG expression {
-    //   // expression内部对象为指针赋值，不需要在此处删除
-    //   $$ = create_aggregate_expression("avg", $2, sql_string, &@$);
-    // }
+    // your code here
     | COUNT LBRACE expression_list RBRACE{
       // expression内部对象为指针赋值，不需要在此处删除
-      unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
-      $$ = create_aggregate_expression_with_ptr("count", std::move(sub_expr), sql_string, &@$);
-      if((*$3).size() != 1){
+      if($3 == nullptr || (*$3).size() != 1){
+        $$ = new UnboundAggregateExpr("invalid aggragate", nullptr);
         static_cast<UnboundAggregateExpr*>($$)->set_valid(false);
+      }else{
+        unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
+        $$ = create_aggregate_expression_with_ptr("count", std::move(sub_expr), sql_string, &@$);
       }
       delete $3;
     }
