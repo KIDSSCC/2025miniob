@@ -73,7 +73,7 @@ RC AvgAggregator::accumulate(const Value &value){
   Value real_value;
   RC rc = Value::cast_to(value, AttrType::FLOATS, real_value);
   if(OB_FAIL(rc)){
-    LOG_DEBUG("Failed to cast %s to float when avg aggragate", attr_type_to_string(value.attr_type()));
+    LOG_DEBUG("Failed to cast %s to floats when avg aggragate", attr_type_to_string(value.attr_type()));
     return rc;
   }
   if(value_.attr_type() == AttrType::UNDEFINED){

@@ -197,11 +197,11 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
 
   // 检查 查询字段，分组字段，过滤字段间是否满足约束条件
   RC rc = RC::SUCCESS;
-  rc = check_select_stmt(bound_expressions, group_by_expressions);
-  if(rc != RC::SUCCESS){
-    LOG_WARN("check_select_stmt failed");
-    return rc;
-  }
+  // rc = check_select_stmt(bound_expressions, group_by_expressions);
+  // if(rc != RC::SUCCESS){
+  //   LOG_WARN("check_select_stmt failed");
+  //   return rc;
+  // }
 
 
   Table *default_table = nullptr;

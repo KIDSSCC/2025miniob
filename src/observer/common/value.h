@@ -113,6 +113,10 @@ public:
 
   static RC cast_to(const Value &value, AttrType to_type, Value &result)
   {
+    if(value.attr_type() == to_type){
+      result = value;
+      return RC::SUCCESS;
+    }
     LOG_DEBUG("cast value from %s to %s", attr_type_to_string(value.attr_type()), attr_type_to_string(to_type));
 
     // 检查要转换的值是否为NULL
