@@ -20,6 +20,10 @@ See the Mulan PSL v2 for more details. */
 class Aggregator
 {
 public:
+  Aggregator() {
+    value_.set_type(AttrType::UNDEFINED);
+    value_.set_null();
+  }
   virtual ~Aggregator() = default;
 
   virtual RC accumulate(const Value &value) = 0;
@@ -39,8 +43,13 @@ public:
 class CountAggregator : public Aggregator
 {
 public:
+  CountAggregator(bool accept_null){
+    this->accept_null_ = accept_null;
+  }
   RC accumulate(const Value &value) override;
   RC evaluate(Value &result) override;
+private:
+  bool accept_null_ = true;
 };
 
 class AvgAggregator : public Aggregator
@@ -50,7 +59,7 @@ public:
   RC evaluate(Value &result) override;
 
 private:
-  int count;
+  int count = 0;
 };
 
 class MaxAggregator : public Aggregator

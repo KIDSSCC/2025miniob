@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 
 RC SumAggregator::accumulate(const Value &value)
 {
+  // 第一个值无论是正常值还是null值，都直接接收
   if (value_.attr_type() == AttrType::UNDEFINED) {
     value_ = value;
     return RC::SUCCESS;
@@ -24,8 +25,20 @@ RC SumAggregator::accumulate(const Value &value)
   
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-  
-  Value::add(value, value_, value_);
+
+  if(value.is_null()){
+    // 新传入的值为null，忽略
+    return RC::SUCCESS;
+  }else if(value_.is_null()){
+    // 当前值为null，则用传入值覆盖
+    value_ = value;
+    return RC::SUCCESS;
+  }else{
+    // 两个值都不为null，正常累加
+    Value::add(value, value_, value_);
+    return RC::SUCCESS;
+  }
+
   return RC::SUCCESS;
 }
 
@@ -38,12 +51,15 @@ RC SumAggregator::evaluate(Value& result)
 RC CountAggregator::accumulate(const Value &value){
   
   if(value_.attr_type() == AttrType::UNDEFINED){
-    value_.set_int(1);
+    if(accept_null_ || !value.is_null()){
+      value_.set_int(1);
+    }
     return RC::SUCCESS;
   }
-  Value i1(1);
-
-  Value::add(i1, value_, value_);
+  if(accept_null_ || !value.is_null()){
+    Value i1(1);
+    Value::add(i1, value_, value_);
+  }
   return RC::SUCCESS;
 }
 
@@ -60,19 +76,36 @@ RC AvgAggregator::accumulate(const Value &value){
     LOG_DEBUG("Failed to cast %s to float when avg aggragate", attr_type_to_string(value.attr_type()));
     return rc;
   }
-
   if(value_.attr_type() == AttrType::UNDEFINED){
     value_ = real_value;
-    count = 1;
+    if(!real_value.is_null()){
+      count += 1;
+    }
     return RC::SUCCESS;
   }
-
-  Value::add(value_, real_value, value_);
-  count += 1;
-  return RC::SUCCESS;
+  
+  if(real_value.is_null()){
+    // 新传入的值为null，忽略
+    return RC::SUCCESS;
+  }else if(value_.is_null()){
+    // 当前值为null，则用传入值覆盖
+    value_ = real_value;
+    count += 1;
+    return RC::SUCCESS;
+  }else{
+    // 两个值都不为null，正常累加
+    Value::add(value_, real_value, value_);
+    count += 1;
+    return RC::SUCCESS;
+  }
 }
 
 RC AvgAggregator::evaluate(Value& result){
+  if(value_.is_null() || count == 0){
+    result = value_;
+    return RC::SUCCESS;
+  }
+
   value_.set_float(value_.get_float() / count);
   result = value_;
   return RC::SUCCESS;
@@ -88,9 +121,20 @@ RC MaxAggregator::accumulate(const Value &value){
     attr_type_to_string(value.attr_type())
   );
 
-  int comp = value_.compare(value);
-  if(comp == -1){
+  if(value.is_null()){
+    // 新传入的值为null，忽略
+    return RC::SUCCESS;
+  }else if(value_.is_null()){
+    // 当前值为null，则用传入值覆盖
     value_ = value;
+    return RC::SUCCESS;
+  }else{
+    // 两个值都不为null，正常比较
+    int comp = value_.compare(value);
+    if(comp == -1){
+      value_ = value;
+    }
+    return RC::SUCCESS;
   }
 
   return RC::SUCCESS;
@@ -111,9 +155,20 @@ RC MinAggregator::accumulate(const Value &value){
     attr_type_to_string(value.attr_type())
   );
 
-  int comp = value_.compare(value);
-  if(comp == 1){
+  if(value.is_null()){
+    // 新传入的值为null，忽略
+    return RC::SUCCESS;
+  }else if(value_.is_null()){
+    // 当前值为null，则用传入值覆盖
     value_ = value;
+    return RC::SUCCESS;
+  }else{
+    // 两个值都不为null，正常比较
+    int comp = value_.compare(value);
+    if(comp == 1){
+      value_ = value;
+    }
+    return RC::SUCCESS;
   }
 
   return RC::SUCCESS;

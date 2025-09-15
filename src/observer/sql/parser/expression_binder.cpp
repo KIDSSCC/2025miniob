@@ -101,6 +101,7 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
 RC ExpressionBinder::bind_star_expression(
     unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
+  LOG_INFO("bind_star_expression");
   if (nullptr == expr) {
     return RC::SUCCESS;
   }

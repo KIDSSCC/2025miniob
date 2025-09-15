@@ -604,7 +604,7 @@ unique_ptr<Aggregator> AggregateExpr::create_aggregator() const
       break;
     }
     case Type::COUNT:{
-      aggregator = make_unique<CountAggregator>();
+      aggregator = make_unique<CountAggregator>((this->child_->type() == ExprType::VALUE));
       break;
     }
     case Type::AVG:{
