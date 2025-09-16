@@ -632,34 +632,42 @@ expression:
       delete $3;
     }
     | SUM LBRACE expression_list RBRACE {
-      unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
-      $$ = create_aggregate_expression_with_ptr("sum", std::move(sub_expr), sql_string, &@$);
-      if((*$3).size() != 1){
+      if($3 == nullptr || (*$3).size() != 1){
+        $$ = new UnboundAggregateExpr("invalid aggragate", nullptr);
         static_cast<UnboundAggregateExpr*>($$)->set_valid(false);
+      }else{
+        unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
+        $$ = create_aggregate_expression_with_ptr("sum", std::move(sub_expr), sql_string, &@$);
       }
       delete $3;
     }
     | MAX LBRACE expression_list RBRACE {
-      unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
-      $$ = create_aggregate_expression_with_ptr("max", std::move(sub_expr), sql_string, &@$);
-      if((*$3).size() != 1){
+      if($3 == nullptr || (*$3).size() != 1){
+        $$ = new UnboundAggregateExpr("invalid aggragate", nullptr);
         static_cast<UnboundAggregateExpr*>($$)->set_valid(false);
+      }else{
+        unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
+        $$ = create_aggregate_expression_with_ptr("max", std::move(sub_expr), sql_string, &@$);
       }
       delete $3;
     }
     | MIN LBRACE expression_list RBRACE {
-      unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
-      $$ = create_aggregate_expression_with_ptr("min", std::move(sub_expr), sql_string, &@$);
-      if((*$3).size() != 1){
+      if($3 == nullptr || (*$3).size() != 1){
+        $$ = new UnboundAggregateExpr("invalid aggragate", nullptr);
         static_cast<UnboundAggregateExpr*>($$)->set_valid(false);
+      }else{
+        unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
+        $$ = create_aggregate_expression_with_ptr("min", std::move(sub_expr), sql_string, &@$);
       }
       delete $3;
     }
     | AVG LBRACE expression_list RBRACE {
-      unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
-      $$ = create_aggregate_expression_with_ptr("avg", std::move(sub_expr), sql_string, &@$);
-      if((*$3).size() != 1){
+      if($3 == nullptr || (*$3).size() != 1){
+        $$ = new UnboundAggregateExpr("invalid aggragate", nullptr);
         static_cast<UnboundAggregateExpr*>($$)->set_valid(false);
+      }else{
+        unique_ptr<Expression> sub_expr = (*$3)[0]->copy();
+        $$ = create_aggregate_expression_with_ptr("avg", std::move(sub_expr), sql_string, &@$);
       }
       delete $3;
     }

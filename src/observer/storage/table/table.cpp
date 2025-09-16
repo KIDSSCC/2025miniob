@@ -323,6 +323,11 @@ RC Table::make_record_from_record(const Record &src_record, Record &dest_record,
   }
 
   const FieldMeta *field = table_meta_.field(field_idx);
+  if(new_value->is_null() && !field->allow_null()){
+    LOG_DEBUG("update set null in a field which is not allowed null");
+    return RC::INVALID_ARGUMENT;
+  }
+
   if(field->type() != new_value->attr_type()){
     Value real_value;
     rc = Value::cast_to(*new_value, field->type(), real_value);
