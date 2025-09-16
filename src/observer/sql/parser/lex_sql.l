@@ -134,6 +134,8 @@ SUM                                     RETURN_TOKEN(SUM);
 AVG                                     RETURN_TOKEN(AVG);
 MIN                                     RETURN_TOKEN(MIN);
 MAX                                     RETURN_TOKEN(MAX);
+IN                                      RETURN_TOKEN(IN);
+EXIST                                   RETURN_TOKEN(EXIST);
 {ID}                                    yylval->cstring=strdup(yytext); static_cast<std::vector<char*>*>(yyextra)->push_back(yylval->cstring); RETURN_TOKEN(ID);
 "("                                     RETURN_TOKEN(LBRACE);
 ")"                                     RETURN_TOKEN(RBRACE);
