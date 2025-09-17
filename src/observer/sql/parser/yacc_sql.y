@@ -752,7 +752,6 @@ condition:
         delete $1;
       }else{
         // TODO: 左值是一个表达式
-        // ASSERT(left_exp->type()==ExprType::ARITHMETIC, "condition left element must be field, value, or expression");
         $$->left_is_attr = 2;
         $$->left_expressions.emplace_back(unique_ptr<Expression>(left_exp));
       }

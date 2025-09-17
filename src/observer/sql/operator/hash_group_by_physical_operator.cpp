@@ -37,7 +37,7 @@ RC HashGroupByPhysicalOperator::open(Trx *trx)
     return rc;
   }
 
-  // value_expressions_计算聚合时用到的表达式
+  // value_expressions_ 计算聚合时用到的表达式
   ExpressionTuple<Expression *> group_value_expression_tuple(value_expressions_);
 
   ValueListTuple group_by_evaluated_tuple;
@@ -114,7 +114,6 @@ RC HashGroupByPhysicalOperator::next()
 RC HashGroupByPhysicalOperator::close()
 {
   children_[0]->close();
-  LOG_INFO("close group by operator");
   return RC::SUCCESS;
 }
 

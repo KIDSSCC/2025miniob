@@ -20,49 +20,11 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table.h"
 #include "sql/parser/expression_binder.h"
 
+#include "sql/expr/expression_iterator.h"
+
 using namespace std;
 using namespace common;
 
-
-void aggregate_or_not(unique_ptr<Expression>& expr, int& isaggr, int& notaggr){
-  if(expr->type()==ExprType::AGGREGATION){
-    isaggr += 1;
-  }else{
-    if(expr->type()==ExprType::FIELD || expr->type()==ExprType::VALUE){
-      notaggr += 1;
-    }else if(expr->type()==ExprType::ARITHMETIC){
-      unique_ptr<Expression>& left_expr = static_cast<ArithmeticExpr*>(expr.get())->left();
-      unique_ptr<Expression>& right_expr = static_cast<ArithmeticExpr*>(expr.get())->right();
-      aggregate_or_not(left_expr, isaggr, notaggr);
-      aggregate_or_not(right_expr, isaggr, notaggr);
-    }else if(expr->type()==ExprType::COMPARISON){
-      unique_ptr<Expression>& left_expr = static_cast<ComparisonExpr*>(expr.get())->left();
-      unique_ptr<Expression>& right_expr = static_cast<ComparisonExpr*>(expr.get())->right();
-      aggregate_or_not(left_expr, isaggr, notaggr);
-      aggregate_or_not(right_expr, isaggr, notaggr);
-    }else{
-      LOG_DEBUG("unsupport aggragete check");
-    }
-  }
-}
-
-RC check_select_stmt(vector<unique_ptr<Expression>>& query_expr, vector<unique_ptr<Expression>>& groupby_expr){
-  // select查询字段，groupby分组字段，having分组后过滤
-  // 先检查最简单的一种情况，在没有分组字段时，查询字段不允许同时出现非聚合字段和聚合字段
-  if(groupby_expr.size()==0){
-    int isaggr = 0;
-    int notaggr = 0;
-    for(unique_ptr<Expression>& select_field : query_expr){
-      aggregate_or_not(select_field, isaggr, notaggr);
-    }
-
-    if(isaggr!=0 && notaggr!=0){
-      LOG_DEBUG("select field cannot exist with aggragete func when there is no groupby expr");
-      return RC::INVALID_ARGUMENT;
-    }
-  }
-  return RC::SUCCESS;
-}
 
 SelectStmt::~SelectStmt()
 {
@@ -195,14 +157,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     }
   }
 
-  // 检查 查询字段，分组字段，过滤字段间是否满足约束条件
   RC rc = RC::SUCCESS;
-  // rc = check_select_stmt(bound_expressions, group_by_expressions);
-  // if(rc != RC::SUCCESS){
-  //   LOG_WARN("check_select_stmt failed");
-  //   return rc;
-  // }
-
 
   Table *default_table = nullptr;
   if (tables.size() == 1) {
@@ -222,21 +177,43 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     return rc;
   }
 
-  FilterStmt* having_stmt = nullptr;
-  rc                      = FilterStmt::create(db,
-      default_table,
-      &table_map,
-      select_sql.having.data(),
-      static_cast<int>(select_sql.having.size()),
-      having_stmt);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("cannot construct having filter stmt");
-    return rc;
-  }
-
-  // everything alright
   SelectStmt *select_stmt = new SelectStmt();
 
+  // 先将having字段中涉及的表达式拷贝一份，用于在逻辑计划生成的时候，绑定聚合字段。
+  function<RC(unique_ptr<Expression>&)> collector = [&](unique_ptr<Expression> &expr) -> RC {
+    RC rc = RC::SUCCESS;
+    if (expr->type() == ExprType::AGGREGATION) {
+      select_stmt->having_expressions_.emplace_back(move(expr->copy()));
+      select_stmt->having_expressions_.back()->set_name(expr->name());
+    }
+    rc = ExpressionIterator::iterate_child_expr(*expr, collector);
+    return rc;
+  };
+
+
+  for(size_t i=0;i<select_sql.having.size();i++){
+    ConditionSqlNode& curr_condition_node = select_sql.having[i];
+    if(curr_condition_node.left_is_attr == 2){
+      collector(curr_condition_node.left_expressions[0]);
+    }
+
+    if(curr_condition_node.right_is_attr == 2){
+      collector(curr_condition_node.right_expressions[0]);
+    }
+  }
+  FilterStmt* having_stmt = nullptr;
+  rc                      = FilterStmt::create(db,
+    default_table,
+    &table_map,
+    select_sql.having.data(),
+    static_cast<int>(select_sql.having.size()),
+    having_stmt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot construct having filter stmt");
+      return rc;
+    }
+    
+  // everything alright
   select_stmt->tables_.swap(tables);
   select_stmt->query_expressions_.swap(bound_expressions);
   select_stmt->filter_stmt_ = filter_stmt;

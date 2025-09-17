@@ -418,7 +418,6 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
   };
   
   for (unique_ptr<Expression> &expression : query_expressions) {
-    LOG_INFO("pos is %d", expression->pos());
     bind_group_by_expr(expression);
   }
   
@@ -426,8 +425,13 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
     find_unbound_column(expression);
   }
 
-  // collect all aggregate expressions
+  // 收集所有查询字段中的聚合函数
   for (unique_ptr<Expression> &expression : query_expressions) {
+    collector(expression);
+  }
+
+  // 收集所有在having字段中的聚合函数
+  for(unique_ptr<Expression> &expression : select_stmt->having_expressions()){
     collector(expression);
   }
 
