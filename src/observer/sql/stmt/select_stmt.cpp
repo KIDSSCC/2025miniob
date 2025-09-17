@@ -125,30 +125,30 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   for(ConditionSqlNode& condition_node : select_sql.conditions){
     if(condition_node.left_is_attr == 2){
       // 左值为表达式
-      RC rc = expression_binder.bind_expression(condition_node.left_expression, condition_expessions);
+      RC rc = expression_binder.bind_expression(condition_node.left_expressions[0], condition_expessions);
       if (OB_FAIL(rc)) {
         LOG_INFO("bind expression failed. rc=%s", strrc(rc));
         return rc;
       }
       // 替换左值表达式
       unique_ptr<Expression> &left = condition_expessions[0];
-      if (left.get() != condition_node.left_expression.get()) {
-        condition_node.left_expression.reset(left.release());
+      if (left.get() != condition_node.left_expressions[0].get()) {
+        condition_node.left_expressions[0].reset(left.release());
       }
     }
     condition_expessions.clear();
     
     if(condition_node.right_is_attr == 2){
       // 右值为表达式
-      RC rc = expression_binder.bind_expression(condition_node.right_expression, condition_expessions);
+      RC rc = expression_binder.bind_expression(condition_node.right_expressions[0], condition_expessions);
       if (OB_FAIL(rc)) {
         LOG_INFO("bind expression failed. rc=%s", strrc(rc));
         return rc;
       }
       // 替换右值表达式
       unique_ptr<Expression> &right = condition_expessions[0];
-      if (right.get() != condition_node.right_expression.get()) {
-        condition_node.right_expression.reset(right.release());
+      if (right.get() != condition_node.right_expressions[0].get()) {
+        condition_node.right_expressions[0].reset(right.release());
       }
     }
   }
@@ -168,29 +168,29 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   for(ConditionSqlNode& condition_node : select_sql.having){
     if(condition_node.left_is_attr == 2){
       // 左值为表达式
-      RC rc = expression_binder.bind_expression(condition_node.left_expression, having_expessions);
+      RC rc = expression_binder.bind_expression(condition_node.left_expressions[0], having_expessions);
       if (OB_FAIL(rc)) {
         LOG_INFO("bind expression failed. rc=%s", strrc(rc));
         return rc;
       }
       // 替换左值表达式
       unique_ptr<Expression> &left = having_expessions[0];
-      if (left.get() != condition_node.left_expression.get()) {
-        condition_node.left_expression.reset(left.release());
+      if (left.get() != condition_node.left_expressions[0].get()) {
+        condition_node.left_expressions[0].reset(left.release());
       }
     }
     having_expessions.clear();
     
     if(condition_node.right_is_attr == 2){
-      RC rc = expression_binder.bind_expression(condition_node.right_expression, having_expessions);
+      RC rc = expression_binder.bind_expression(condition_node.right_expressions[0], having_expessions);
       if(OB_FAIL(rc)){
         LOG_INFO("bind expression failed. rc=%s", strrc(rc));
         return rc;
       }
       // 替换右值表达式
       unique_ptr<Expression> &right = having_expessions[0];
-      if (right.get() != condition_node.right_expression.get()) {
-        condition_node.right_expression.reset(right.release());
+      if (right.get() != condition_node.right_expressions[0].get()) {
+        condition_node.right_expressions[0].reset(right.release());
       }
     }
   }

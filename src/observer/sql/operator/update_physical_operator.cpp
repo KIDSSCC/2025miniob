@@ -47,7 +47,6 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
 
   child->close();
-  LOG_DEBUG("%d records need to update", records_.size());
 
   // 先收集记录再进行更新
   // 记录的有效性由事务来保证，如果事务不保证删除的有效性，那说明此事务类型不支持并发控制，比如VacuousTrx

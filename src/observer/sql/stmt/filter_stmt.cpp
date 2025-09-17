@@ -112,7 +112,8 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, unordered_map<st
   }else{
     ASSERT(condition.left_is_attr == 2, "fileter left element must be field, value or expression");
     FilterObj filter_obj;
-    filter_obj.init_expr(move(const_cast<ConditionSqlNode&>(condition).left_expression));
+    
+    filter_obj.init_expr(move(const_cast<ConditionSqlNode&>(condition).left_expressions[0]));
     filter_unit->set_left(filter_obj);
   }
 
@@ -134,7 +135,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, unordered_map<st
   }else{
     ASSERT(condition.right_is_attr == 2, "fileter right element must be field, value or expression");
     FilterObj filter_obj;
-    filter_obj.init_expr(move(const_cast<ConditionSqlNode&>(condition).right_expression));
+    filter_obj.init_expr(move(const_cast<ConditionSqlNode&>(condition).right_expressions[0]));
     filter_unit->set_right(filter_obj);
   }
 

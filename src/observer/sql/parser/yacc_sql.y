@@ -754,7 +754,7 @@ condition:
         // TODO: 左值是一个表达式
         // ASSERT(left_exp->type()==ExprType::ARITHMETIC, "condition left element must be field, value, or expression");
         $$->left_is_attr = 2;
-        $$->left_expression = unique_ptr<Expression>(left_exp);
+        $$->left_expressions.emplace_back(unique_ptr<Expression>(left_exp));
       }
 
       if(right_exp->type()==ExprType::UNBOUND_FIELD){
@@ -772,11 +772,14 @@ condition:
         // TODO: 右值是一个表达式
         // ASSERT(right_exp->type()==ExprType::ARITHMETIC, "condition right element must be field, value, or expression");
         $$->right_is_attr = 2;
-        $$->right_expression = unique_ptr<Expression>(right_exp);
+        $$->right_expressions.emplace_back(unique_ptr<Expression>(right_exp));
       }
 
       $$->comp = $2;
     }
+    // | expression IN expression_list{
+    //   $$ = nullptr;
+    // }
     ;
 
 comp_op:
