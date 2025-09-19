@@ -51,6 +51,7 @@ private:
   vector<unique_ptr<Expression>> query_expressions_;
   vector<unique_ptr<Expression>> having_expressions_;
   vector<Table *>                tables_;
+  unique_ptr<RelationNode>     relations_;
   FilterStmt                    *filter_stmt_ = nullptr;
   FilterStmt                    *having_stmt_ = nullptr;
   vector<unique_ptr<Expression>> group_by_;

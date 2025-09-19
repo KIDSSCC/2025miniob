@@ -58,6 +58,12 @@ enum CompOp
   NO_OP
 };
 
+enum JoinOp
+{
+  CROSS_JOIN,
+  INNER_JOIN
+};
+
 /**
  * @brief 表示一个条件比较
  * @ingroup SQLParser
@@ -91,6 +97,28 @@ struct ConditionSqlNode
   ConditionSqlNode& operator=(const ConditionSqlNode&) = delete;
 };
 
+struct RelationNode {
+  bool is_join;                                 // 标识当前RelationNode代表的是一张单独的表还是两个表join之后的结果
+  string table_name;                            // 单独的一张表，表名
+  unique_ptr<RelationNode> left;
+  unique_ptr<RelationNode> right;
+  JoinOp join_type;
+  vector<ConditionSqlNode> join_conditions;
+
+  void get_all_tables(vector<string>& tables) {
+    if (!is_join) {
+      tables.push_back(table_name);
+    } else {
+      if (left) {
+        left->get_all_tables(tables);
+      }
+      if (right) {
+        right->get_all_tables(tables);
+      }
+    }
+  }
+};
+
 /**
  * @brief 描述一个select语句
  * @ingroup SQLParser
@@ -105,7 +133,8 @@ struct ConditionSqlNode
 struct SelectSqlNode
 {
   vector<unique_ptr<Expression>> expressions;  ///< 查询的表达式
-  vector<string>                 relations;    ///< 查询的表
+  // vector<string>                 relations;    ///< 查询的表
+  unique_ptr<RelationNode>        relations;
   vector<ConditionSqlNode>       conditions;   ///< 查询条件，使用AND串联起来多个条件
   vector<unique_ptr<Expression>> group_by;     ///< group by clause
   vector<ConditionSqlNode> having;

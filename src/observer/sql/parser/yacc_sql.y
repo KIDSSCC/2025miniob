@@ -137,11 +137,14 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
         AVG
         IN
         EXIST
+        INNER
+        JOIN
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
   ParsedSqlNode *                            sql_node;
   ConditionSqlNode *                         condition;
+  RelationNode *                              relation_node;
   Value *                                    value;
   enum CompOp                                comp;
   RelAttrSqlNode *                           rel_attr;
@@ -169,7 +172,7 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
 %destructor { delete $$; } <value_list>
 %destructor { delete $$; } <condition_list>
 // %destructor { delete $$; } <rel_attr_list>
-%destructor { delete $$; } <relation_list>
+// %destructor { delete $$; } <relation_list>
 %destructor { delete $$; } <key_list>
 
 %token <number> NUMBER
@@ -181,9 +184,10 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
 %type <number>              type
 %type <condition>           condition
+%type <relation_node>       relation_node
 %type <value>               value
 %type <number>              number
-%type <cstring>             relation
+// %type <cstring>             relation
 %type <comp>                comp_op
 %type <rel_attr>            rel_attr
 %type <attr_infos>          attr_def_list
@@ -196,7 +200,7 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
 %type <cstring>             storage_format
 %type <key_list>            primary_key
 %type <key_list>            attr_list
-%type <relation_list>       rel_list
+// %type <relation_list>       rel_list
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <expression_list>     group_by
@@ -225,6 +229,8 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
+%left COMMA
+%left INNER
 %left '+' '-'
 %left '*' '/'
 %right UMINUS
@@ -529,7 +535,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM rel_list where group_by have
+    SELECT expression_list FROM relation_node where group_by have
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -537,10 +543,12 @@ select_stmt:        /*  select 语句的语法解析树*/
         delete $2;
       }
 
-      if ($4 != nullptr) {
-        $$->selection.relations.swap(*$4);
-        delete $4;
-      }
+      // relations 有string列表替换为RelationNode节点
+      $$->selection.relations.reset($4);
+      // if ($4 != nullptr) {
+      //   $$->selection.relations.swap(*$4);
+      //   delete $4;
+      // }
 
       if ($5 != nullptr) {
         $$->selection.conditions.swap(*$5);
@@ -675,6 +683,51 @@ expression:
     }
     ;
 
+relation_node:
+    relation_node COMMA ID{
+      $$ = new RelationNode;
+      $$->is_join = true;
+      $$->join_type = JoinOp::CROSS_JOIN;
+
+      RelationNode* right = new RelationNode;
+      right->is_join = false;
+      right->table_name = $3;
+
+      $$->left.reset($1);
+      $$->right.reset(right);
+    }
+    | relation_node INNER JOIN ID{
+      $$ = new RelationNode;
+      $$->is_join = true;
+      $$->join_type = JoinOp::CROSS_JOIN;
+
+      RelationNode* right = new RelationNode;
+      right->is_join = false;
+      right->table_name = $4;
+
+      $$->left.reset($1);
+      $$->right.reset(right);
+    }
+    | relation_node INNER JOIN ID ON condition_list{
+      $$ = new RelationNode;
+      $$->is_join = true;
+      $$->join_type = JoinOp::INNER_JOIN;
+
+      RelationNode* right = new RelationNode;
+      right->is_join = false;
+      right->table_name = $4;
+
+      $$->left.reset($1);
+      $$->right.reset(right);
+      $$->join_conditions.swap(*$6);
+    }
+    | ID {
+      $$ = new RelationNode;
+      $$->is_join = false;
+      $$->table_name = $1;
+    }
+    ;
+
 rel_attr:
     ID {
       $$ = new RelAttrSqlNode;
@@ -687,26 +740,26 @@ rel_attr:
     }
     ;
 
-relation:
-    ID {
-      $$ = $1;
-    }
-    ;
-rel_list:
-    relation {
-      $$ = new vector<string>();
-      $$->push_back($1);
-    }
-    | relation COMMA rel_list {
-      if ($3 != nullptr) {
-        $$ = $3;
-      } else {
-        $$ = new vector<string>;
-      }
+// relation:
+//     ID {
+//       $$ = $1;
+//     }
+//     ;
+// rel_list:
+//     relation {
+//       $$ = new vector<string>();
+//       $$->push_back($1);
+//     }
+//     | relation COMMA rel_list {
+//       if ($3 != nullptr) {
+//         $$ = $3;
+//       } else {
+//         $$ = new vector<string>;
+//       }
 
-      $$->insert($$->begin(), $1);
-    }
-    ;
+//       $$->insert($$->begin(), $1);
+//     }
+//     ;
 
 where:
     /* empty */
