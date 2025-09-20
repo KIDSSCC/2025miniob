@@ -254,7 +254,7 @@ public:
     } else {
       Chunk     chunk;
       FieldMeta fm;
-      fm.init("col1", AttrType::INTS, 0, 4, true, 0);
+      fm.init("col1", AttrType::INTS, 0, 4, false, true, 0);
       auto col1 = make_unique<Column>(fm, 2048);
       chunk.add_column(std::move(col1), 0);
       while (OB_SUCC(rc = scanner.next_chunk(chunk))) {
