@@ -52,7 +52,21 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   vector<Table *>                tables;
   unordered_map<string, Table *> table_map;
 
+  function<void(unique_ptr<RelationNode>&)> bind_table_ptr = [&](unique_ptr<RelationNode>&relation_node) -> void{
+    if(!relation_node->is_join){
+      relation_node->table_ptr = db->find_table(relation_node->table_name.c_str());
+    }else{
+      if (relation_node->left) {
+        bind_table_ptr(relation_node->left);
+      }
+      if (relation_node->right) {
+        bind_table_ptr(relation_node->right);
+      }
+    }
+  };
+
   vector<string> table_names;
+  bind_table_ptr(select_sql.relations);
   select_sql.relations->get_all_tables(table_names);
   for (size_t i = 0; i < table_names.size(); i++) {
     const char *table_name = table_names[i].c_str();

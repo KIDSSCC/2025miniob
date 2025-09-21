@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/utility.h"
 
 class Expression;
+class Table;
 
 /**
  * @defgroup SQLParser SQL Parser
@@ -100,6 +101,7 @@ struct ConditionSqlNode
 struct RelationNode {
   bool is_join;                                 // 标识当前RelationNode代表的是一张单独的表还是两个表join之后的结果
   string table_name;                            // 单独的一张表，表名
+  Table* table_ptr = nullptr;
   unique_ptr<RelationNode> left;
   unique_ptr<RelationNode> right;
   JoinOp join_type;

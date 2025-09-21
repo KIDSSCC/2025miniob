@@ -40,6 +40,7 @@ public:
 
 public:
   const vector<Table *> &tables() const { return tables_; }
+  const unique_ptr<RelationNode> &relations() const { return relations_; }
   FilterStmt            *filter_stmt() const { return filter_stmt_; }
   FilterStmt            *having_stmt() const { return having_stmt_; }
 

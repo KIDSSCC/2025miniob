@@ -45,6 +45,8 @@ public:
 
   auto add_join_predicate(unique_ptr<Expression> &&predicate) { join_predicates_.push_back(std::move(predicate)); }
 
+  // 查询优化中的基数估算，根据左右两张表的基数，先按照笛卡尔积估算返回结果的上限，即left * right。随后再根据等值比较来对基数进行缩减。
+  // 暂时还不清楚这东西用在了什么地方
   unique_ptr<LogicalProperty> find_log_prop(const vector<LogicalProperty *> &log_props) override
   {
     if (log_props.size() != 2) {
@@ -54,6 +56,7 @@ public:
     LogicalProperty *left_log_prop  = log_props[0];
     LogicalProperty *right_log_prop = log_props[1];
     int              card           = left_log_prop->get_card() * right_log_prop->get_card();
+
     for (auto &predicate : join_predicates_) {
       if (predicate->type() != ExprType::COMPARISON) {
         continue;
@@ -70,6 +73,7 @@ public:
   }
 
 private:
+  // join 算子的两个成员，predicate_op_ 为连接条件的predicate算子，join_predicates_ 为连接条件的表达式
   LogicalOperator                    *predicate_op_ = nullptr;
   std::vector<unique_ptr<Expression>> join_predicates_;
 };

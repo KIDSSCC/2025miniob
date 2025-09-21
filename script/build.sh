@@ -40,5 +40,6 @@ if [ "$d_flag" = true ]; then
     # 在这里编写需要在有 -d 选项时执行的操作
 fi
 
-cmake .. -DBENCHMARK=ON
+# cmake .. -DWITH_UNIT_TESTS=ON -DWITH_BENCHMARK=ON -DCONCURRENCY=ON
+cmake ..
 make -j16
