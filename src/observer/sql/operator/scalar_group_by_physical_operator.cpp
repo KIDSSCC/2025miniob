@@ -42,6 +42,13 @@ RC ScalarGroupByPhysicalOperator::open(Trx *trx)
 
   ValueListTuple group_by_evaluated_tuple;
 
+  // 将聚合器初始化的时机提前至子节点next之前，避免出现子节点无tuple返回的情况
+  AggregatorList aggregator_list;
+  create_aggregator_list(aggregator_list);
+  CompositeTuple composite_tuple;
+  group_value_ = make_unique<GroupValueType>(std::move(aggregator_list), std::move(composite_tuple));
+
+  bool init = false;
   while (OB_SUCC(rc = child.next())) {
     Tuple *child_tuple = child.current_tuple();
     if (nullptr == child_tuple) {
@@ -51,24 +58,34 @@ RC ScalarGroupByPhysicalOperator::open(Trx *trx)
 
     // 计算需要做聚合的值
     group_value_expression_tuple.set_tuple(child_tuple);
-
-    // 计算聚合值
-    if (group_value_ == nullptr) {
-      AggregatorList aggregator_list;
-      create_aggregator_list(aggregator_list);
-
-      // 将子节点返回的tuple转换为 valuelisttuple
+    if(!init){
       ValueListTuple child_tuple_to_value;
       rc = ValueListTuple::make(*child_tuple, child_tuple_to_value);
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to make tuple to value list. rc=%s", strrc(rc));
         return rc;
       }
+      get<1>(*group_value_).add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
 
-      CompositeTuple composite_tuple;
-      composite_tuple.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
-      group_value_ = make_unique<GroupValueType>(std::move(aggregator_list), std::move(composite_tuple));
+      init = true;
     }
+    // // 计算聚合值
+    // if (group_value_ == nullptr) {
+    //   AggregatorList aggregator_list;
+    //   create_aggregator_list(aggregator_list);
+
+    //   // 将子节点返回的tuple转换为 valuelisttuple
+    //   ValueListTuple child_tuple_to_value;
+    //   rc = ValueListTuple::make(*child_tuple, child_tuple_to_value);
+    //   if (OB_FAIL(rc)) {
+    //     LOG_WARN("failed to make tuple to value list. rc=%s", strrc(rc));
+    //     return rc;
+    //   }
+
+    //   CompositeTuple composite_tuple;
+    //   composite_tuple.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
+    //   group_value_ = make_unique<GroupValueType>(std::move(aggregator_list), std::move(composite_tuple));
+    // }
     
     rc = aggregate(get<0>(*group_value_), group_value_expression_tuple);
     if (OB_FAIL(rc)) {
