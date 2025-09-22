@@ -83,7 +83,6 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
         INDEX
         CALC
         SELECT
-        DESC
         SHOW
         SYNC
         INSERT
@@ -139,6 +138,9 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
         EXIST
         INNER
         JOIN
+        ORDER
+        ASC
+        DESC
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {

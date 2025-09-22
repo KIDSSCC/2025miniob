@@ -114,6 +114,8 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
       unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(relation_node->table_ptr, ReadWriteMode::READ_ONLY));
       return table_get_oper;
     }else{
+      unique_ptr<LogicalOperator> ret_node;
+
       unique_ptr<LogicalOperator> left_node = generate_join_oper(relation_node->left);
       unique_ptr<LogicalOperator> right_node = generate_join_oper(relation_node->right);
       if(left_node == nullptr || right_node == nullptr){
@@ -121,21 +123,24 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
         return nullptr;
       }
 
-      JoinLogicalOperator *join_oper = new JoinLogicalOperator;
+      unique_ptr<JoinLogicalOperator> join_oper = make_unique<JoinLogicalOperator>();
       join_oper->add_child(std::move(left_node));
       join_oper->add_child(std::move(right_node));
 
       // 两张表在inner join连接下，创建单独的predicate算子
       if(relation_node->join_type == JoinOp::INNER_JOIN){
         unique_ptr<LogicalOperator> join_predicate_oper;
-        rc = create_plan(relation_node->filter_stmt, predicate_oper);
+        rc = create_plan(relation_node->filter_stmt, join_predicate_oper);
         if (OB_FAIL(rc)) {
           LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
           return nullptr;
         }
-
+        
         if(join_predicate_oper){
-          join_oper->add_predicate_op(join_predicate_oper);
+          join_predicate_oper->add_child(std::move(join_oper));
+          ret_node = std::move(join_predicate_oper);
+        }else{
+          ret_node = std::move(join_oper);
         }
       }
 
@@ -145,7 +150,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
         relation_node->filter_stmt = nullptr;
       }
 
-      return unique_ptr<LogicalOperator>(join_oper);
+      return ret_node;
     }
   };
 
@@ -289,7 +294,6 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
     predicate_oper = unique_ptr<PredicateLogicalOperator>(new PredicateLogicalOperator(std::move(conjunction_expr)));
   }
-
   logical_operator = std::move(predicate_oper);
   return rc;
 }

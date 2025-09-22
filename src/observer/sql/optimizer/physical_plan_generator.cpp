@@ -360,20 +360,8 @@ RC PhysicalPlanGenerator::create_plan(JoinLogicalOperator &join_oper, unique_ptr
     }
 
     // 根据逻辑算子中是否存在条件谓词，此处需要在join算子前叠一层predicate
-    unique_ptr<PhysicalOperator> pred_physical_op;
-    if(join_oper.get_predicate_op()){
-      rc = create(*join_oper.get_predicate_op(), pred_physical_op, session);
-      if (rc != RC::SUCCESS) {
-        LOG_WARN("failed to create physical predicate oper. rc=%s", strrc(rc));
-        return rc;
-      }
-    }
 
     oper = std::move(join_physical_oper);
-    if(pred_physical_op){
-      pred_physical_op->add_child(std::move(oper));
-      oper = std::move(pred_physical_op);
-    }
   }
   return rc;
 }

@@ -54,7 +54,6 @@ RC PredicatePhysicalOperator::next()
     if (rc != RC::SUCCESS) {
       return rc;
     }
-
     // 不断循环，直至找到一个使 ConjunctionExpr 表达式为true的tuple
     if (value.get_boolean()) {
       return rc;
@@ -69,7 +68,9 @@ RC PredicatePhysicalOperator::close()
   return RC::SUCCESS;
 }
 
-Tuple *PredicatePhysicalOperator::current_tuple() { return children_[0]->current_tuple(); }
+Tuple *PredicatePhysicalOperator::current_tuple() { 
+  return children_[0]->current_tuple(); 
+}
 
 RC PredicatePhysicalOperator::tuple_schema(TupleSchema &schema) const
 {
