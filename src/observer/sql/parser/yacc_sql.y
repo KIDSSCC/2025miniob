@@ -154,6 +154,7 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
   AttrInfoSqlNode *                          attr_info;
   Expression *                               expression;
   vector<unique_ptr<Expression>> *           expression_list;
+  vector<pair<Order, unique_ptr<Expression>>>* order_list;
   vector<Value> *                            value_list;
   vector<ConditionSqlNode> *                 condition_list;
   vector<RelAttrSqlNode> *                   rel_attr_list;
@@ -205,6 +206,7 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
 // %type <relation_list>       rel_list
 %type <expression>          expression
 %type <expression_list>     expression_list
+%type <order_list>          order_by
 %type <expression_list>     group_by
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
@@ -870,6 +872,11 @@ have:
     | HAVING condition_list
     {
       $$ = $2;
+    }
+    ;
+order_by:
+    {
+      $$ = nullptr;
     }
     ;
 load_data_stmt:

@@ -142,6 +142,9 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
         }else{
           ret_node = std::move(join_oper);
         }
+      }else{
+        // cross join下，直接取join节点作为当前节点
+        ret_node = std::move(join_oper);
       }
 
       // 这里略显抽象，RelationNode中的filter_stmt对象，由于声明的过早，不能在RelationNode中进行析构，只能放在这里释放掉

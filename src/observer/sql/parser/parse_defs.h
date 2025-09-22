@@ -66,6 +66,12 @@ enum JoinOp
   INNER_JOIN
 };
 
+enum Order
+{
+  ASC_,
+  DESC_
+};
+
 /**
  * @brief 表示一个条件比较
  * @ingroup SQLParser
