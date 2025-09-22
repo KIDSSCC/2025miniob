@@ -14,6 +14,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/value.h"
 
 #include <regex>
+#include <cstdlib> // for strtod
+#include <cerrno>  // for errno
 
 bool parse_date(const std::string& date_str, int& result){
   // 用正则表达式匹配 YYYY-MM-DD
@@ -41,6 +43,27 @@ bool parse_date(const std::string& date_str, int& result){
     LOG_ERROR("Failed to parse date string: %s", date_str.c_str());
     return false; // 转换失败
   }
+}
+
+float string2float(const std::string& str){
+  if (str.empty()) {
+      return 0.0;
+  }
+  char* endptr = nullptr;
+  errno = 0; // 重置 errno
+  float result = std::strtod(str.c_str(), &endptr);
+  // 检查是否发生错误（如溢出）
+  if (errno == ERANGE) {
+      // 溢出时根据需求可返回 0 或 HUGE_VAL，这里按题意返回 0
+      return 0.0;
+  }
+
+  // 如果没有任何字符被转换（endptr 指向开头），说明无法转换
+  if (endptr == str.c_str()) {
+      return 0.0;
+  }
+
+  return result;
 }
 
 int CharType::compare(const Value &left, const Value &right) const
@@ -131,7 +154,13 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
         result.set_date(date_value);
         return RC::SUCCESS;
       }
-    }
+    } break;
+    case AttrType::FLOATS:{
+      string str = val.get_string();
+      float res = string2float(str);
+      result.set_float(res);
+      return RC::SUCCESS;
+    } break;
     default: return RC::UNIMPLEMENTED;
   }
   return RC::SUCCESS;
@@ -144,6 +173,9 @@ int CharType::cast_cost(AttrType type)
   }
   if (type == AttrType::DATES) {
     return 1; // 假设转换到日期类型的开销为1
+  }
+  if (type == AttrType::FLOATS) {
+    return 1; // char -> float 设置为1， float -> char 设置为2，优先转换为float
   }
   return INT32_MAX;
 }

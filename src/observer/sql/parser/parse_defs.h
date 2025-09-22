@@ -150,6 +150,7 @@ struct SelectSqlNode
   vector<ConditionSqlNode>       conditions;   ///< 查询条件，使用AND串联起来多个条件
   vector<unique_ptr<Expression>> group_by;     ///< group by clause
   vector<ConditionSqlNode> having;
+  vector<pair<Order, unique_ptr<Expression>>> order_by;
 };
 
 /**

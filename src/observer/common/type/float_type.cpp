@@ -91,8 +91,11 @@ int FloatType::cast_cost(AttrType type)
   if (type == AttrType::FLOATS) {
     return 0;
   }
-  if (type == AttrType::FLOATS) {
+  if (type == AttrType::INTS) {
     return 2; // int -> float 设置为1， float -> int设置为2，优先转换为float
+  }
+  if (type == AttrType::CHARS) {
+    return 2; // char -> float 设置为1， float -> char 设置为2，优先转换为float
   }
   return INT32_MAX;
 }

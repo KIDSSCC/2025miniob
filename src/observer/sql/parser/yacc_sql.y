@@ -207,6 +207,8 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <order_list>          order_by
+%type <order_list>          order_expr_list
+%type <order_list>          order_expr
 %type <expression_list>     group_by
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
@@ -539,7 +541,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM relation_node where group_by have
+    SELECT expression_list FROM relation_node where group_by have order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -567,6 +569,11 @@ select_stmt:        /*  select 语句的语法解析树*/
       if ($7 != nullptr) {
         $$->selection.having.swap(*$7);
         delete $7;
+      }
+
+      if($8 != nullptr) {
+        $$->selection.order_by.swap(*$8);
+        delete $8;
       }
     }
     ;
@@ -877,6 +884,39 @@ have:
 order_by:
     {
       $$ = nullptr;
+    }
+    | ORDER BY order_expr_list{
+      $$ = $3;
+    }
+    ;
+
+order_expr_list:
+    order_expr{
+      // 单类排序字段
+      $$ = $1;
+    }
+    | order_expr_list COMMA order_expr{
+      // 把 $3 的元素移动到 $1 的后面
+      $1->insert($1->end(),
+                std::make_move_iterator($3->begin()),
+                std::make_move_iterator($3->end()));
+      delete $3;
+      $$ = $1;
+    }
+    ;
+
+order_expr:
+    expression ASC {
+      $$ = new vector<pair<Order, unique_ptr<Expression>>>();
+      $$->emplace_back(Order::ASC_, std::unique_ptr<Expression>($1));
+    }
+    | expression DESC {
+      $$ = new vector<pair<Order, unique_ptr<Expression>>>();
+      $$->emplace_back(Order::DESC_, std::unique_ptr<Expression>($1));
+    }
+    | expression {
+      $$ = new vector<pair<Order, unique_ptr<Expression>>>();
+      $$->emplace_back(Order::ASC_, std::unique_ptr<Expression>($1));
     }
     ;
 load_data_stmt:
