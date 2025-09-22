@@ -39,8 +39,10 @@ RC NestedLoopJoinPhysicalOperator::next()
   bool left_need_step = (left_tuple_ == nullptr);
   RC   rc             = RC::SUCCESS;
   if (round_done_) {
+    // 如果右表已经结束了一轮遍历，则左表需要向前，获取下一条记录
     left_need_step = true;
   } else {
+    // 如果右表未完成一轮遍历，当前仅需要从右表中获取下一条记录
     rc = right_next();
     if (rc != RC::SUCCESS) {
       if (rc == RC::RECORD_EOF) {
@@ -86,6 +88,7 @@ Tuple *NestedLoopJoinPhysicalOperator::current_tuple() { return &joined_tuple_; 
 
 RC NestedLoopJoinPhysicalOperator::left_next()
 {
+  // nested loop join的规则，左表仅会遍历一遍，所以按照正常的迭代器模型逐条遍历即可。
   RC rc = RC::SUCCESS;
   rc    = left_->next();
   if (rc != RC::SUCCESS) {
@@ -102,6 +105,7 @@ RC NestedLoopJoinPhysicalOperator::right_next()
   RC rc = RC::SUCCESS;
   if (round_done_) {
     if (!right_closed_) {
+      // 如果右表已经结束一轮遍历，且未关闭。则先关闭右表，并重新打开
       rc = right_->close();
 
       right_closed_ = true;
@@ -119,6 +123,7 @@ RC NestedLoopJoinPhysicalOperator::right_next()
     round_done_ = false;
   }
 
+  // 按照迭代器模型获取一条record
   rc = right_->next();
   if (rc != RC::SUCCESS) {
     if (rc == RC::RECORD_EOF) {

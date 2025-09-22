@@ -116,29 +116,41 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
     }else{
       unique_ptr<LogicalOperator> left_node = generate_join_oper(relation_node->left);
       unique_ptr<LogicalOperator> right_node = generate_join_oper(relation_node->right);
+      if(left_node == nullptr || right_node == nullptr){
+        LOG_WARN("failed to create join node");
+        return nullptr;
+      }
+
       JoinLogicalOperator *join_oper = new JoinLogicalOperator;
       join_oper->add_child(std::move(left_node));
       join_oper->add_child(std::move(right_node));
+
+      // 两张表在inner join连接下，创建单独的predicate算子
+      if(relation_node->join_type == JoinOp::INNER_JOIN){
+        unique_ptr<LogicalOperator> join_predicate_oper;
+        rc = create_plan(relation_node->filter_stmt, predicate_oper);
+        if (OB_FAIL(rc)) {
+          LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+          return nullptr;
+        }
+
+        if(join_predicate_oper){
+          join_oper->add_predicate_op(join_predicate_oper);
+        }
+      }
+
+      // 这里略显抽象，RelationNode中的filter_stmt对象，由于声明的过早，不能在RelationNode中进行析构，只能放在这里释放掉
+      if(relation_node->filter_stmt!=nullptr){
+        delete relation_node->filter_stmt;
+        relation_node->filter_stmt = nullptr;
+      }
+
       return unique_ptr<LogicalOperator>(join_oper);
     }
   };
 
-  const unique_ptr<RelationNode>& relations = select_stmt->relations();
+  unique_ptr<RelationNode>& relations = select_stmt->relations();
   table_oper = generate_join_oper(relations);
-
-  // const vector<Table *> &tables = select_stmt->tables();
-  // for (Table *table : tables) {
-  //   // 将本次查询涉及的所有的表通过join连接起来
-  //   unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
-  //   if (table_oper == nullptr) {
-  //     table_oper = std::move(table_get_oper);
-  //   } else {
-  //     JoinLogicalOperator *join_oper = new JoinLogicalOperator;
-  //     join_oper->add_child(std::move(table_oper));
-  //     join_oper->add_child(std::move(table_get_oper));
-  //     table_oper = unique_ptr<LogicalOperator>(join_oper);
-  //   }
-  // }
 
 
   if (predicate_oper) {

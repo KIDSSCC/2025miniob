@@ -28,7 +28,8 @@ public:
   virtual ~JoinLogicalOperator() = default;
 
   LogicalOperatorType type() const override { return LogicalOperatorType::JOIN; }
-  void                add_predicate_op(LogicalOperator *predicate_op) { predicate_op_ = predicate_op; }
+  void                add_predicate_op(unique_ptr<LogicalOperator>& predicate_op) { predicate_op_ = move(predicate_op); }
+  unique_ptr<LogicalOperator>& get_predicate_op(){ return predicate_op_; }
   auto                predicates() -> Expression *
   {
     if (predicate_op_ != nullptr && predicate_op_->expressions().size() == 1) {
@@ -74,6 +75,6 @@ public:
 
 private:
   // join 算子的两个成员，predicate_op_ 为连接条件的predicate算子，join_predicates_ 为连接条件的表达式
-  LogicalOperator                    *predicate_op_ = nullptr;
+  unique_ptr<LogicalOperator> predicate_op_;
   std::vector<unique_ptr<Expression>> join_predicates_;
 };

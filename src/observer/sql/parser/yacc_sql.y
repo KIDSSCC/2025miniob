@@ -720,6 +720,10 @@ relation_node:
       $$->left.reset($1);
       $$->right.reset(right);
       $$->join_conditions.swap(*$6);
+
+      if($6){
+        delete $6;
+      }
     }
     | ID {
       $$ = new RelationNode;

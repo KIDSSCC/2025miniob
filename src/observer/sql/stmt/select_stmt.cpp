@@ -181,6 +181,46 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     default_table = tables[0];
   }
 
+  // 对join部分的条件谓词，生成过滤语句
+  function<RC(unique_ptr<RelationNode>&)> generate_filter = [&](unique_ptr<RelationNode>& relation_node) -> RC{
+    if(relation_node->is_join){
+
+      FilterStmt *filter_stmt_ = nullptr;
+      rc = FilterStmt::create(db, default_table, &table_map, 
+        relation_node->join_conditions.data(), static_cast<int>(relation_node->join_conditions.size()), filter_stmt_);
+      
+      if(rc!=RC::SUCCESS){
+        LOG_WARN("cannot construct filter stmt about inner join");
+        return rc;
+      }
+      relation_node->filter_stmt = filter_stmt_;
+
+      // 递归遍历左右节点
+      if(relation_node->left){
+        rc = generate_filter(relation_node->left);
+        if(rc!=RC::SUCCESS){
+          LOG_WARN("cannot construct filter stmt about inner join, left node");
+          return rc;
+        }
+      }
+
+      if(relation_node->right){
+        rc = generate_filter(relation_node->right);
+        if(rc!=RC::SUCCESS){
+          LOG_WARN("cannot construct filter stmt about inner join, right node");
+          return rc;
+        }
+      }
+    }
+    return rc;
+  };
+
+  rc = generate_filter(select_sql.relations);
+  if(rc!=RC::SUCCESS){
+    LOG_WARN("cannot generate filter for inner join");
+    return rc;
+  }
+
   // create filter statement in `where` statement
   FilterStmt *filter_stmt = nullptr;
   rc                      = FilterStmt::create(db,

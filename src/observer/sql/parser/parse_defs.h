@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 
 class Expression;
 class Table;
+class FilterStmt;
 
 /**
  * @defgroup SQLParser SQL Parser
@@ -106,6 +107,7 @@ struct RelationNode {
   unique_ptr<RelationNode> right;
   JoinOp join_type;
   vector<ConditionSqlNode> join_conditions;
+  FilterStmt* filter_stmt;
 
   void get_all_tables(vector<string>& tables) {
     if (!is_join) {
@@ -119,6 +121,8 @@ struct RelationNode {
       }
     }
   }
+
+  RelationNode() = default;
 };
 
 /**

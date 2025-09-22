@@ -36,6 +36,7 @@ RC NestedLoopJoinPhysicalOperator::open(Trx *trx)
 
 RC NestedLoopJoinPhysicalOperator::next()
 {
+  // 最外层的while不是很理解其含义
   RC   rc             = RC::SUCCESS;
   while (RC::SUCCESS == rc) {
     bool left_need_step = (left_tuple_ == nullptr);

@@ -345,6 +345,7 @@ RC PhysicalPlanGenerator::create_plan(JoinLogicalOperator &join_oper, unique_ptr
   }
   if (session->hash_join_on() && can_use_hash_join(join_oper)) {
     // your code here
+    // hash join 暂不支持
   } else {
     unique_ptr<PhysicalOperator> join_physical_oper(new NestedLoopJoinPhysicalOperator());
     for (auto &child_oper : child_opers) {
@@ -358,7 +359,21 @@ RC PhysicalPlanGenerator::create_plan(JoinLogicalOperator &join_oper, unique_ptr
       join_physical_oper->add_child(std::move(child_physical_oper));
     }
 
+    // 根据逻辑算子中是否存在条件谓词，此处需要在join算子前叠一层predicate
+    unique_ptr<PhysicalOperator> pred_physical_op;
+    if(join_oper.get_predicate_op()){
+      rc = create(*join_oper.get_predicate_op(), pred_physical_op, session);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to create physical predicate oper. rc=%s", strrc(rc));
+        return rc;
+      }
+    }
+
     oper = std::move(join_physical_oper);
+    if(pred_physical_op){
+      pred_physical_op->add_child(std::move(oper));
+      oper = std::move(pred_physical_op);
+    }
   }
   return rc;
 }
