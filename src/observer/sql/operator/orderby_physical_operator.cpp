@@ -57,10 +57,12 @@ RC OrderByPhysicalOperator::open(Trx *trx)
     all_tuple.emplace_back(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
   }
   
-  // 构建排序规则
-  function<bool(unique_ptr<ValueListTuple>&, unique_ptr<ValueListTuple>&)> generate_filter = [&](unique_ptr<ValueListTuple>& t1, unique_ptr<ValueListTuple>& t2) -> bool{
-    
-  };
+  curr_tuple_ = all_tuple.end() -1;
+  first_emited_ = false;
+  // // 构建排序规则
+  // function<bool(unique_ptr<ValueListTuple>&, unique_ptr<ValueListTuple>&)> generate_filter = [&](unique_ptr<ValueListTuple>& t1, unique_ptr<ValueListTuple>& t2) -> bool{
+
+  // };
 
   return RC::SUCCESS;
 }
@@ -68,10 +70,20 @@ RC OrderByPhysicalOperator::open(Trx *trx)
 RC OrderByPhysicalOperator::next()
 {
   // order算子的next阶段只需要推进迭代器
-  if (children_.empty()) {
+  if (curr_tuple_ == all_tuple.end()) {
     return RC::RECORD_EOF;
   }
-  return children_[0]->next();
+
+  if (first_emited_) {
+    ++curr_tuple_;
+  } else {
+    first_emited_ = true;
+  }
+  if (curr_tuple_ == all_tuple.end()) {
+    return RC::RECORD_EOF;
+  }
+
+  return RC::SUCCESS;
 }
 
 RC OrderByPhysicalOperator::close()
@@ -86,7 +98,9 @@ RC OrderByPhysicalOperator::close()
 Tuple *OrderByPhysicalOperator::current_tuple()
 {
   // curr_tuple根据迭代器进行返回
-  tuple_.set_tuple(children_[0]->current_tuple());
-
-  return &tuple_;
+  if (curr_tuple_ != all_tuple.end()) {
+    Tuple* res = (*curr_tuple_).get();
+    return res;
+  }
+  return nullptr;
 }

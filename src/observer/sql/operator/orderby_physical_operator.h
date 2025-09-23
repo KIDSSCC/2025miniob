@@ -46,4 +46,5 @@ private:
 
   vector<unique_ptr<ValueListTuple>>                  all_tuple;
   vector<unique_ptr<ValueListTuple>>::iterator        curr_tuple_;
+  bool                                                first_emited_ = false;
 };
