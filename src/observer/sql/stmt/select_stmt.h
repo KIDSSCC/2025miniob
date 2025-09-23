@@ -47,6 +47,7 @@ public:
   vector<unique_ptr<Expression>> &query_expressions() { return query_expressions_; }
   vector<unique_ptr<Expression>> &having_expressions() { return having_expressions_; }
   vector<unique_ptr<Expression>> &group_by() { return group_by_; }
+  vector<pair<int, unique_ptr<Expression>>>& order_by() {return order_by_;}
 
 private:
   vector<unique_ptr<Expression>> query_expressions_;
@@ -56,4 +57,5 @@ private:
   FilterStmt                    *filter_stmt_ = nullptr;
   FilterStmt                    *having_stmt_ = nullptr;
   vector<unique_ptr<Expression>> group_by_;
+  vector<pair<int, unique_ptr<Expression>>> order_by_;
 };

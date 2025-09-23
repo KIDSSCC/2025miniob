@@ -25,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/logical_operator.h"
 #include "sql/operator/predicate_logical_operator.h"
 #include "sql/operator/project_logical_operator.h"
+#include "sql/operator/orderby_logical_operator.h"
 #include "sql/operator/table_get_logical_operator.h"
 #include "sql/operator/group_by_logical_operator.h"
 
@@ -186,7 +187,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
     last_oper = &group_by_oper;
   }
 
-  // TODO:这里还需要叠加一层having的处理
+  // 这里还需要叠加一层having的处理
   unique_ptr<LogicalOperator> having_predicate_oper;
   rc = create_plan(select_stmt->having_stmt(), having_predicate_oper);
   if (OB_FAIL(rc)) {
@@ -199,6 +200,18 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
     }
 
     last_oper = &having_predicate_oper;
+  }
+
+  // 这里需要叠加一层order by的处理，不需要复杂的计划生成逻辑，将stmt中的orderby数组传过去即可。
+  vector<pair<int, unique_ptr<Expression>>>& order_by = select_stmt->order_by();
+  unique_ptr<LogicalOperator> orderby_oper;
+  if(!order_by.empty()){
+    unique_ptr<OrderByLogicalOperator> oper = make_unique<OrderByLogicalOperator>(order_by);
+    orderby_oper = std::move(oper);
+    if(*last_oper){
+      orderby_oper->add_child(std::move(*last_oper));
+    }
+    last_oper = &orderby_oper;
   }
 
   // table_get -> predicate -> group_by -> having -> project

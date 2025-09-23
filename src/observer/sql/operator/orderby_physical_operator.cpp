@@ -1,0 +1,92 @@
+/* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
+miniob is licensed under Mulan PSL v2.
+You can use this software according to the terms and conditions of the Mulan PSL v2.
+You may obtain a copy of Mulan PSL v2 at:
+         http://license.coscl.org.cn/MulanPSL2
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+See the Mulan PSL v2 for more details. */
+
+//
+// Created by WangYunlai on 2022/07/01.
+//
+
+#include "sql/operator/orderby_physical_operator.h"
+#include "common/log/log.h"
+#include "storage/record/record.h"
+#include "storage/table/table.h"
+
+using namespace std;
+
+OrderByPhysicalOperator::OrderByPhysicalOperator(vector<unique_ptr<Expression>> &&expressions, vector<int> &&order)
+  : expressions_(std::move(expressions)), order_(std::move(order))
+{
+}
+
+RC OrderByPhysicalOperator::open(Trx *trx)
+{
+  // order算子open阶段需要做的事情会有一点多，首先需要调用子算子的next获取全部的数据，报错在自己的all_tuple中
+  // 随后需要根据排序字段和排序顺序，对all_tuple中的记录进行排序
+  // 比较麻烦的地方在于排序器的生成，以及暂时不确定待排序字段怎样对应到valuelist中
+  if (children_.empty()) {
+    return RC::SUCCESS;
+  }
+
+  PhysicalOperator *child = children_[0].get();
+  RC                rc    = child->open(trx);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to open child operator: %s", strrc(rc));
+    return rc;
+  }
+
+  // 提取子节点中所有的tuple
+  while(OB_SUCC(rc = child->next())){
+    Tuple *child_tuple = child->current_tuple();
+    if (nullptr == child_tuple) {
+      LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
+      return RC::INTERNAL;
+    }
+
+    ValueListTuple child_tuple_to_value;
+    rc = ValueListTuple::make(*child_tuple, child_tuple_to_value);
+    if (OB_FAIL(rc)) {
+      LOG_WARN("failed to make tuple to value list. rc=%s", strrc(rc));
+      return rc;
+    }
+    all_tuple.emplace_back(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
+  }
+  
+  // 构建排序规则
+  function<bool(unique_ptr<ValueListTuple>&, unique_ptr<ValueListTuple>&)> generate_filter = [&](unique_ptr<ValueListTuple>& t1, unique_ptr<ValueListTuple>& t2) -> bool{
+    
+  };
+
+  return RC::SUCCESS;
+}
+
+RC OrderByPhysicalOperator::next()
+{
+  // order算子的next阶段只需要推进迭代器
+  if (children_.empty()) {
+    return RC::RECORD_EOF;
+  }
+  return children_[0]->next();
+}
+
+RC OrderByPhysicalOperator::close()
+{
+  // close不需要做调整
+  if (!children_.empty()) {
+    children_[0]->close();
+  }
+  return RC::SUCCESS;
+}
+
+Tuple *OrderByPhysicalOperator::current_tuple()
+{
+  // curr_tuple根据迭代器进行返回
+  tuple_.set_tuple(children_[0]->current_tuple());
+
+  return &tuple_;
+}

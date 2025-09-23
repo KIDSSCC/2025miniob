@@ -174,6 +174,20 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     }
   }
 
+  // 绑定order by部分的表达式
+  vector<unique_ptr<Expression>> orderby_expessions;
+  for(pair<Order, unique_ptr<Expression>>& order_field : select_sql.order_by){
+    RC rc = expression_binder.bind_expression(order_field.second, orderby_expessions);
+    if (OB_FAIL(rc)) {
+      LOG_INFO("bind order by expression failed. rc=%s", strrc(rc));
+      return rc;
+    }
+    unique_ptr<Expression> &bounded_expr = orderby_expessions[0];
+    if(bounded_expr.get()!=order_field.second.get()){
+      order_field.second.reset(bounded_expr.release());
+    }
+  }
+
   RC rc = RC::SUCCESS;
 
   Table *default_table = nullptr;
@@ -271,6 +285,9 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     }
     
   // everything alright
+  for(size_t i=0;i<select_sql.order_by.size();i++){
+    select_stmt->order_by_.emplace_back(select_sql.order_by[i].first, std::move(select_sql.order_by[i].second));
+  }
   select_stmt->tables_.swap(tables);
   select_stmt->relations_ = move(select_sql.relations);
   select_stmt->query_expressions_.swap(bound_expressions);
