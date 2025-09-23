@@ -57,13 +57,55 @@ RC OrderByPhysicalOperator::open(Trx *trx)
     all_tuple.emplace_back(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
   }
   
-  curr_tuple_ = all_tuple.end() -1;
+  // 构建排序规则
+  function<bool(unique_ptr<ValueListTuple>&, unique_ptr<ValueListTuple>&)> generate_filter = [&](unique_ptr<ValueListTuple>& t1, unique_ptr<ValueListTuple>& t2) -> bool{
+    // 根据每一个字段，逐一进行比较
+    for(size_t i=0;i<expressions_.size();i++){
+      // 默认排序实现为升序排序(a<b时,记录res为-1，返回true)，ASC升序排序矫正因子为1，DESC降序排序矫正因子为-1
+      unique_ptr<Expression>& expr = expressions_[i];
+      int ctrl = order_[i] == 0 ? 1 : -1;
+
+      Value t1_value, t2_value;
+      rc = expr->get_value(*(t1.get()), t1_value);
+      if(rc != RC::SUCCESS){
+        LOG_WARN("cannot get value from expr no.%d", i);
+      }
+      rc = expr->get_value(*(t2.get()), t2_value);
+      if(rc != RC::SUCCESS){
+        LOG_WARN("cannot get value from expr no.%d", i);
+      }
+
+      int res = 0;
+      if(t1_value.is_null()){
+        res = -1;
+      } else if(t2_value.is_null()){
+        res = 1;
+      } else{
+        res = t1_value.compare(t2_value);
+        if(abs(res)>1){
+          LOG_WARN("Exception, compare result is %d", res);
+          res = 1;
+        }
+      }
+
+      res = res * ctrl;
+      if(res == -1){
+        return true;
+      }else if(res == 1){
+        return false;
+      }else{
+        continue;
+      }
+    }
+
+    // 所有比较字段全部遍历完，默认返回true，即t1排在t2前面
+    return true;
+  };
+  
+  sort(all_tuple.begin(), all_tuple.end(), generate_filter);
+
+  curr_tuple_ = all_tuple.begin();
   first_emited_ = false;
-  // // 构建排序规则
-  // function<bool(unique_ptr<ValueListTuple>&, unique_ptr<ValueListTuple>&)> generate_filter = [&](unique_ptr<ValueListTuple>& t1, unique_ptr<ValueListTuple>& t2) -> bool{
-
-  // };
-
   return RC::SUCCESS;
 }
 

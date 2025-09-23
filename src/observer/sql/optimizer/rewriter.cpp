@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 
 Rewriter::Rewriter()
 {
+  // 默认三条重写规则
   rewrite_rules_.emplace_back(new ExpressionRewriter);
   rewrite_rules_.emplace_back(new PredicateRewriteRule);
   rewrite_rules_.emplace_back(new PredicatePushdownRewriter);
@@ -31,6 +32,7 @@ RC Rewriter::rewrite(unique_ptr<LogicalOperator> &oper, bool &change_made)
   RC rc = RC::SUCCESS;
 
   change_made = false;
+  // 尝试按照每一种规则依次重写逻辑计划
   for (unique_ptr<RewriteRule> &rule : rewrite_rules_) {
     bool sub_change_made = false;
 

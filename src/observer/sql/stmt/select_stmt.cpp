@@ -186,6 +186,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     if(bounded_expr.get()!=order_field.second.get()){
       order_field.second.reset(bounded_expr.release());
     }
+    orderby_expessions.clear();
   }
 
   RC rc = RC::SUCCESS;
