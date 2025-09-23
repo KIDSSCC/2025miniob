@@ -256,17 +256,13 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
 
     // 条件过滤语句，左右Value类型不一致时，按照转换开销进行转换并比较
     if (left->value_type() != right->value_type()) {
-      auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
-      auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
 
-      if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
-        // 左转右开销低于右转左
+      // 考虑整型对浮点这一种特殊的情况
+      if((left->value_type() == AttrType::INTS && right->value_type() == AttrType::CHARS) || (left->value_type() == AttrType::CHARS && right->value_type() == AttrType::INTS)){
+        AttrType target_type = AttrType::FLOATS;
+        // 左值转float
         ExprType left_type = left->type();
-        auto cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
-
-        // 左值可能是一个字段，也可能是一个值，无论是哪一种，都首先生成了一个CastExpr。
-        // 如果左值是一个常量值，则直接通过CastExpr获取其值，形成一个ValueExpr，如果左值是一个字段，则保留为CastExpr
-        // 如果左边是ValueExpr，直接转换为ValueExpr，否则转换为CastExpr
+        auto cast_expr = make_unique<CastExpr>(std::move(left), target_type);
         if (left_type == ExprType::VALUE) {
           Value left_val;
           if (OB_FAIL(rc = cast_expr->try_get_value(left_val)))
@@ -278,12 +274,9 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
         } else {
           left = std::move(cast_expr);
         }
-      } else if (right_to_left_cost < left_to_right_cost && right_to_left_cost != INT32_MAX) {
-        // 右转左开销低于左转右
+        // 右值转float
         ExprType right_type = right->type();
-        auto cast_expr = make_unique<CastExpr>(std::move(right), left->value_type());
-
-        // 如果右边是ValueExpr，直接转换为ValueExpr，否则转换为CastExpr
+        cast_expr = make_unique<CastExpr>(std::move(right), target_type);
         if (right_type == ExprType::VALUE) {
           Value right_val;
           if (OB_FAIL(rc = cast_expr->try_get_value(right_val)))
@@ -295,11 +288,53 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
         } else {
           right = std::move(cast_expr);
         }
-
-      } else {
-        rc = RC::UNSUPPORTED;
-        LOG_WARN("unsupported cast from %s to %s", attr_type_to_string(left->value_type()), attr_type_to_string(right->value_type()));
-        return rc;
+      }else{
+        // 普通的数据转换流程
+        auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
+        auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
+  
+        if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
+          // 左转右开销低于右转左
+          ExprType left_type = left->type();
+          auto cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
+  
+          // 左值可能是一个字段，也可能是一个值，无论是哪一种，都首先生成了一个CastExpr。
+          // 如果左值是一个常量值，则直接通过CastExpr获取其值，形成一个ValueExpr，如果左值是一个字段，则保留为CastExpr
+          // 如果左边是ValueExpr，直接转换为ValueExpr，否则转换为CastExpr
+          if (left_type == ExprType::VALUE) {
+            Value left_val;
+            if (OB_FAIL(rc = cast_expr->try_get_value(left_val)))
+            {
+              LOG_WARN("failed to get value from left child", strrc(rc));
+              return rc;
+            }
+            left = make_unique<ValueExpr>(left_val);
+          } else {
+            left = std::move(cast_expr);
+          }
+        } else if (right_to_left_cost < left_to_right_cost && right_to_left_cost != INT32_MAX) {
+          // 右转左开销低于左转右
+          ExprType right_type = right->type();
+          auto cast_expr = make_unique<CastExpr>(std::move(right), left->value_type());
+  
+          // 如果右边是ValueExpr，直接转换为ValueExpr，否则转换为CastExpr
+          if (right_type == ExprType::VALUE) {
+            Value right_val;
+            if (OB_FAIL(rc = cast_expr->try_get_value(right_val)))
+            {
+              LOG_WARN("failed to get value from right child", strrc(rc));
+              return rc;
+            }
+            right = make_unique<ValueExpr>(right_val);
+          } else {
+            right = std::move(cast_expr);
+          }
+  
+        } else {
+          rc = RC::UNSUPPORTED;
+          LOG_WARN("unsupported cast from %s to %s", attr_type_to_string(left->value_type()), attr_type_to_string(right->value_type()));
+          return rc;
+        }
       }
     }
     ComparisonExpr *cmp_expr = new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));
