@@ -47,6 +47,7 @@ enum class ExprType
   CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
   ARITHMETIC,   ///< 算术运算
   AGGREGATION,  ///< 聚合运算
+  VALUELIST     ///< 值列表表达式
 };
 
 /**
@@ -527,3 +528,32 @@ private:
   Type                   aggregate_type_;
   unique_ptr<Expression> child_;
 };
+
+// 值列表表达式，值列表表达式自身没有绑定的需求，需要绑定的是其内部的其他表达式
+class ValueListExpr : public Expression
+{
+public:
+  ValueListExpr(vector<unique_ptr<Expression>> * expr_list);
+  ValueListExpr(const vector<unique_ptr<Expression>> &expr_list);
+  virtual ~ValueListExpr() = default;
+
+  unique_ptr<Expression> copy() const override;
+
+  bool equal(const Expression &other) const override;
+
+  ExprType type() const override { return ExprType::VALUELIST; }
+
+  AttrType value_type() const override;
+
+  int implicit_cast_cost(AttrType from, AttrType to) const;
+
+  int      value_length() const override;
+
+  RC get_value(const Tuple &tuple, Value &value) const override;
+
+  RC try_get_value(Value &value);
+
+public:
+  vector<unique_ptr<Expression>> vec_;
+};
+

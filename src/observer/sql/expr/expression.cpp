@@ -650,3 +650,103 @@ RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &ty
   }
   return rc;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+ValueListExpr::ValueListExpr(vector<unique_ptr<Expression>> *expr_list){
+  for(size_t i=0;i<expr_list->size();i++){
+    vec_.emplace_back(std::move((*expr_list)[i]));
+  }
+}
+
+ValueListExpr::ValueListExpr(const vector<unique_ptr<Expression>> &expr_list) {
+  for (const auto &e : expr_list) {
+    vec_.emplace_back(e->copy());
+  }
+}
+
+unique_ptr<Expression> ValueListExpr::copy() const {
+  return make_unique<ValueListExpr>(vec_);
+}
+
+bool ValueListExpr::equal(const Expression &other) const{
+  if (this == &other) {
+    return true;
+  }
+  if (type() != other.type()) {
+    return false;
+  }
+
+  auto &other_valuelist_expr = static_cast<const ValueListExpr &>(other);
+  if(this->vec_.size()!=other_valuelist_expr.vec_.size()){
+    return false;
+  }
+  for(size_t i=0;i<this->vec_.size();i++){
+    if(!vec_[i]->equal(*other_valuelist_expr.vec_[i])){
+      return false;
+    }
+  }
+
+  return true;
+}
+
+AttrType ValueListExpr::value_type() const{
+  AttrType final_type = AttrType::UNDEFINED;
+  if(!vec_.empty()){
+    final_type = vec_[0]->value_type();
+  }
+
+  for(size_t i=0;i<vec_.size();i++){
+    if(vec_[i]->value_type()!=final_type){
+      // 两个数据类型不一样，考虑进行转换
+      AttrType right_type = vec_[i]->value_type();
+      auto left_to_right_cost = implicit_cast_cost(final_type, right_type);
+      auto right_to_left_cost = implicit_cast_cost(right_type, final_type);
+      if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX){
+        // 左转右开销低于右转左, 最终类型取右
+        final_type = right_type;
+      }else if (right_to_left_cost < left_to_right_cost && right_to_left_cost != INT32_MAX){
+        // 右转左开销低于左转右, 最终类型取左
+      }else{
+        ASSERT(1, "Data types that cannot be converted to each other appeared in the value list %s and %s",
+            attr_type_to_string(final_type),
+            attr_type_to_string(right_type));
+      }
+    }
+  }
+
+  return final_type;
+}
+
+int ValueListExpr::implicit_cast_cost(AttrType from, AttrType to) const
+{
+  if (from == to) {
+    return 0;
+  }
+
+  if (to == AttrType::UNDEFINED){
+    return INT32_MAX;
+  }
+
+  if(from == AttrType::UNDEFINED){
+    return INT32_MIN;
+  }
+  return DataType::type_instance(from)->cast_cost(to);
+}
+
+int ValueListExpr::value_length() const{
+  int length = 0;
+  for(size_t i=0;i<vec_.size();i++){
+    length += vec_[i]->value_length();
+  }
+  return length;
+}
+
+RC ValueListExpr::get_value(const Tuple &tuple, Value &value) const {
+  ASSERT(1, "In theory, the value list cannot get_value separately");
+  return RC::UNSUPPORTED;
+}
+
+RC ValueListExpr::try_get_value(Value &value){
+  ASSERT(1, "In theory, the value list cannot try_get_value separately");
+  return RC::UNSUPPORTED;
+}

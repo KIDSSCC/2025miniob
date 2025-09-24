@@ -551,10 +551,6 @@ select_stmt:        /*  select 语句的语法解析树*/
 
       // relations 有string列表替换为RelationNode节点
       $$->selection.relations.reset($4);
-      // if ($4 != nullptr) {
-      //   $$->selection.relations.swap(*$4);
-      //   delete $4;
-      // }
 
       if ($5 != nullptr) {
         $$->selection.conditions.swap(*$5);
@@ -619,9 +615,17 @@ expression:
     | expression '/' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::DIV, $1, $3, sql_string, &@$);
     }
-    | LBRACE expression RBRACE {
-      $$ = $2;
-      $$->set_name(token_name(sql_string, &@$));
+    | LBRACE expression_list RBRACE {
+      if($2->size() == 1){
+        // 仅有一个元素，解析为单独的exression
+        $$ = (*$2)[0].release();
+        $$->set_name(token_name(sql_string, &@$));
+      }else{
+        // 0个或多个元素，解析为值列表
+        $$ = new ValueListExpr($2);
+        $$->set_name(token_name(sql_string, &@$));
+      }
+      delete $2;
     }
     | '-' expression %prec UMINUS {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
