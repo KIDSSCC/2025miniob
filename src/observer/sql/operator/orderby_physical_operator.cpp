@@ -76,15 +76,20 @@ RC OrderByPhysicalOperator::open(Trx *trx)
       }
 
       int res = 0;
-      if(t1_value.is_null()){
+      if(t1_value.is_null() && !t2_value.is_null()){
         res = -1;
-      } else if(t2_value.is_null()){
+      } else if(t2_value.is_null() && !t1_value.is_null()){
         res = 1;
       } else{
-        res = t1_value.compare(t2_value);
-        if(abs(res)>1){
-          LOG_WARN("Exception, compare result is %d", res);
-          res = 1;
+        // 都是null或者都不是null
+        if(t1_value.is_null() && t2_value.is_null()){
+          res = 0;
+        }else{
+          res = t1_value.compare(t2_value);
+          if(abs(res)>1){
+            LOG_WARN("Exception, compare result is %d", res);
+            res = 1;
+          }
         }
       }
 
