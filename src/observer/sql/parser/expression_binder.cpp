@@ -90,6 +90,10 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
       ASSERT(false, "shouldn't be here");
     } break;
 
+    case ExprType::VALUELIST: {
+      return bind_valuelist_expression(expr, bound_expressions);
+    }
+
     default: {
       LOG_WARN("unknown expression type: %d", static_cast<int>(expr->type()));
       return RC::INTERNAL;
@@ -101,7 +105,6 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
 RC ExpressionBinder::bind_star_expression(
     unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
-  LOG_INFO("bind_star_expression");
   if (nullptr == expr) {
     return RC::SUCCESS;
   }
@@ -265,6 +268,37 @@ RC ExpressionBinder::bind_comparison_expression(
   unique_ptr<Expression> &right = child_bound_expressions[0];
   if (right.get() != right_expr.get()) {
     right_expr.reset(right.release());
+  }
+
+  bound_expressions.emplace_back(std::move(expr));
+  return RC::SUCCESS;
+}
+
+RC ExpressionBinder::bind_valuelist_expression(unique_ptr<Expression> &expr,
+   vector<unique_ptr<Expression>> &bound_expressions)
+{
+  if (nullptr == expr) {
+    return RC::SUCCESS;
+  }
+
+  auto valuelist_expr = static_cast<ValueListExpr *>(expr.get());
+  vector<unique_ptr<Expression>> child_bound_expressions;
+  for(size_t i=0;i<valuelist_expr->vec_.size();i++){
+    RC rc = bind_expression(valuelist_expr->vec_[i], child_bound_expressions);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+
+    if(child_bound_expressions.size()!=1){
+      LOG_WARN("invalid left children number of comparison expression: %d", child_bound_expressions.size());
+      return RC::INVALID_ARGUMENT;
+    }
+
+    unique_ptr<Expression> &curr_expr = child_bound_expressions[0];
+    if(valuelist_expr->vec_[i].get() != curr_expr.get()){
+      valuelist_expr->vec_[i].reset(curr_expr.release());
+    }
+    child_bound_expressions.clear();
   }
 
   bound_expressions.emplace_back(std::move(expr));

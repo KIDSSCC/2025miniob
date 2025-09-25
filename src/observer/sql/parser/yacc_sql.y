@@ -825,7 +825,7 @@ condition:
       }else{
         // TODO: 左值是一个表达式
         $$->left_is_attr = 2;
-        $$->left_expressions.emplace_back(unique_ptr<Expression>(left_exp));
+        $$->left_expressions.reset(left_exp);
       }
 
       if(right_exp->type()==ExprType::UNBOUND_FIELD){
@@ -843,14 +843,33 @@ condition:
         // TODO: 右值是一个表达式
         // ASSERT(right_exp->type()==ExprType::ARITHMETIC, "condition right element must be field, value, or expression");
         $$->right_is_attr = 2;
-        $$->right_expressions.emplace_back(unique_ptr<Expression>(right_exp));
+        $$->right_expressions.reset(right_exp);
       }
 
       $$->comp = $2;
     }
-    // | expression IN expression_list{
-    //   $$ = nullptr;
-    // }
+    | EXIST expression{
+      $$ = new ConditionSqlNode;
+      Expression * child = $2;
+      $$->comp = EXIST_T;
+      // exist面对的有三种可能
+      // (1) 元素数为1的值列表，会被解析为value
+      // (1+2) 同样是元素数为1的值列表，会被解析为内部表达式的类型，如arithmeticexpr
+      // (1, 2, 3) valuelistexpr类型的值列表
+      // 同时为了便捷处理，为exist运算的左值设置为常量Value
+
+      $$->left_is_attr = 0;
+      $$->left_value.set_int(0);
+
+      if(child->type() == ExprType::VALUE){
+        $$->right_is_attr = 0;
+        $$->right_value =  static_cast<ValueExpr*>(child)->get_value();
+        delete $2;
+      }else{
+        $$->right_is_attr = 2;
+        $$->right_expressions.reset(child);
+      }    
+    }
     ;
 
 comp_op:
@@ -864,6 +883,7 @@ comp_op:
     | NOT LIKE {$$ = NOT_LIKE; }
     | IS  { $$ = IS_T; }
     | IS NOT { $$ = IS_NOT; }
+    | IN  { $$ = IN_T;}
     ;
 
 // your code here

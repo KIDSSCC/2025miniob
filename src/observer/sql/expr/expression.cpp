@@ -654,7 +654,7 @@ RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &ty
 ////////////////////////////////////////////////////////////////////////////////
 ValueListExpr::ValueListExpr(vector<unique_ptr<Expression>> *expr_list){
   for(size_t i=0;i<expr_list->size();i++){
-    vec_.emplace_back(std::move((*expr_list)[i]));
+    vec_.emplace_back(std::move((*expr_list)[i].release()));
   }
 }
 
@@ -742,11 +742,11 @@ int ValueListExpr::value_length() const{
 }
 
 RC ValueListExpr::get_value(const Tuple &tuple, Value &value) const {
-  ASSERT(1, "In theory, the value list cannot get_value separately");
+  LOG_WARN("In theory, the value list cannot get_value separately");
   return RC::UNSUPPORTED;
 }
 
 RC ValueListExpr::try_get_value(Value &value){
-  ASSERT(1, "In theory, the value list cannot try_get_value separately");
+  LOG_WARN("In theory, the value list cannot try_get_value separately");
   return RC::UNSUPPORTED;
 }
