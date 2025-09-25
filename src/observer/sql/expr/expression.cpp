@@ -125,6 +125,8 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
   RC  rc         = RC::SUCCESS;
   int cmp_result = left.compare(right);
   result         = false;
+  // 标量值的比较运算，有一种特殊情况也会落入这一层计算，即针对元素数为1的值列表。此时需要单独处理in和exist计算
+  // 值列表元素数为1，in运算等价于equal，exist运算为真
 
   // 比较运算，针对NULL的运算结果均为false
   if(comp_ < IS_T &&(left.is_null()||right.is_null())){
@@ -184,6 +186,52 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
         result = true;
       }
     } break;
+    case IN_T:{
+      // 因为是一对一比较，二者有一个为null，in判断都是不成立的
+      if(left.is_null() || right.is_null()){
+        result = false;
+      }else{
+        result = (0 == cmp_result);
+      }
+    }break;
+    case EXIST_T:{
+      // 已经确定值列表元素数为1，直接true就行
+      result = true;
+    }break;
+    default: {
+      LOG_WARN("unsupported comparison. %d", comp_);
+      rc = RC::INTERNAL;
+    } break;
+  }
+
+  return rc;
+}
+
+RC ComparisonExpr::compare_value_list(const Value &left, const vector<Value> &right, bool &result) const
+{
+  RC  rc         = RC::SUCCESS;
+  result         = false;
+  // 针对值列表的in运算和exist运算
+  switch (comp_){
+    case IN_T:{
+      // 需要将非NULL的左值依次与右值进行比较
+      if(left.is_null()){
+        result = false;
+        break;
+      }
+      for(size_t i=0;i<right.size();i++){
+        if(right[i].is_null()){
+          continue;
+        }
+        int cmp_result = left.compare(right[i]);
+        result = (0 == cmp_result);
+        if(result)
+          break;
+      }
+    }break;
+    case EXIST_T:{
+      result = !right.empty();
+    }break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
       rc = RC::INTERNAL;
@@ -216,25 +264,52 @@ RC ComparisonExpr::try_get_value(Value &cell) const
 
 RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 {
-  Value left_value;
-  Value right_value;
-
-  RC rc = left_->get_value(tuple, left_value);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
-    return rc;
+  RC rc = RC::SUCCESS;
+  if(left_->type() != ExprType::VALUELIST && right_->type() != ExprType::VALUELIST){
+    // 左值右值均没有valuelist，按照正常的比较逻辑进行比较即可
+    Value left_value;
+    Value right_value;
+  
+    rc = left_->get_value(tuple, left_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+      return rc;
+    }
+    rc = right_->get_value(tuple, right_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+      return rc;
+    }
+  
+    bool bool_value = false;
+  
+    rc = compare_value(left_value, right_value, bool_value);
+    if (rc == RC::SUCCESS) {
+      value.set_boolean(bool_value);
+    }
   }
-  rc = right_->get_value(tuple, right_value);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
-    return rc;
-  }
+  else{
+    // 无论是in还是exist，通用的情况应该是右值为valuelist，
+    Value left_value;
+    vector<Value> right_values;
 
-  bool bool_value = false;
+    rc = left_->get_value(tuple, left_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+      return rc;
+    }
 
-  rc = compare_value(left_value, right_value, bool_value);
-  if (rc == RC::SUCCESS) {
-    value.set_boolean(bool_value);
+    rc = static_cast<ValueListExpr*>(right_.get())->get_valuelist(tuple, right_values);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+      return rc;
+    }
+
+    bool bool_value = false;
+    rc = compare_value_list(left_value, right_values, bool_value);
+    if (rc == RC::SUCCESS) {
+      value.set_boolean(bool_value);
+    }
   }
   return rc;
 }
@@ -653,8 +728,10 @@ RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &ty
 
 ////////////////////////////////////////////////////////////////////////////////
 ValueListExpr::ValueListExpr(vector<unique_ptr<Expression>> *expr_list){
-  for(size_t i=0;i<expr_list->size();i++){
-    vec_.emplace_back(std::move((*expr_list)[i].release()));
+  if(expr_list != nullptr){
+    for(size_t i=0;i<expr_list->size();i++){
+      vec_.emplace_back(std::move((*expr_list)[i].release()));
+    }
   }
 }
 
@@ -749,4 +826,19 @@ RC ValueListExpr::get_value(const Tuple &tuple, Value &value) const {
 RC ValueListExpr::try_get_value(Value &value){
   LOG_WARN("In theory, the value list cannot try_get_value separately");
   return RC::UNSUPPORTED;
+}
+
+RC ValueListExpr::get_valuelist(const Tuple &tuple, vector<Value> &values){
+  RC rc = RC::SUCCESS;
+  for(size_t i=0;i<vec_.size();i++){
+    Value curr_value;
+    rc = vec_[i]->get_value(tuple, curr_value);
+    if(rc != RC::SUCCESS){
+      LOG_WARN("failed to get value of valuelist idx is %d, rc is %s", i, strrc(rc));
+      return rc;
+    }
+    values.emplace_back(curr_value);
+  }
+
+  return rc;
 }

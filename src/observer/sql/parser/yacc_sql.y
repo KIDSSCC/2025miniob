@@ -616,16 +616,21 @@ expression:
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::DIV, $1, $3, sql_string, &@$);
     }
     | LBRACE expression_list RBRACE {
-      if($2->size() == 1){
+      if($2 == nullptr){
+        // 0个元素，解析为值列表
+        $$ = new ValueListExpr($2);
+        $$->set_name(token_name(sql_string, &@$));
+      }else if($2->size() == 1){
         // 仅有一个元素，解析为单独的exression
         $$ = (*$2)[0].release();
         $$->set_name(token_name(sql_string, &@$));
+        delete $2;
       }else{
-        // 0个或多个元素，解析为值列表
+        // 多个元素，解析为值列表
         $$ = new ValueListExpr($2);
         $$->set_name(token_name(sql_string, &@$));
+        delete $2;
       }
-      delete $2;
     }
     | '-' expression %prec UMINUS {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
