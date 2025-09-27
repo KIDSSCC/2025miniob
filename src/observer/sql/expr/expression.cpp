@@ -194,9 +194,20 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
         result = (0 == cmp_result);
       }
     }break;
+    case NOT_IN:{
+      // 一对一比较，二者有一个为null， not in判断都是不成立的
+      if(left.is_null() || right.is_null()){
+        result = false;
+      }else {
+        result = (0 != cmp_result);
+      }
+    } break;
     case EXIST_T:{
       // 已经确定值列表元素数为1，直接true就行
       result = true;
+    }break;
+    case NOT_EXIST:{
+      result = false;
     }break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
@@ -229,8 +240,28 @@ RC ComparisonExpr::compare_value_list(const Value &left, const vector<Value> &ri
           break;
       }
     }break;
+    case NOT_IN:{
+      // 需要将非NULL的左值依次与右值进行比较
+      if(left.is_null()){
+        result = false;
+        break;
+      }
+      for(size_t i=0;i<right.size();i++){
+        if(right[i].is_null()){
+          continue;
+        }
+        int cmp_result = left.compare(right[i]);
+        result = (0 == cmp_result);
+        if(result)
+          break;
+      }
+      result = !result;
+    }break;
     case EXIST_T:{
       result = !right.empty();
+    }break;
+    case NOT_EXIST:{
+      result = right.empty();
     }break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);

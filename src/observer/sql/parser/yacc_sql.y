@@ -764,27 +764,6 @@ rel_attr:
     }
     ;
 
-// relation:
-//     ID {
-//       $$ = $1;
-//     }
-//     ;
-// rel_list:
-//     relation {
-//       $$ = new vector<string>();
-//       $$->push_back($1);
-//     }
-//     | relation COMMA rel_list {
-//       if ($3 != nullptr) {
-//         $$ = $3;
-//       } else {
-//         $$ = new vector<string>;
-//       }
-
-//       $$->insert($$->begin(), $1);
-//     }
-//     ;
-
 where:
     /* empty */
     {
@@ -875,6 +854,22 @@ condition:
         $$->right_expressions.reset(child);
       }    
     }
+    | NOT EXIST expression{
+      $$ = new ConditionSqlNode;
+      Expression * child = $3;
+      $$->comp = NOT_EXIST;
+
+      $$->left_is_attr = 0;
+      $$->left_value.set_int(0);
+      if(child->type() == ExprType::VALUE){
+        $$->right_is_attr = 0;
+        $$->right_value =  static_cast<ValueExpr*>(child)->get_value();
+        delete $3;
+      }else{
+        $$->right_is_attr = 2;
+        $$->right_expressions.reset(child);
+      }    
+    }
     ;
 
 comp_op:
@@ -889,6 +884,7 @@ comp_op:
     | IS  { $$ = IS_T; }
     | IS NOT { $$ = IS_NOT; }
     | IN  { $$ = IN_T;}
+    | NOT IN { $$ = NOT_IN; }
     ;
 
 // your code here

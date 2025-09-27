@@ -58,7 +58,9 @@ enum CompOp
   IS_T,
   IS_NOT,
   IN_T, 
+  NOT_IN,
   EXIST_T,
+  NOT_EXIST,
   NO_OP
 };
 
