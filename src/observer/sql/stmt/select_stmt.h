@@ -51,6 +51,7 @@ public:
   vector<unique_ptr<Expression>> &having_expressions() { return having_expressions_; }
   vector<unique_ptr<Expression>> &group_by() { return group_by_; }
   vector<pair<int, unique_ptr<Expression>>>& order_by() {return order_by_;}
+  AttrType              get_type();
 
 private:
   vector<unique_ptr<Expression>> query_expressions_;

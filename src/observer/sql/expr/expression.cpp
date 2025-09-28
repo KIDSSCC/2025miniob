@@ -890,7 +890,7 @@ bool SelectExpr::equal(const Expression &other) const{
 AttrType SelectExpr::value_type() const{
   // 在stmt层进行绑定时，会通过SelectSqlNode创建出对应的SelectStmt
   // 绑定之后，可以通过SelectStmt的query_expressions中的第一个字段来确认子查询的字段属性
-  return AttrType::UNDEFINED;
+  return this->value_type_;
 }
 
 int SelectExpr::value_length() const{

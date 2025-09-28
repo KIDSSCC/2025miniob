@@ -255,6 +255,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     }
 
     // 条件过滤语句，左右Value类型不一致时，按照转换开销进行转换并比较
+    LOG_INFO("left type is %s and right type is %s", attr_type_to_string(left->value_type()), attr_type_to_string(right->value_type()));
     if (left->value_type() != right->value_type()) {
 
       // 考虑整型对浮点这一种特殊的情况

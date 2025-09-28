@@ -573,6 +573,7 @@ class SelectExpr : public Expression
 public:
   SelectExpr(SelectSqlNode&& selection):select_stmt_(nullptr, &init_destruction) {
     selection_ = std::move(selection);
+    value_type_ = AttrType::UNDEFINED;
   }
   virtual ~SelectExpr() = default;
 
@@ -591,6 +592,7 @@ public:
 public:
   SelectSqlNode selection_;
   SelectStmtHandle select_stmt_;
+  AttrType value_type_;
 };
 
 // 子查询表达式的一层封装，selectsqlnode本身不方便拷贝管理，所以叠加一层，用共享指针管理SelectExpr，底层的SelectSqlNode始终不动

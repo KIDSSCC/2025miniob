@@ -129,6 +129,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
         }
 
         std::unique_ptr<SelectStmt, void(*)(SelectStmt*)> raw(static_cast<SelectStmt*>(sub_select_stmt), manual_destruction);
+        static_cast<SelectPackExpr*>(expr)->select_expr_->value_type_ = raw->get_type();
         static_cast<SelectPackExpr*>(expr)->select_expr_->select_stmt_ = std::move(raw);
 
       } else if(is_attr == 2){
@@ -318,4 +319,13 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   select_stmt->having_stmt_ = having_stmt;
   stmt                      = select_stmt;
   return RC::SUCCESS;
+}
+
+AttrType SelectStmt::get_type(){
+  if(query_expressions_.empty()){
+    return AttrType::UNDEFINED;
+  }else{
+    unique_ptr<Expression>& first_field = query_expressions_[0];
+    return first_field->value_type();
+  }
 }
