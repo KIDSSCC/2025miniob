@@ -873,3 +873,29 @@ RC ValueListExpr::get_valuelist(const Tuple &tuple, vector<Value> &values){
 
   return rc;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+unique_ptr<Expression> SelectExpr::copy() const{
+  ASSERT(0, "SelectExpr cannot copy");
+  return nullptr;
+}
+
+bool SelectExpr::equal(const Expression &other) const{
+  ASSERT(0, "SelectExpr cannot compare");
+  return false;
+}
+
+AttrType SelectExpr::value_type() const{
+  // TODO:valuetype是可以拿到的，但是只有在selectstmt对表达式绑定期间才能根据子查询返回的最终字段确定其类型
+  return AttrType::UNDEFINED;
+}
+
+int SelectExpr::value_length() const{
+  // TODO: 子查询没有办法计算字段长度
+  return 0;
+}
+
+RC SelectExpr::get_value(const Tuple &tuple, Value &value) const{
+  // TODO: 子查询获取值可能不需要通过表达式完成，先占位
+  return RC::SUCCESS;
+}

@@ -23,6 +23,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/chunk.h"
 
 class Tuple;
+class SelectStmt;
 
 /**
  * @defgroup Expression
@@ -47,7 +48,8 @@ enum class ExprType
   CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
   ARITHMETIC,   ///< 算术运算
   AGGREGATION,  ///< 聚合运算
-  VALUELIST     ///< 值列表表达式
+  VALUELIST,    ///< 值列表表达式
+  SELECT_T      ///< 子查询表达式
 };
 
 /**
@@ -561,3 +563,71 @@ public:
   vector<unique_ptr<Expression>> vec_;
 };
 
+// 子查询表达式，子查询表达式的绑定需要完整复刻出select_node的绑定
+class SelectExpr : public Expression
+{
+public:
+  SelectExpr(SelectSqlNode&& selection) {
+    selection_ = std::move(selection);
+  }
+  virtual ~SelectExpr() = default;
+
+  unique_ptr<Expression> copy() const override;
+
+  bool equal(const Expression &other) const override;
+
+  ExprType type() const override { return ExprType::SELECT_T; }
+
+  AttrType value_type() const override;
+
+  int      value_length() const override;
+
+  RC get_value(const Tuple &tuple, Value &value) const override;
+
+public:
+  SelectSqlNode selection_;
+  SelectStmt* select_stmt_;
+};
+
+// 子查询表达式的一层封装，selectsqlnode本身不方便拷贝管理，所以叠加一层，用共享指针管理SelectExpr，底层的SelectSqlNode始终不动
+class SelectPackExpr: public Expression
+{
+public:
+  SelectPackExpr(SelectExpr* ptr)
+    : select_expr_(std::shared_ptr<SelectExpr>(ptr)) {}
+
+  SelectPackExpr(const std::shared_ptr<SelectExpr>& sptr)
+    : select_expr_(sptr) {}
+
+  unique_ptr<Expression> copy() const override {
+    return std::make_unique<SelectPackExpr>(select_expr_);
+  }
+
+  bool equal(const Expression &other) const override {
+    if (other.type() != this->type()) {
+      return false;
+    }
+    const auto &o = static_cast<const SelectPackExpr&>(other);
+    // 只需判断是否共享同一个 SelectExpr 对象
+    return select_expr_.get() == o.select_expr_.get();
+  }
+
+  ExprType type() const override { return ExprType::SELECT_T; }
+
+  AttrType value_type() const override {
+    return select_expr_->value_type();
+  }
+
+  int      value_length() const override {
+    return select_expr_->value_length();
+  }
+
+  RC get_value(const Tuple &tuple, Value &value) const override{
+    return select_expr_->get_value(tuple, value);
+  }
+
+  SelectSqlNode& get_node(){ return select_expr_->selection_; }
+
+public:
+  shared_ptr<SelectExpr> select_expr_;
+};

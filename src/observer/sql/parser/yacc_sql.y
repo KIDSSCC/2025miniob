@@ -632,6 +632,13 @@ expression:
         delete $2;
       }
     }
+    | LBRACE select_stmt RBRACE{
+      ASSERT($2->flag == SCF_SELECT, "only select stmt can be converted to expr");
+      SelectExpr* sub_selection = new SelectExpr(std::move($2->selection));
+      $$ = new SelectPackExpr(sub_selection);
+      $$->set_name(token_name(sql_string, &@$));
+      delete $2;
+    }
     | '-' expression %prec UMINUS {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
     }
@@ -802,7 +809,7 @@ condition:
         $$->left_attr.attribute_name = static_cast<UnboundFieldExpr*>(left_exp)->field_name();
         delete $1;
       }else if(left_exp->type()==ExprType::VALUE){
-        // 左值是一个常量值
+        // 左值是一个常量值expre
         $$->left_is_attr = 0;
         $$->left_value =  static_cast<ValueExpr*>(left_exp)->get_value();
         delete $1;
@@ -825,7 +832,6 @@ condition:
         delete $3;
       }else{
         // TODO: 右值是一个表达式
-        // ASSERT(right_exp->type()==ExprType::ARITHMETIC, "condition right element must be field, value, or expression");
         $$->right_is_attr = 2;
         $$->right_expressions.reset(right_exp);
       }

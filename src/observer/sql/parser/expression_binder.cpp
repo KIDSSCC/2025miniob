@@ -137,6 +137,7 @@ RC ExpressionBinder::bind_star_expression(
 RC ExpressionBinder::bind_unbound_field_expression(
     unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
+  // 确定未绑定字段
   if (nullptr == expr) {
     return RC::SUCCESS;
   }
@@ -148,6 +149,7 @@ RC ExpressionBinder::bind_unbound_field_expression(
 
   Table *table = nullptr;
   if (is_blank(table_name)) {
+    // 查询字段没有明确指明表名，此时要求from部分必须只包含一个表
     if (context_.query_tables().size() != 1) {
       LOG_INFO("cannot determine table for field: %s", field_name);
       return RC::SCHEMA_TABLE_NOT_EXIST;
@@ -165,6 +167,7 @@ RC ExpressionBinder::bind_unbound_field_expression(
   if (0 == strcmp(field_name, "*")) {
     wildcard_fields(table, bound_expressions);
   } else {
+    // 完整的Field字段需要包含表的指针和字段元数据的指针
     const FieldMeta *field_meta = table->table_meta().field(field_name);
     if (nullptr == field_meta) {
       LOG_INFO("no such field in table: %s.%s", table_name, field_name);

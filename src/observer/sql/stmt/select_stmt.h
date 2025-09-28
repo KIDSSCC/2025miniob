@@ -17,6 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/sys/rc.h"
 #include "sql/stmt/stmt.h"
 #include "storage/field/field.h"
+#include "sql/parser/expression_binder.h"
+#include "sql/expr/expression_iterator.h"
 
 class FieldMeta;
 class FilterStmt;
@@ -36,7 +38,7 @@ public:
   StmtType type() const override { return StmtType::SELECT; }
 
 public:
-  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt);
+  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderContext* parent_bind_context = nullptr);
 
 public:
   const vector<Table *> &tables() const { return tables_; }

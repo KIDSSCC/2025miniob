@@ -18,9 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
-#include "sql/parser/expression_binder.h"
 
-#include "sql/expr/expression_iterator.h"
 
 using namespace std;
 using namespace common;
@@ -39,7 +37,7 @@ SelectStmt::~SelectStmt()
   }
 }
 
-RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
+RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderContext* parent_bind_context)
 {
   if (nullptr == db) {
     LOG_WARN("invalid argument. db is null");
@@ -52,6 +50,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   vector<Table *>                tables;
   unordered_map<string, Table *> table_map;
 
+  // 将join部分涉及的所有table，获取其table指针绑定到relation_node上。这一步绑定的指针将直接用于逻辑计划生成阶段，生成tableget和join算子
   function<void(unique_ptr<RelationNode>&)> bind_table_ptr = [&](unique_ptr<RelationNode>&relation_node) -> void{
     if(!relation_node->is_join){
       relation_node->table_ptr = db->find_table(relation_node->table_name.c_str());
@@ -68,6 +67,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   vector<string> table_names;
   bind_table_ptr(select_sql.relations);
   select_sql.relations->get_all_tables(table_names);
+
   for (size_t i = 0; i < table_names.size(); i++) {
     const char *table_name = table_names[i].c_str();
     if (nullptr == table_name) {
@@ -86,6 +86,8 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     table_map.insert({table_name, table});
   }
 
+  // TODO:到目前为止，父查询的表的信息还没有传到子查询中
+
   // collect query fields in `select` statement
   vector<unique_ptr<Expression>> bound_expressions;
   ExpressionBinder expression_binder(binder_context);
@@ -98,41 +100,68 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
       return rc;
     }
   }
+
+  function<RC(ConditionSqlNode&, vector<unique_ptr<Expression>>&)> bind_condition_node = [&](ConditionSqlNode& condition_node, vector<unique_ptr<Expression>>& expressions) -> RC{
+    function<RC(int, unique_ptr<Expression>&)> check_expr =[&] (int is_attr, unique_ptr<Expression>& expr_node) -> RC{
+      RC rc = RC::SUCCESS;
+      if(is_attr == 2 && expr_node->type() == ExprType::SELECT_T){
+        // 对子查询表达式的特殊绑定: 子查询表达式生成一个单独的语句，保存在expr中
+        Stmt *sub_select_stmt = nullptr;
+        Expression* expr = expr_node.release();
+        rc = SelectStmt::create(db, static_cast<SelectPackExpr*>(expr)->get_node(), sub_select_stmt, &binder_context);
+        if(rc != RC::SUCCESS){
+          LOG_WARN("Failed to create sub select node");
+          return rc;
+        }
+        static_cast<SelectPackExpr*>(expr)->select_expr_->select_stmt_ = static_cast<SelectStmt*>(sub_select_stmt);
+
+        // 将调整之后的SelectPackExpr保存回left_expressions
+        expr_node.reset(expr);
+
+      } else if(is_attr == 2){
+        // 左值为表达式
+        rc = expression_binder.bind_expression(expr_node, expressions);
+        if (OB_FAIL(rc)) {
+          LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+          return rc;
+        }
+        // 替换左值表达式
+        unique_ptr<Expression> &left = expressions[0];
+        if (left.get() != expr_node.get()) {
+          expr_node.reset(left.release());
+        }
+      }
+      expressions.clear();
+      return rc;
+    };
+
+    RC rc = RC::SUCCESS;
+    rc = check_expr(condition_node.left_is_attr, condition_node.left_expressions);
+    if(rc != RC::SUCCESS){
+      LOG_WARN("Failed to check_expr");
+      return rc;
+    }
+
+    rc = check_expr(condition_node.right_is_attr, condition_node.right_expressions);
+    if(rc != RC::SUCCESS){
+      LOG_WARN("Failed to check_expr");
+      return rc;
+    }
+
+    return rc;
+  };
   
   // where谓词的condition部分也可能包含expression, 在stmt层面对其进行重新绑定
   vector<unique_ptr<Expression>> condition_expessions;
   for(ConditionSqlNode& condition_node : select_sql.conditions){
-    if(condition_node.left_is_attr == 2){
-      // 左值为表达式
-      RC rc = expression_binder.bind_expression(condition_node.left_expressions, condition_expessions);
-      if (OB_FAIL(rc)) {
-        LOG_INFO("bind expression failed. rc=%s", strrc(rc));
-        return rc;
-      }
-      // 替换左值表达式
-      unique_ptr<Expression> &left = condition_expessions[0];
-      if (left.get() != condition_node.left_expressions.get()) {
-        condition_node.left_expressions.reset(left.release());
-      }
-    }
-    condition_expessions.clear();
-    
-    if(condition_node.right_is_attr == 2){
-      // 右值为表达式
-      RC rc = expression_binder.bind_expression(condition_node.right_expressions, condition_expessions);
-      if (OB_FAIL(rc)) {
-        LOG_INFO("bind expression failed. rc=%s", strrc(rc));
-        return rc;
-      }
-      // 替换右值表达式
-      unique_ptr<Expression> &right = condition_expessions[0];
-      if (right.get() != condition_node.right_expressions.get()) {
-        condition_node.right_expressions.reset(right.release());
-      }
+    RC rc = bind_condition_node(condition_node, condition_expessions);
+    if(rc != RC::SUCCESS){
+      LOG_WARN("Cannot bind condition_node");
+      return rc;
     }
   }
 
-  // 绑定groupby部分的表达式
+  // 绑定groupby部分的表达式, 暂时认为groupby部分不会出现子查询
   vector<unique_ptr<Expression>> group_by_expressions;
   for (unique_ptr<Expression> &expression : select_sql.group_by) {
     RC rc = expression_binder.bind_expression(expression, group_by_expressions);
@@ -145,36 +174,14 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   // 绑定having部分的表达式
   vector<unique_ptr<Expression>> having_expessions;
   for(ConditionSqlNode& condition_node : select_sql.having){
-    if(condition_node.left_is_attr == 2){
-      // 左值为表达式
-      RC rc = expression_binder.bind_expression(condition_node.left_expressions, having_expessions);
-      if (OB_FAIL(rc)) {
-        LOG_INFO("bind expression failed. rc=%s", strrc(rc));
-        return rc;
-      }
-      // 替换左值表达式
-      unique_ptr<Expression> &left = having_expessions[0];
-      if (left.get() != condition_node.left_expressions.get()) {
-        condition_node.left_expressions.reset(left.release());
-      }
-    }
-    having_expessions.clear();
-    
-    if(condition_node.right_is_attr == 2){
-      RC rc = expression_binder.bind_expression(condition_node.right_expressions, having_expessions);
-      if(OB_FAIL(rc)){
-        LOG_INFO("bind expression failed. rc=%s", strrc(rc));
-        return rc;
-      }
-      // 替换右值表达式
-      unique_ptr<Expression> &right = having_expessions[0];
-      if (right.get() != condition_node.right_expressions.get()) {
-        condition_node.right_expressions.reset(right.release());
-      }
+    RC rc = bind_condition_node(condition_node, having_expessions);
+    if(rc != RC::SUCCESS){
+      LOG_WARN("Cannot bind condition_node");
+      return rc;
     }
   }
 
-  // 绑定order by部分的表达式
+  // 绑定order by部分的表达式, 暂时认为orderby部分不会出现子查询
   vector<unique_ptr<Expression>> orderby_expessions;
   for(pair<Order, unique_ptr<Expression>>& order_field : select_sql.order_by){
     RC rc = expression_binder.bind_expression(order_field.second, orderby_expessions);

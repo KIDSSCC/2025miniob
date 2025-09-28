@@ -23,6 +23,7 @@ See the Mulan PSL v2 for more details. */
 class Expression;
 class Table;
 class FilterStmt;
+class SelectStmt;
 
 /**
  * @defgroup SQLParser SQL Parser
