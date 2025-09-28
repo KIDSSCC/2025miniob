@@ -25,6 +25,10 @@ See the Mulan PSL v2 for more details. */
 class Tuple;
 class SelectStmt;
 
+using SelectStmtHandle = std::unique_ptr<SelectStmt, void(*)(SelectStmt*)>;
+
+void init_destruction(SelectStmt*);
+
 /**
  * @defgroup Expression
  * @brief 表达式
@@ -567,7 +571,7 @@ public:
 class SelectExpr : public Expression
 {
 public:
-  SelectExpr(SelectSqlNode&& selection) {
+  SelectExpr(SelectSqlNode&& selection):select_stmt_(nullptr, &init_destruction) {
     selection_ = std::move(selection);
   }
   virtual ~SelectExpr() = default;
@@ -586,7 +590,7 @@ public:
 
 public:
   SelectSqlNode selection_;
-  SelectStmt* select_stmt_;
+  SelectStmtHandle select_stmt_;
 };
 
 // 子查询表达式的一层封装，selectsqlnode本身不方便拷贝管理，所以叠加一层，用共享指针管理SelectExpr，底层的SelectSqlNode始终不动

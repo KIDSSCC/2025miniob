@@ -23,7 +23,10 @@ See the Mulan PSL v2 for more details. */
 class Expression;
 class Table;
 class FilterStmt;
-class SelectStmt;
+
+using FilterStmtHandle = std::unique_ptr<FilterStmt, void(*)(FilterStmt*)>;
+
+void init_destruction(FilterStmt* stmt);
 
 /**
  * @defgroup SQLParser SQL Parser
@@ -118,7 +121,7 @@ struct RelationNode {
   unique_ptr<RelationNode> right;
   JoinOp join_type;
   vector<ConditionSqlNode> join_conditions;
-  FilterStmt* filter_stmt;
+  FilterStmtHandle filter_stmt{nullptr, &init_destruction};
 
   void get_all_tables(vector<string>& tables) {
     if (!is_join) {

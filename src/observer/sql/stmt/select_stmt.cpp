@@ -37,6 +37,20 @@ SelectStmt::~SelectStmt()
   }
 }
 
+void manual_destruction(SelectStmt* stmt){
+  if(stmt != nullptr){
+    delete stmt;
+    stmt = nullptr;
+  }
+}
+
+void manual_destruction(FilterStmt* stmt){
+  if(stmt != nullptr){
+    delete stmt;
+    stmt = nullptr;
+  }
+}
+
 RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderContext* parent_bind_context)
 {
   if (nullptr == db) {
@@ -107,16 +121,15 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
       if(is_attr == 2 && expr_node->type() == ExprType::SELECT_T){
         // 对子查询表达式的特殊绑定: 子查询表达式生成一个单独的语句，保存在expr中
         Stmt *sub_select_stmt = nullptr;
-        Expression* expr = expr_node.release();
+        Expression* expr = expr_node.get();
         rc = SelectStmt::create(db, static_cast<SelectPackExpr*>(expr)->get_node(), sub_select_stmt, &binder_context);
         if(rc != RC::SUCCESS){
           LOG_WARN("Failed to create sub select node");
           return rc;
         }
-        static_cast<SelectPackExpr*>(expr)->select_expr_->select_stmt_ = static_cast<SelectStmt*>(sub_select_stmt);
 
-        // 将调整之后的SelectPackExpr保存回left_expressions
-        expr_node.reset(expr);
+        std::unique_ptr<SelectStmt, void(*)(SelectStmt*)> raw(static_cast<SelectStmt*>(sub_select_stmt), manual_destruction);
+        static_cast<SelectPackExpr*>(expr)->select_expr_->select_stmt_ = std::move(raw);
 
       } else if(is_attr == 2){
         // 左值为表达式
@@ -215,7 +228,8 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
         LOG_WARN("cannot construct filter stmt about inner join");
         return rc;
       }
-      relation_node->filter_stmt = filter_stmt_;
+      std::unique_ptr<FilterStmt, void(*)(FilterStmt*)> raw(filter_stmt_, &manual_destruction);
+      relation_node->filter_stmt = std::move(raw);
 
       // 递归遍历左右节点
       if(relation_node->left){

@@ -18,6 +18,8 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
+void init_destruction(SelectStmt*){}
+
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
   return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
@@ -886,7 +888,8 @@ bool SelectExpr::equal(const Expression &other) const{
 }
 
 AttrType SelectExpr::value_type() const{
-  // TODO:valuetype是可以拿到的，但是只有在selectstmt对表达式绑定期间才能根据子查询返回的最终字段确定其类型
+  // 在stmt层进行绑定时，会通过SelectSqlNode创建出对应的SelectStmt
+  // 绑定之后，可以通过SelectStmt的query_expressions中的第一个字段来确认子查询的字段属性
   return AttrType::UNDEFINED;
 }
 
@@ -899,3 +902,4 @@ RC SelectExpr::get_value(const Tuple &tuple, Value &value) const{
   // TODO: 子查询获取值可能不需要通过表达式完成，先占位
   return RC::SUCCESS;
 }
+

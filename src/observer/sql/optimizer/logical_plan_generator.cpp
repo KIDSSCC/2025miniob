@@ -131,7 +131,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
       // 两张表在inner join连接下，创建单独的predicate算子
       if(relation_node->join_type == JoinOp::INNER_JOIN){
         unique_ptr<LogicalOperator> join_predicate_oper;
-        rc = create_plan(relation_node->filter_stmt, join_predicate_oper);
+        rc = create_plan(relation_node->filter_stmt.get(), join_predicate_oper);
         if (OB_FAIL(rc)) {
           LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
           return nullptr;
@@ -148,13 +148,13 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
         ret_node = std::move(join_oper);
       }
 
-      // 这里略显抽象，RelationNode中的filter_stmt对象，由于声明的过早，不能在RelationNode中进行析构，只能放在这里释放掉
-      // 但在逻辑计划生成过程中出现错误的时候，这个分支时执行不到，也就会导致对象泄露。但既然逻辑计划生成都已经错误了，内存对象泄露其实也就不是重点了
-      // 这里最正确的解决方案应该是在stmt层构建一个新的中间件，承接起RelationNode，并添加新的filter_stmt。这样可以由中间件在stmt层释放资源。但RelationNode向中间件的转换又要涉及递归转换。暂时不想写，先这样吧...
-      if(relation_node->filter_stmt!=nullptr){
-        delete relation_node->filter_stmt;
-        relation_node->filter_stmt = nullptr;
-      }
+      // // 这里略显抽象，RelationNode中的filter_stmt对象，由于声明的过早，不能在RelationNode中进行析构，只能放在这里释放掉
+      // // 但在逻辑计划生成过程中出现错误的时候，这个分支时执行不到，也就会导致对象泄露。但既然逻辑计划生成都已经错误了，内存对象泄露其实也就不是重点了
+      // // 这里最正确的解决方案应该是在stmt层构建一个新的中间件，承接起RelationNode，并添加新的filter_stmt。这样可以由中间件在stmt层释放资源。但RelationNode向中间件的转换又要涉及递归转换。暂时不想写，先这样吧...
+      // if(relation_node->filter_stmt!=nullptr){
+      //   delete relation_node->filter_stmt;
+      //   relation_node->filter_stmt = nullptr;
+      // }
 
       return ret_node;
     }
