@@ -36,6 +36,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/predicate_physical_operator.h"
 #include "sql/operator/project_logical_operator.h"
 #include "sql/operator/project_physical_operator.h"
+#include "sql/operator/project_cache_logical_operator.h"
+#include "sql/operator/project_cache_physical_operator.h"
 #include "sql/operator/project_vec_physical_operator.h"
 #include "sql/operator/table_get_logical_operator.h"
 #include "sql/operator/table_scan_physical_operator.h"
@@ -97,6 +99,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
 
     case LogicalOperatorType::ORDER_BY: {
       return create_plan(static_cast<OrderByLogicalOperator &>(logical_operator), oper, session);
+    }
+
+    case LogicalOperatorType::PROJECTION_CACHE:{
+      return create_plan(static_cast<ProjectCacheLogicalOperator &>(logical_operator), oper, session);
     }
 
     default: {
@@ -208,23 +214,34 @@ RC PhysicalPlanGenerator::create_plan(PredicateLogicalOperator &pred_oper, uniqu
 {
   // Predicate 谓词算子必须有一个子算子，一般情况，为一个table_get算子
   vector<unique_ptr<LogicalOperator>> &children_opers = pred_oper.children();
-  ASSERT(children_opers.size() == 1, "predicate logical operator's sub oper number should be 1");
+  ASSERT(children_opers.size() >= 1, "predicate logical operator's sub oper number should greater than 1");
 
-  LogicalOperator &child_oper = *children_opers.front();
+  RC rc = RC::SUCCESS;
+  vector<unique_ptr<PhysicalOperator>> all_children_oper;
+  for(size_t i=0;i<children_opers.size();i++){
+    LogicalOperator &child_oper = *children_opers[i];
+    unique_ptr<PhysicalOperator> child_phy_oper;
 
-  unique_ptr<PhysicalOperator> child_phy_oper;
-  RC                           rc = create(child_oper, child_phy_oper, session);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to create child operator of predicate operator. rc=%s", strrc(rc));
-    return rc;
+    rc = create(child_oper, child_phy_oper, session);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create child operator of predicate operator. rc=%s", strrc(rc));
+      return rc;
+    }
+    all_children_oper.emplace_back(std::move(child_phy_oper));
   }
+  
+
 
   vector<unique_ptr<Expression>> &expressions = pred_oper.expressions();
   ASSERT(expressions.size() == 1, "predicate logical operator's children should be 1");
 
   unique_ptr<Expression> expression = std::move(expressions.front());
   oper = unique_ptr<PhysicalOperator>(new PredicatePhysicalOperator(std::move(expression)));
-  oper->add_child(std::move(child_phy_oper));
+
+  // 接入所有子节点的物理算子，tableget算子位于最后
+  for(size_t i=0;i<all_children_oper.size();i++){
+    oper->add_child(std::move(all_children_oper[i]));
+  }
   return rc;
 }
 
@@ -246,6 +263,34 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, uniq
   }
 
   auto project_operator = make_unique<ProjectPhysicalOperator>(std::move(project_oper.expressions()));
+  if (child_phy_oper) {
+    project_operator->add_child(std::move(child_phy_oper));
+  }
+
+  oper = std::move(project_operator);
+
+  return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(ProjectCacheLogicalOperator &project_oper, unique_ptr<PhysicalOperator> &oper, Session* session)
+{
+  vector<unique_ptr<LogicalOperator>> &child_opers = project_oper.children();
+
+  unique_ptr<PhysicalOperator> child_phy_oper;
+
+  RC rc = RC::SUCCESS;
+  if (!child_opers.empty()) {
+    LogicalOperator *child_oper = child_opers.front().get();
+
+    rc = create(*child_oper, child_phy_oper, session);
+    if (OB_FAIL(rc)) {
+      LOG_WARN("failed to create project logical operator's child physical operator. rc=%s", strrc(rc));
+      return rc;
+    }
+  }
+
+  // 作为子查询，其字段应该是只有一个
+  auto project_operator = make_unique<ProjectCachePhysicalOperator>(std::move(project_oper.expressions()));
   if (child_phy_oper) {
     project_operator->add_child(std::move(child_phy_oper));
   }

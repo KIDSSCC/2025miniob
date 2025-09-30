@@ -22,6 +22,7 @@ class Session;
 class TableGetLogicalOperator;
 class PredicateLogicalOperator;
 class ProjectLogicalOperator;
+class ProjectCacheLogicalOperator;
 class InsertLogicalOperator;
 class UpdateLogicalOperator;
 class DeleteLogicalOperator;
@@ -50,6 +51,7 @@ private:
   RC create_plan(TableGetLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);
   RC create_plan(PredicateLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);
   RC create_plan(ProjectLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);
+  RC create_plan(ProjectCacheLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);
   RC create_plan(InsertLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);
   RC create_plan(UpdateLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);
   RC create_plan(DeleteLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);

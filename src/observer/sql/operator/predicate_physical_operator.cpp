@@ -26,21 +26,33 @@ PredicatePhysicalOperator::PredicatePhysicalOperator(std::unique_ptr<Expression>
 
 RC PredicatePhysicalOperator::open(Trx *trx)
 {
-  if (children_.size() != 1) {
-    LOG_WARN("predicate operator must has one child");
+  if (children_.size() < 1) {
+    LOG_WARN("predicate operator must has at least one child");
     return RC::INTERNAL;
   }
 
   // 谓词算子的子算子，一般可以是table_get算子
-  return children_[0]->open(trx);
+  // 子查询的情况下，子算子也可能是projectcache算子
+  RC rc = RC::SUCCESS;
+  for(size_t i=0;i<children_.size();i++){
+    rc = children_[i]->open(trx);
+    if(rc != RC::SUCCESS){
+      LOG_WARN("Failed to open child oper");
+      return rc;
+    }
+  }
+  return rc;
 }
 
 RC PredicatePhysicalOperator::next()
 {
   RC                rc   = RC::SUCCESS;
-  PhysicalOperator *oper = children_.front().get();
+  PhysicalOperator *oper = children_.back().get();
+  // 有关子查询场景下的predicate遍历逻辑，核心是围绕predicate自身底层的table_get(或join)展开遍历
+  // 每从其中获取到一个tuple，再访问其他的projectcache子算子，得到子查询的结果。再将子查询的结果和自身的tuple一起送入bool判断
 
   while (RC::SUCCESS == (rc = oper->next())) {
+    // 得到自身底层的算子返回的tuple
     Tuple *tuple = oper->current_tuple();
     if (nullptr == tuple) {
       rc = RC::INTERNAL;
@@ -48,9 +60,37 @@ RC PredicatePhysicalOperator::next()
       break;
     }
 
+    // 遍历访问所有子查询的算子返回的tuple
+    CompositeTuple sub_query_tuple;
+    for(size_t i=0; i<children_.size()-1;i++){
+      // 子查询的project是一定能在一轮next+curr_tuple下拿到结果的
+      PhysicalOperator *sub_oper = children_[i].get();
+      rc = sub_oper->next();
+      if(rc != RC::SUCCESS){
+        LOG_WARN("Failed to execute next for child oper");
+        return rc;
+      }
+
+      Tuple* sub_tuple = sub_oper->current_tuple();
+      if (nullptr == sub_tuple) {
+        LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
+        return RC::INTERNAL;
+      }
+
+      ValueListTuple child_tuple_to_value;
+      rc = ValueListTuple::make(*sub_tuple, child_tuple_to_value);
+      sub_query_tuple.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
+    }
+
+    // CompositeTuple中再把tuple推进去
+    ValueListTuple origin_tuple;
+    rc = ValueListTuple::make(*tuple, origin_tuple);
+    sub_query_tuple.add_tuple(make_unique<ValueListTuple>(std::move(origin_tuple)));
+
+
     // 谓词算子的表达式一般可以是 ConjunctionExpr，通过ConjunctionExpr计算tuple的值
     Value value;
-    rc = expression_->get_value(*tuple, value);
+    rc = expression_->get_value(sub_query_tuple, value);
     if (rc != RC::SUCCESS) {
       return rc;
     }
@@ -64,7 +104,9 @@ RC PredicatePhysicalOperator::next()
 
 RC PredicatePhysicalOperator::close()
 {
-  children_[0]->close();
+  for(size_t i=0;i<children_.size();i++){
+    children_[i]->close();
+  }
   return RC::SUCCESS;
 }
 

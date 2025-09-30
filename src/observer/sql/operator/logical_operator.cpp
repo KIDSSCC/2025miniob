@@ -46,3 +46,18 @@ void LogicalOperator::generate_general_child()
   }
 }
 
+void LogicalOperator::print_tree(int depth) const {
+  // 构造缩进字符串
+  std::string indent(depth * 2, ' ');
+
+  // 打印本节点
+  LOG_INFO("%s%s", indent.c_str(), LogicType_to_string(this->type()));
+
+  // 遍历子节点
+  for (const auto &child : children_) {
+    if (child) {
+      child->print_tree(depth + 1);
+    }
+  }
+}
+

@@ -25,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/logical_operator.h"
 #include "sql/operator/predicate_logical_operator.h"
 #include "sql/operator/project_logical_operator.h"
+#include "sql/operator/project_cache_logical_operator.h"
 #include "sql/operator/orderby_logical_operator.h"
 #include "sql/operator/table_get_logical_operator.h"
 #include "sql/operator/group_by_logical_operator.h"
@@ -95,7 +96,7 @@ RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, unique_ptr<LogicalOper
   return RC::SUCCESS;
 }
 
-RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator)
+RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator, bool sub_query)
 {
   unique_ptr<LogicalOperator> *last_oper = nullptr;
 
@@ -147,14 +148,6 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
         // cross join下，直接取join节点作为当前节点
         ret_node = std::move(join_oper);
       }
-
-      // // 这里略显抽象，RelationNode中的filter_stmt对象，由于声明的过早，不能在RelationNode中进行析构，只能放在这里释放掉
-      // // 但在逻辑计划生成过程中出现错误的时候，这个分支时执行不到，也就会导致对象泄露。但既然逻辑计划生成都已经错误了，内存对象泄露其实也就不是重点了
-      // // 这里最正确的解决方案应该是在stmt层构建一个新的中间件，承接起RelationNode，并添加新的filter_stmt。这样可以由中间件在stmt层释放资源。但RelationNode向中间件的转换又要涉及递归转换。暂时不想写，先这样吧...
-      // if(relation_node->filter_stmt!=nullptr){
-      //   delete relation_node->filter_stmt;
-      //   relation_node->filter_stmt = nullptr;
-      // }
 
       return ret_node;
     }
@@ -215,7 +208,15 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
   }
 
   // table_get -> predicate -> group_by -> having -> project
-  auto project_oper = make_unique<ProjectLogicalOperator>(std::move(select_stmt->query_expressions()));
+  unique_ptr<LogicalOperator> project_oper;
+  if(sub_query){
+    // 子查询下，顶层算子使用ProjectCacheLogicalOperator
+    project_oper = make_unique<ProjectCacheLogicalOperator>(std::move(select_stmt->query_expressions()));
+  }else{
+    // 非子查询下，顶层算子使用ProjectLogicalOperator
+    project_oper = make_unique<ProjectLogicalOperator>(std::move(select_stmt->query_expressions()));
+  }
+
   if (*last_oper) {
     project_oper->add_child(std::move(*last_oper));
   }
@@ -230,6 +231,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
   RC                                  rc = RC::SUCCESS;
   vector<unique_ptr<Expression>> cmp_exprs;
   const vector<FilterUnit *>    &filter_units = filter_stmt->filter_units();
+  vector<unique_ptr<LogicalOperator>> sub_querys;
 
   // 将FilterUnit逐一转换为ComparisonExpr
   for (const FilterUnit *filter_unit : filter_units) {
@@ -254,11 +256,34 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
       right = move(const_cast<FilterObj &>(filter_obj_right).expr);
     }
 
-    // 条件过滤语句，左右Value类型不一致时，按照转换开销进行转换并比较
-    LOG_INFO("left type is %s and right type is %s", attr_type_to_string(left->value_type()), attr_type_to_string(right->value_type()));
-    if (left->value_type() != right->value_type()) {
+    // 已获取到left和right部分对应的表达式，针对SelectPackExpr生成子查询的逻辑计划
+    function<RC(unique_ptr<Expression>&)> generate_sub_node = [&](unique_ptr<Expression>& expr) -> RC{
+      if(expr->type() == ExprType::SELECT_T){
+        unique_ptr<LogicalOperator> sub_query_node;
+        SelectStmt* sub_stmt = static_cast<SelectPackExpr*>(expr.get())->select_expr_->select_stmt_.get();
+        RC rc = create_plan(sub_stmt, sub_query_node, true);
+        sub_querys.emplace_back(std::move(sub_query_node));
+        if(rc != RC::SUCCESS){
+          LOG_WARN("Failed to create plan for sub query");
+        }
+        return rc;
+      }
+      return RC::SUCCESS;
+    };
+    rc = generate_sub_node(left);
+    if(rc != RC::SUCCESS){
+      LOG_WARN("Failed to create sub query oper for left expr");
+      return rc;
+    }
+    rc = generate_sub_node(right);
+    if(rc != RC::SUCCESS){
+      LOG_WARN("Failed to create sub query oper for left expr");
+      return rc;
+    }
 
-      // 考虑整型对浮点这一种特殊的情况
+    // 条件过滤语句，左右Value类型不一致时，按照转换开销进行转换并比较
+    if (left->value_type() != right->value_type()) {
+      // 考虑整型对字符这一种特殊的情况
       if((left->value_type() == AttrType::INTS && right->value_type() == AttrType::CHARS) || (left->value_type() == AttrType::CHARS && right->value_type() == AttrType::INTS)){
         AttrType target_type = AttrType::FLOATS;
         // 左值转float
@@ -347,6 +372,10 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     // conjunction_expr，将若干ComparisonExpr以何种逻辑进行连接，默认是and逻辑
     unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
     predicate_oper = unique_ptr<PredicateLogicalOperator>(new PredicateLogicalOperator(std::move(conjunction_expr)));
+    // 构建PredicateLogicalOperator，将子查询部分的逻辑计划接入Predicate的子算子
+    for(size_t i=0;i<sub_querys.size();i++){
+      predicate_oper->add_child(std::move(sub_querys[i]));
+    }
   }
   logical_operator = std::move(predicate_oper);
   return rc;

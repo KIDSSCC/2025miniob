@@ -35,6 +35,7 @@ enum class LogicalOperatorType
   TABLE_GET,   ///< 从表中获取数据
   PREDICATE,   ///< 过滤，就是谓词
   PROJECTION,  ///< 投影，就是select
+  PROJECTION_CACHE,
   JOIN,        ///< 连接
   INSERT,      ///< 插入
   UPDATE,      ///< 更新
@@ -43,6 +44,24 @@ enum class LogicalOperatorType
   GROUP_BY,    ///< 分组
   ORDER_BY      ///< 排序
 };
+
+inline const char *LogicType_to_string(LogicalOperatorType type) {
+  switch (type) {
+    case LogicalOperatorType::CALC: return "CALC";
+    case LogicalOperatorType::TABLE_GET: return "TABLE_GET";
+    case LogicalOperatorType::PREDICATE: return "PREDICATE";
+    case LogicalOperatorType::PROJECTION: return "PROJECTION";
+    case LogicalOperatorType::PROJECTION_CACHE: return "PROJECTION_CACHE";
+    case LogicalOperatorType::JOIN: return "JOIN";
+    case LogicalOperatorType::INSERT: return "INSERT";
+    case LogicalOperatorType::UPDATE: return "UPDATE";
+    case LogicalOperatorType::DELETE: return "DELETE";
+    case LogicalOperatorType::EXPLAIN: return "EXPLAIN";
+    case LogicalOperatorType::GROUP_BY: return "GROUP_BY";
+    case LogicalOperatorType::ORDER_BY: return "ORDER_BY";
+    default: return "UNKNOWN";
+  }
+}
 
 /**
  * @brief 逻辑算子描述当前执行计划要做什么
@@ -66,6 +85,7 @@ public:
   static bool can_generate_vectorized_operator(const LogicalOperatorType &type);
   // TODO: used by cascade optimizer, tmp function, need to be remove
   void generate_general_child();
+  void print_tree(int depth = 0) const;
 
 protected:
   vector<unique_ptr<LogicalOperator>> children_;  ///< 子算子

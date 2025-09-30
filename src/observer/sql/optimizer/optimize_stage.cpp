@@ -43,6 +43,7 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
   }
 
   ASSERT(logical_operator, "logical operator is null");
+  // logical_operator->print_tree();
 
   // TODO: unify the RBO and CBO
   rc = rewrite(logical_operator);

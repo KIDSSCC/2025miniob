@@ -38,7 +38,7 @@ public:
 
 private:
   RC create_plan(CalcStmt *calc_stmt, unique_ptr<LogicalOperator> &logical_operator);
-  RC create_plan(SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator);
+  RC create_plan(SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator, bool sub_query = false);
   RC create_plan(FilterStmt *filter_stmt, unique_ptr<LogicalOperator> &logical_operator);
   RC create_plan(InsertStmt *insert_stmt, unique_ptr<LogicalOperator> &logical_operator);
   RC create_plan(UpdateStmt *update_stmt, unique_ptr<LogicalOperator> &logical_operator);
