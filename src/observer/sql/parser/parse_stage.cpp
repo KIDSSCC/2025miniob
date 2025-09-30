@@ -24,6 +24,8 @@ See the Mulan PSL v2 for more details. */
 #include "event/sql_event.h"
 #include "sql/parser/parse.h"
 
+#include<vector>
+
 using namespace common;
 
 RC ParseStage::handle_request(SQLStageEvent *sql_event)
@@ -33,10 +35,10 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   const string &sql        = sql_event->sql();
 
   // DEBUG
-  std::string sub = "select id from t_order_by_3 order by id desc;";
-  if(sql== sub){
-    sql_event->set_sql("select id from t_order_by_3");
-  }
+  // std::string sub = "select id from t_order_by_3 order by id desc;";
+  // if(sql== sub){
+  //   sql_event->set_sql("select id from t_order_by_3");
+  // }
 
   ParsedSqlResult parsed_sql_result;
 
