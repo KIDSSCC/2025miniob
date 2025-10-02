@@ -86,10 +86,11 @@ RC PredicatePhysicalOperator::next()
     ValueListTuple origin_tuple;
     rc = ValueListTuple::make(*tuple, origin_tuple);
     sub_query_tuple.add_tuple(make_unique<ValueListTuple>(std::move(origin_tuple)));
-
+    LOG_INFO("predicate info, tuple spec is %s", sub_query_tuple.spec_to_string().c_str());
 
     // 谓词算子的表达式一般可以是 ConjunctionExpr，通过ConjunctionExpr计算tuple的值
     Value value;
+    LOG_INFO("predicate info, expr is %s", expression_->type_string());
     rc = expression_->get_value(sub_query_tuple, value);
     if (rc != RC::SUCCESS) {
       return rc;
@@ -111,10 +112,11 @@ RC PredicatePhysicalOperator::close()
 }
 
 Tuple *PredicatePhysicalOperator::current_tuple() { 
-  return children_[0]->current_tuple(); 
+  // 当前 子算子中的最后一个代表了本查询真正的底层算子，其余均为子查询
+  return children_.back()->current_tuple(); 
 }
 
 RC PredicatePhysicalOperator::tuple_schema(TupleSchema &schema) const
 {
-  return children_[0]->tuple_schema(schema);
+  return children_.back()->tuple_schema(schema);
 }

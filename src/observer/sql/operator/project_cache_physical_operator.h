@@ -50,6 +50,7 @@ public:
 
 private:
   vector<unique_ptr<Expression>>          expressions_;
+  ExpressionTuple<unique_ptr<Expression>> project_tuple_;
   CompositeTuple tuple_;
   bool is_finished = false;
 };

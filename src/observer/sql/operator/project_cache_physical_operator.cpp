@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 using namespace std;
 
 ProjectCachePhysicalOperator::ProjectCachePhysicalOperator(vector<unique_ptr<Expression>> &&expressions)
-  : expressions_(std::move(expressions))
+  : expressions_(std::move(expressions)), project_tuple_(expressions_)
 {
   // ProjectCachePhysicalOperator和ProjectPhysicalOperator的内部构造保持完全一样即可
 }
@@ -53,14 +53,17 @@ RC ProjectCachePhysicalOperator::next()
   RC rc = RC::SUCCESS;
   while(OB_SUCC(rc = child->next())){
     Tuple *child_tuple = child->current_tuple();
+    LOG_INFO("in project cache ,child_tuple spec is %s", child_tuple->spec_to_string().c_str());
     if (nullptr == child_tuple) {
       LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
       return RC::INTERNAL;
     }
+    project_tuple_.set_tuple(child_tuple);
+    LOG_INFO("in project cache ,project_tuple_ spec is %s", project_tuple_.spec_to_string().c_str());
 
     // 子节点返回的curr_tuple重新copy成一份valuelisttuple
     ValueListTuple child_tuple_to_value;
-    rc = ValueListTuple::make(*child_tuple, child_tuple_to_value);
+    rc = ValueListTuple::make(project_tuple_, child_tuple_to_value);
     if(rc != RC::SUCCESS){
       LOG_WARN("Failed to make valuelist tuple");
       return rc;

@@ -23,6 +23,15 @@ See the Mulan PSL v2 for more details. */
 
 class Table;
 
+enum TupleType{
+  ROW,
+  PROJECT,
+  VALUELIST,
+  JOINED,
+  EXPRESSION,
+  COMPOSITE
+};
+
 /**
  * @defgroup Tuple
  * @brief Tuple 元组，表示一行数据，当前返回客户端时使用
@@ -113,6 +122,24 @@ public:
     return str;
   }
 
+  virtual string spec_to_string() const{
+    string    str;
+    const int cell_num = this->cell_num();
+    for (int i = 0; i < cell_num - 1; i++) {
+      TupleCellSpec spec;
+      spec_at(i, spec);
+      str += spec.to_string();
+      str += ", ";
+    }
+
+    if (cell_num > 0) {
+      TupleCellSpec spec;
+      spec_at(cell_num - 1, spec);
+      str += spec.to_string();
+    }
+    return str;
+  }
+
   virtual RC compare(const Tuple &other, int &result) const
   {
     // 先比较两个元祖长度是否一致，长度一致下，再逐一比较其中的cell
@@ -151,6 +178,22 @@ public:
     result = 0;
     return rc;
   }
+
+  virtual TupleType type() const = 0;
+
+  inline const char *type_to_string()
+  {
+      TupleType curr_type = type();
+      switch (curr_type) {
+        case TupleType::ROW:              return "ROW";
+        case TupleType::PROJECT:          return "PROJECT";
+        case TupleType::VALUELIST:        return "VALUELIST";
+        case TupleType::JOINED:           return "JOINED";
+        case TupleType::EXPRESSION:       return "EXPRESSION";
+        case TupleType::COMPOSITE:        return "COMPOSITE";
+      }
+      return "UNKNOWN";
+  }
 };
 
 /**
@@ -170,6 +213,8 @@ public:
     speces_.clear();
   }
 
+  TupleType type() const override { return TupleType::ROW; }
+
   void set_record(Record *record) { this->record_ = record; }
 
   void set_schema(const Table *table, const vector<FieldMeta> *fields)
@@ -181,9 +226,13 @@ public:
       delete spec;
     }
     this->speces_.clear();
+
+    // 这里选择屏蔽掉字段中不可见的部分
     this->speces_.reserve(fields->size());
     for (const FieldMeta &field : *fields) {
-      speces_.push_back(new FieldExpr(table, &field));
+      if(field.visible()){
+        speces_.push_back(new FieldExpr(table, &field));
+      }
     }
   }
 
@@ -228,6 +277,7 @@ public:
 
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {
+    // 行元组的find_cell，最基础的一种，比对表名和字段名是否匹配
     const char *table_name = spec.table_name();
     const char *field_name = spec.field_name();
     if (0 != strcmp(table_name, table_->name())) {
@@ -280,6 +330,8 @@ public:
   ProjectTuple()          = default;
   virtual ~ProjectTuple() = default;
 
+  TupleType type() const override { return TupleType::PROJECT; }
+
   void set_expressions(vector<unique_ptr<Expression>> &&expressions) { expressions_ = std::move(expressions); }
 
   auto get_expressions() const -> const vector<unique_ptr<Expression>> & { return expressions_; }
@@ -307,7 +359,11 @@ public:
     return RC::SUCCESS;
   }
 
-  RC find_cell(const TupleCellSpec &spec, Value &cell) const override { return tuple_->find_cell(spec, cell); }
+  RC find_cell(const TupleCellSpec &spec, Value &cell) const override 
+  { 
+    // 投影元素的find_cell，在自己维护的原始元组中查找
+    return tuple_->find_cell(spec, cell); 
+  }
 
 #if 0
   RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
@@ -336,6 +392,8 @@ public:
   ValueListTuple()          = default;
   virtual ~ValueListTuple() = default;
 
+  TupleType type() const override { return TupleType::VALUELIST; }
+
   void set_names(const vector<TupleCellSpec> &specs) { specs_ = specs; }
   void set_cells(const vector<Value> &cells) { cells_ = cells; }
 
@@ -363,6 +421,7 @@ public:
 
   virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {
+    // valuelist元组的find_cell, 已经记录了每一个value对应的TupleCellSpec信息，逐一进行比对
     ASSERT(cells_.size() == specs_.size(), "cells_.size()=%d, specs_.size()=%d", cells_.size(), specs_.size());
 
     const int size = static_cast<int>(specs_.size());
@@ -414,6 +473,8 @@ class JoinedTuple : public Tuple
 public:
   JoinedTuple()          = default;
   virtual ~JoinedTuple() = default;
+
+  TupleType type() const override { return TupleType::JOINED; }
 
   void set_left(Tuple *left) { left_ = left; }
   void set_right(Tuple *right) { right_ = right; }

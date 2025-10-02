@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
+#include "sql/expr/composite_tuple.h"
 #include "sql/expr/arithmetic_operator.hpp"
 
 using namespace std;
@@ -297,8 +298,9 @@ RC ComparisonExpr::try_get_value(Value &cell) const
 
 RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 {
+  LOG_INFO("ComparisonExpr, left expr is %s and right expr is %s", left_->type_string(), right_->type_string());
   RC rc = RC::SUCCESS;
-  if(left_->type() != ExprType::VALUELIST && right_->type() != ExprType::VALUELIST){
+  if(left_->type() < ExprType::VALUELIST && right_->type() < ExprType::VALUELIST){
     // 左值右值均没有valuelist，按照正常的比较逻辑进行比较即可
     Value left_value;
     Value right_value;
@@ -332,14 +334,16 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
       return rc;
     }
 
-    rc = static_cast<ValueListExpr*>(right_.get())->get_valuelist(tuple, right_values);
+    rc = right_->get_valuelist(tuple, right_values);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
       return rc;
     }
 
+    LOG_INFO("Access Here? left value is %s, right size is %d", left_value.to_string().c_str(), right_values.size());
     bool bool_value = false;
     rc = compare_value_list(left_value, right_values, bool_value);
+    LOG_INFO("bool value is %d", bool_value);
     if (rc == RC::SUCCESS) {
       value.set_boolean(bool_value);
     }
@@ -414,12 +418,15 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
 
   Value tmp_value;
   for (const unique_ptr<Expression> &expr : children_) {
+    LOG_INFO("in conjunction expr, sub expr is %s", expr->type_string());
     rc = expr->get_value(tuple, tmp_value);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to get value by child expression. rc=%s", strrc(rc));
       return rc;
     }
     bool bool_value = tmp_value.get_boolean();
+
+    // 逻辑短路
     if ((conjunction_type_ == Type::AND && !bool_value) || (conjunction_type_ == Type::OR && bool_value)) {
       value.set_boolean(bool_value);
       return rc;
@@ -861,7 +868,7 @@ RC ValueListExpr::try_get_value(Value &value){
   return RC::UNSUPPORTED;
 }
 
-RC ValueListExpr::get_valuelist(const Tuple &tuple, vector<Value> &values){
+RC ValueListExpr::get_valuelist(const Tuple &tuple, vector<Value> &values) const {
   RC rc = RC::SUCCESS;
   for(size_t i=0;i<vec_.size();i++){
     Value curr_value;
@@ -901,5 +908,29 @@ int SelectExpr::value_length() const{
 RC SelectExpr::get_value(const Tuple &tuple, Value &value) const{
   // TODO: 子查询获取值可能不需要通过表达式完成，先占位
   return RC::SUCCESS;
+}
+
+RC SelectExpr::get_valuelist(const Tuple &tuple, vector<Value> &values) const {
+  // 子查询的值以value集合返回
+
+  // 先根据pos，从tuple中解析出对应自身子查询部分的composite tuple, 实质已经被封装成了valuelistetuple
+  if(tuple.type() == TupleType::COMPOSITE){
+    const CompositeTuple& origin_tuple = static_cast<const CompositeTuple&>(tuple);
+    Tuple* sub_tuple = origin_tuple.get_part(this->pos_);
+  
+    // sub_tuple_内部理论上应该为若干valuelisttuple，对应子查询的每一个结果，直接解析结果即可
+    int cell_num = sub_tuple->cell_num();
+    values.clear();
+    values.reserve(cell_num);
+    for(int i=0;i<cell_num;i++){
+      Value curr_cell;
+      sub_tuple->cell_at(i, curr_cell);
+      values.emplace_back(curr_cell);
+    }
+    return RC::SUCCESS;
+  }else{
+    LOG_WARN("tuple is not composite");
+    return RC::INTERNAL;
+  }
 }
 

@@ -135,6 +135,32 @@ public:
    */
   virtual RC eval(Chunk &chunk, vector<uint8_t> &select) { return RC::UNIMPLEMENTED; }
 
+  /**
+   * @brief 用于 值列表和子查询 获得一个value集合。
+   */
+  virtual RC get_valuelist(const Tuple &tuple, vector<Value> &values) const { return RC::UNIMPLEMENTED; };
+
+  inline const char *type_string()
+  {
+      ExprType curr_type = type();
+      switch (curr_type) {
+        case ExprType::NONE:               return "NONE";
+        case ExprType::STAR:               return "STAR";
+        case ExprType::UNBOUND_FIELD:      return "UNBOUND_FIELD";
+        case ExprType::UNBOUND_AGGREGATION:return "UNBOUND_AGGREGATION";
+        case ExprType::FIELD:              return "FIELD";
+        case ExprType::VALUE:              return "VALUE";
+        case ExprType::CAST:               return "CAST";
+        case ExprType::COMPARISON:         return "COMPARISON";
+        case ExprType::CONJUNCTION:        return "CONJUNCTION";
+        case ExprType::ARITHMETIC:         return "ARITHMETIC";
+        case ExprType::AGGREGATION:        return "AGGREGATION";
+        case ExprType::VALUELIST:          return "VALUELIST";
+        case ExprType::SELECT_T:           return "SELECT_T";
+      }
+      return "UNKNOWN";
+  }
+
 protected:
   /**
    * @brief 表达式在下层算子返回的 chunk 中的位置
@@ -559,7 +585,7 @@ public:
 
   RC get_value(const Tuple &tuple, Value &value) const override;
 
-  RC get_valuelist(const Tuple &tuple, vector<Value> &values);
+  RC get_valuelist(const Tuple &tuple, vector<Value> &values) const override;
 
   RC try_get_value(Value &value);
 
@@ -588,6 +614,8 @@ public:
   int      value_length() const override;
 
   RC get_value(const Tuple &tuple, Value &value) const override;
+
+  RC get_valuelist(const Tuple &tuple, vector<Value> &values) const override;
 
 public:
   SelectSqlNode selection_;
@@ -633,6 +661,10 @@ public:
   }
 
   SelectSqlNode& get_node(){ return select_expr_->selection_; }
+
+  RC get_valuelist(const Tuple &tuple, vector<Value> &values) const override{
+    return select_expr_->get_valuelist(tuple, values);
+  }
 
 public:
   shared_ptr<SelectExpr> select_expr_;

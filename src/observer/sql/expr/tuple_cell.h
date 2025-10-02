@@ -33,6 +33,19 @@ public:
     return table_name_ == other.table_name_ && field_name_ == other.field_name_ && alias_ == other.alias_;
   }
 
+  string to_string(){
+    string res = "[" + table_name_;
+    if(field_name_ != ""){
+      res += "." + field_name_;
+    }
+
+    if(alias_ != ""){
+      res += "(" + alias_ + ")";
+    }
+    res += "]";
+    return res;
+  }
+
 private:
   string table_name_;
   string field_name_;

@@ -69,3 +69,11 @@ Tuple &CompositeTuple::tuple_at(size_t index)
   ASSERT(index < tuples_.size(), "index=%d, tuples_size=%d", index, tuples_.size());
   return *tuples_[index]; 
 }
+
+Tuple* CompositeTuple::get_part(int idx) const {
+  if(idx >= (int)tuples_.size() || idx < 0){
+    LOG_WARN("Try to get %d, but only %d tuple in composite", idx, tuples_.size());
+    return nullptr;
+  }
+  return tuples_[idx].get();
+}

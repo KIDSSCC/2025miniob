@@ -29,6 +29,8 @@ public:
   ExpressionTuple(const vector<ExprPointerType> &expressions) : expressions_(expressions) {}
   virtual ~ExpressionTuple() = default;
 
+  TupleType type() const override { return TupleType::EXPRESSION; }
+
   void set_tuple(const Tuple *tuple) { child_tuple_ = tuple; }
 
   const Tuple *get_tuple() const { return child_tuple_; }
@@ -51,6 +53,7 @@ public:
       return RC::INVALID_ARGUMENT;
     }
 
+    // ExpressionTuple在构造投影算子时，记录的TupleCellSpec信息只声明了别名，忽略了表名和字段名
     const ExprPointerType &expression = expressions_[index];
     spec                              = TupleCellSpec(expression->name());
     return RC::SUCCESS;

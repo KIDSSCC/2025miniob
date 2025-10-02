@@ -27,6 +27,8 @@ public:
   CompositeTuple()          = default;
   virtual ~CompositeTuple() = default;
 
+  TupleType type() const override { return TupleType::COMPOSITE; }
+
   /// @brief 删除默认构造函数
   CompositeTuple(const CompositeTuple &) = delete;
   /// @brief 删除默认赋值函数
@@ -46,6 +48,8 @@ public:
   Tuple &tuple_at(size_t index);
 
   size_t tuple_count() const { return tuples_.size(); }
+
+  Tuple* get_part(int idx) const;
 
 private:
   vector<unique_ptr<Tuple>> tuples_;

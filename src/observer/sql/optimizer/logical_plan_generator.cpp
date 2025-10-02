@@ -259,7 +259,10 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     // 已获取到left和right部分对应的表达式，针对SelectPackExpr生成子查询的逻辑计划
     function<RC(unique_ptr<Expression>&)> generate_sub_node = [&](unique_ptr<Expression>& expr) -> RC{
       if(expr->type() == ExprType::SELECT_T){
+        // 在表达式中记录子查询节点在目标算子中的索引位置，便于后期从tuple中获取元素
+        // 这里设置pos需要定位到底层的SelectExpr上
         unique_ptr<LogicalOperator> sub_query_node;
+        static_cast<SelectPackExpr*>(expr.get())->select_expr_->set_pos(sub_querys.size());
         SelectStmt* sub_stmt = static_cast<SelectPackExpr*>(expr.get())->select_expr_->select_stmt_.get();
         RC rc = create_plan(sub_stmt, sub_query_node, true);
         sub_querys.emplace_back(std::move(sub_query_node));
