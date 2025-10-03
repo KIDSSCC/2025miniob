@@ -364,7 +364,7 @@ public:
    */
   RC compare_value(const Value &left, const Value &right, bool &value) const;
 
-  RC compare_value_list(const Value &left, const vector<Value> &right, bool &value) const;
+  RC compare_value_list(const vector<Value> &left, const vector<Value> &right, bool &value) const;
 
   template <typename T>
   RC compare_column(const Column &left, const Column &right, vector<uint8_t> &result) const;

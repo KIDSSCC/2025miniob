@@ -221,39 +221,40 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
   return rc;
 }
 
-RC ComparisonExpr::compare_value_list(const Value &left, const vector<Value> &right, bool &result) const
+RC ComparisonExpr::compare_value_list(const vector<Value> &left, const vector<Value> &right, bool &result) const
 {
   RC  rc         = RC::SUCCESS;
   result         = false;
   // 针对值列表的in运算和exist运算
   switch (comp_){
     case EQUAL_TO:{
-      ASSERT(right.size() == 1, "in scalar comparison, valuelist must have only one value");
-      result = (left.compare(right[0]) == 0);
+      ASSERT(left.size() == 1 && right.size() == 1, "in scalar comparison, valuelist must have only one value");
+      result = (left[0].compare(right[0]) == 0);
     } break;
     case LESS_EQUAL:{
-      ASSERT(right.size() == 1, "in scalar comparison, valuelist must have only one value");
-      result = (left.compare(right[0]) <= 0);
+      ASSERT(left.size() == 1 && right.size() == 1, "in scalar comparison, valuelist must have only one value");
+      result = (left[0].compare(right[0]) <= 0);
     } break;
     case NOT_EQUAL:{
-      ASSERT(right.size() == 1, "in scalar comparison, valuelist must have only one value");
-      result = (left.compare(right[0]) != 0);
+      ASSERT(left.size() == 1 && right.size() == 1, "in scalar comparison, valuelist must have only one value");
+      result = (left[0].compare(right[0]) != 0);
     } break;
     case LESS_THAN:{
-      ASSERT(right.size() == 1, "in scalar comparison, valuelist must have only one value");
-      result = (left.compare(right[0]) < 0);
+      ASSERT(left.size() == 1 && right.size() == 1, "in scalar comparison, valuelist must have only one value");
+      result = (left[0].compare(right[0]) < 0);
     } break;
     case GREAT_EQUAL:{
-      ASSERT(right.size() == 1, "in scalar comparison, valuelist must have only one value");
-      result = (left.compare(right[0]) >= 0);
+      ASSERT(left.size() == 1 && right.size() == 1, "in scalar comparison, valuelist must have only one value");
+      result = (left[0].compare(right[0]) >= 0);
     } break;
     case GREAT_THAN:{
-      ASSERT(right.size() == 1, "in scalar comparison, valuelist must have only one value");
-      result = (left.compare(right[0]) > 0);
+      ASSERT(left.size() == 1 && right.size() == 1, "in scalar comparison, valuelist must have only one value");
+      result = (left[0].compare(right[0]) > 0);
     } break;
+    // IN 和 EXIST 相关运算下，均是右值为值列表，左值为标量
     case IN_T:{
       // 需要将非NULL的左值依次与右值进行比较
-      if(left.is_null()){
+      if(left[0].is_null()){
         result = false;
         break;
       }
@@ -261,7 +262,7 @@ RC ComparisonExpr::compare_value_list(const Value &left, const vector<Value> &ri
         if(right[i].is_null()){
           continue;
         }
-        int cmp_result = left.compare(right[i]);
+        int cmp_result = left[0].compare(right[i]);
         result = (0 == cmp_result);
         if(result)
           break;
@@ -269,7 +270,7 @@ RC ComparisonExpr::compare_value_list(const Value &left, const vector<Value> &ri
     }break;
     case NOT_IN:{
       // 需要将非NULL的左值依次与右值进行比较
-      if(left.is_null()){
+      if(left[0].is_null()){
         result = false;
         break;
       }
@@ -277,7 +278,7 @@ RC ComparisonExpr::compare_value_list(const Value &left, const vector<Value> &ri
         if(right[i].is_null()){
           continue;
         }
-        int cmp_result = left.compare(right[i]);
+        int cmp_result = left[0].compare(right[i]);
         result = (0 == cmp_result);
         if(result)
           break;
@@ -348,25 +349,44 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     }
   }
   else{
-    // 无论是in还是exist，通用的情况应该是右值为valuelist，
-    Value left_value;
+    // 左值右值均有可能出现valuelist
+    vector<Value> left_values;
     vector<Value> right_values;
 
-    rc = left_->get_value(tuple, left_value);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
-      return rc;
+    if(left_->type() >= ExprType::VALUELIST){
+      rc = left_->get_valuelist(tuple, left_values);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to get valuelist of left expression. rc=%s", strrc(rc));
+        return rc;
+      }
+    }else{
+      Value left_value;
+      rc = left_->get_value(tuple, left_value);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+        return rc;
+      }
+      left_values.emplace_back(left_value);
     }
 
-    rc = right_->get_valuelist(tuple, right_values);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
-      return rc;
+    if(right_->type() >= ExprType::VALUELIST){
+      rc = right_->get_valuelist(tuple, right_values);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to get valuelist of right expression. rc=%s", strrc(rc));
+        return rc;
+      }
+    }else{
+      Value right_value;
+      rc = right_->get_value(tuple, right_value);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+        return rc;
+      }
+      right_values.emplace_back(right_value);
     }
-
-    LOG_INFO("Access Here? left value is %s, right size is %d", left_value.to_string().c_str(), right_values.size());
+    
     bool bool_value = false;
-    rc = compare_value_list(left_value, right_values, bool_value);
+    rc = compare_value_list(left_values, right_values, bool_value);
     LOG_INFO("bool value is %d", bool_value);
     if (rc == RC::SUCCESS) {
       value.set_boolean(bool_value);
