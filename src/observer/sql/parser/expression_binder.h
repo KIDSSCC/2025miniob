@@ -23,13 +23,16 @@ public:
   virtual ~BinderContext() = default;
 
   void add_table(Table *table) { query_tables_.push_back(table); }
+  void set_separate(int separate) { separate_ = separate; }
 
-  Table *find_table(const char *table_name) const;
+  Table *find_table(const char *table_name, int &index) const;
 
   const vector<Table *> &query_tables() const { return query_tables_; }
+  const int separate() const { return separate_; }
 
 private:
   vector<Table *> query_tables_;
+  int             separate_;
 };
 
 /**
@@ -42,25 +45,25 @@ public:
   ExpressionBinder(BinderContext &context) : context_(context) {}
   virtual ~ExpressionBinder() = default;
 
-  RC bind_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions);
+  RC bind_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
 
 private:
-  RC bind_star_expression(unique_ptr<Expression> &star_expr, vector<unique_ptr<Expression>> &bound_expressions);
+  RC bind_star_expression(unique_ptr<Expression> &star_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
   RC bind_unbound_field_expression(
-      unique_ptr<Expression> &unbound_field_expr, vector<unique_ptr<Expression>> &bound_expressions);
-  RC bind_field_expression(unique_ptr<Expression> &field_expr, vector<unique_ptr<Expression>> &bound_expressions);
-  RC bind_value_expression(unique_ptr<Expression> &value_expr, vector<unique_ptr<Expression>> &bound_expressions);
-  RC bind_cast_expression(unique_ptr<Expression> &cast_expr, vector<unique_ptr<Expression>> &bound_expressions);
+      unique_ptr<Expression> &unbound_field_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
+  RC bind_field_expression(unique_ptr<Expression> &field_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
+  RC bind_value_expression(unique_ptr<Expression> &value_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
+  RC bind_cast_expression(unique_ptr<Expression> &cast_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
   RC bind_comparison_expression(
-      unique_ptr<Expression> &comparison_expr, vector<unique_ptr<Expression>> &bound_expressions);
+      unique_ptr<Expression> &comparison_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
   RC bind_conjunction_expression(
-      unique_ptr<Expression> &conjunction_expr, vector<unique_ptr<Expression>> &bound_expressions);
+      unique_ptr<Expression> &conjunction_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
   RC bind_arithmetic_expression(
-      unique_ptr<Expression> &arithmetic_expr, vector<unique_ptr<Expression>> &bound_expressions);
+      unique_ptr<Expression> &arithmetic_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
   RC bind_aggregate_expression(
-      unique_ptr<Expression> &aggregate_expr, vector<unique_ptr<Expression>> &bound_expressions);
+      unique_ptr<Expression> &aggregate_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
 
-  RC bind_valuelist_expression(unique_ptr<Expression> &valuelist, vector<unique_ptr<Expression>> &bound_expressions);
+  RC bind_valuelist_expression(unique_ptr<Expression> &valuelist, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
 
 private:
   BinderContext &context_;

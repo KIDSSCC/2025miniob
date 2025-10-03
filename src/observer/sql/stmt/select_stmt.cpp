@@ -99,16 +99,26 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
     tables.push_back(table);
     table_map.insert({table_name, table});
   }
-
-  // TODO:到目前为止，父查询的表的信息还没有传到子查询中
+  // binder_context中以separate作为分界线，前一部分为子查询相关的表，后一部分为父查询相关的表
+  binder_context.set_separate(binder_context.query_tables().size());
+  if(parent_bind_context){
+    for(size_t i=0;i<parent_bind_context->query_tables().size();i++){
+      binder_context.add_table(parent_bind_context->query_tables()[i]);
+    }
+  }
+  LOG_INFO("size of context is %d", binder_context.query_tables().size());
+  for(size_t i=0;i<binder_context.query_tables().size();i++){
+    LOG_INFO("Table name is %s", binder_context.query_tables()[i]->name());
+  }
 
   // collect query fields in `select` statement
   vector<unique_ptr<Expression>> bound_expressions;
   ExpressionBinder expression_binder(binder_context);
+  bool is_relevant = false;
   
   // 对select部分的字段的绑定，主要涉及*绑定为全字段，unboundedfield绑定为field，unboundedaggregate绑定为aggregate
   for (unique_ptr<Expression> &expression : select_sql.expressions) {
-    RC rc = expression_binder.bind_expression(expression, bound_expressions);
+    RC rc = expression_binder.bind_expression(expression, bound_expressions, is_relevant);
     if (OB_FAIL(rc)) {
       LOG_INFO("bind expression failed. rc=%s", strrc(rc));
       return rc;
@@ -134,7 +144,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
 
       } else if(is_attr == 2){
         // 左值为表达式
-        rc = expression_binder.bind_expression(expr_node, expressions);
+        rc = expression_binder.bind_expression(expr_node, expressions, is_relevant);
         if (OB_FAIL(rc)) {
           LOG_INFO("bind expression failed. rc=%s", strrc(rc));
           return rc;
@@ -178,7 +188,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   // 绑定groupby部分的表达式, 暂时认为groupby部分不会出现子查询
   vector<unique_ptr<Expression>> group_by_expressions;
   for (unique_ptr<Expression> &expression : select_sql.group_by) {
-    RC rc = expression_binder.bind_expression(expression, group_by_expressions);
+    RC rc = expression_binder.bind_expression(expression, group_by_expressions, is_relevant);
     if (OB_FAIL(rc)) {
       LOG_INFO("bind expression failed. rc=%s", strrc(rc));
       return rc;
@@ -198,7 +208,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   // 绑定order by部分的表达式, 暂时认为orderby部分不会出现子查询
   vector<unique_ptr<Expression>> orderby_expessions;
   for(pair<Order, unique_ptr<Expression>>& order_field : select_sql.order_by){
-    RC rc = expression_binder.bind_expression(order_field.second, orderby_expessions);
+    RC rc = expression_binder.bind_expression(order_field.second, orderby_expessions, is_relevant);
     if (OB_FAIL(rc)) {
       LOG_INFO("bind order by expression failed. rc=%s", strrc(rc));
       return rc;
@@ -317,6 +327,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->group_by_.swap(group_by_expressions);
   select_stmt->having_stmt_ = having_stmt;
+  select_stmt->is_relevant_ = is_relevant;
   stmt                      = select_stmt;
   return RC::SUCCESS;
 }

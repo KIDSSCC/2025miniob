@@ -211,7 +211,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
   unique_ptr<LogicalOperator> project_oper;
   if(sub_query){
     // 子查询下，顶层算子使用ProjectCacheLogicalOperator
-    project_oper = make_unique<ProjectCacheLogicalOperator>(std::move(select_stmt->query_expressions()));
+    project_oper = make_unique<ProjectCacheLogicalOperator>(std::move(select_stmt->query_expressions()), select_stmt->is_relevant());
   }else{
     // 非子查询下，顶层算子使用ProjectLogicalOperator
     project_oper = make_unique<ProjectLogicalOperator>(std::move(select_stmt->query_expressions()));

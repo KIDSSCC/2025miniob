@@ -25,7 +25,7 @@ See the Mulan PSL v2 for more details. */
 class ProjectCachePhysicalOperator : public PhysicalOperator
 {
 public:
-  ProjectCachePhysicalOperator(vector<unique_ptr<Expression>> &&expressions);
+  ProjectCachePhysicalOperator(vector<unique_ptr<Expression>> &&expressions, bool is_relevant);
 
   virtual ~ProjectCachePhysicalOperator() = default;
 
@@ -53,4 +53,5 @@ private:
   ExpressionTuple<unique_ptr<Expression>> project_tuple_;
   CompositeTuple tuple_;
   bool is_finished = false;
+  bool is_relevant_;
 };

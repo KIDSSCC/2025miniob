@@ -26,7 +26,7 @@ See the Mulan PSL v2 for more details. */
 class ProjectCacheLogicalOperator : public LogicalOperator
 {
 public:
-  ProjectCacheLogicalOperator(vector<unique_ptr<Expression>> &&expressions);
+  ProjectCacheLogicalOperator(vector<unique_ptr<Expression>> &&expressions, bool is_relevant);
   virtual ~ProjectCacheLogicalOperator() = default;
 
   LogicalOperatorType         type() const override { return LogicalOperatorType::PROJECTION_CACHE; }
@@ -35,4 +35,8 @@ public:
 
   vector<unique_ptr<Expression>>       &expressions() { return expressions_; }
   const vector<unique_ptr<Expression>> &expressions() const { return expressions_; }
+
+  bool is_relevant() const { return is_relevant_; }
+public:
+  bool is_relevant_;
 };

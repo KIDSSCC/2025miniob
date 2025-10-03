@@ -52,6 +52,7 @@ public:
   vector<unique_ptr<Expression>> &group_by() { return group_by_; }
   vector<pair<int, unique_ptr<Expression>>>& order_by() {return order_by_;}
   AttrType              get_type();
+  bool                  is_relevant() const { return is_relevant_; }
 
 private:
   vector<unique_ptr<Expression>> query_expressions_;
@@ -62,4 +63,5 @@ private:
   FilterStmt                    *having_stmt_ = nullptr;
   vector<unique_ptr<Expression>> group_by_;
   vector<pair<int, unique_ptr<Expression>>> order_by_;
+  bool                          is_relevant_;
 };

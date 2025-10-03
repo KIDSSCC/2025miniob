@@ -19,9 +19,10 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-ProjectCachePhysicalOperator::ProjectCachePhysicalOperator(vector<unique_ptr<Expression>> &&expressions)
+ProjectCachePhysicalOperator::ProjectCachePhysicalOperator(vector<unique_ptr<Expression>> &&expressions, bool is_relevant)
   : expressions_(std::move(expressions)), project_tuple_(expressions_)
 {
+  is_relevant_ = is_relevant;
   // ProjectCachePhysicalOperator和ProjectPhysicalOperator的内部构造保持完全一样即可
 }
 
@@ -45,8 +46,15 @@ RC ProjectCachePhysicalOperator::open(Trx *trx)
 RC ProjectCachePhysicalOperator::next()
 {
   if(is_finished || children_.empty()){
-    // 如果已经统计并输出完了，next返回RECORD_EOF
-    return RC::RECORD_EOF;
+    if(!is_relevant_){
+      // is_finished代表已经完整迭代过一轮了，对于非相关子查询，此时可以省略本次迭代
+      // curr_tuple中也依然维持着上一次的结果
+      return RC::SUCCESS;
+    }else{
+      // 对于相关子查询，为关闭的状态下进行新一轮的next是非法的
+      LOG_WARN("Repeated invocation of next for relevant sub query is unreasonable");
+      return RC::INTERNAL;
+    }
   }
 
   PhysicalOperator *child = children_[0].get();

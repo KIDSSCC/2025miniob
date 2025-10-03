@@ -16,9 +16,10 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-ProjectCacheLogicalOperator::ProjectCacheLogicalOperator(vector<unique_ptr<Expression>> &&expressions)
+ProjectCacheLogicalOperator::ProjectCacheLogicalOperator(vector<unique_ptr<Expression>> &&expressions, bool is_relevant)
 {
   expressions_ = std::move(expressions);
+  is_relevant_ = is_relevant;
 }
 
 unique_ptr<LogicalProperty> ProjectCacheLogicalOperator::find_log_prop(const vector<LogicalProperty*> &log_props)
