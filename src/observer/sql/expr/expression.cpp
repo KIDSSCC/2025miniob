@@ -227,6 +227,30 @@ RC ComparisonExpr::compare_value_list(const Value &left, const vector<Value> &ri
   result         = false;
   // 针对值列表的in运算和exist运算
   switch (comp_){
+    case EQUAL_TO:{
+      ASSERT(right.size() == 1, "in scalar comparison, valuelist must have only one value");
+      result = (left.compare(right[0]) == 0);
+    } break;
+    case LESS_EQUAL:{
+      ASSERT(right.size() == 1, "in scalar comparison, valuelist must have only one value");
+      result = (left.compare(right[0]) <= 0);
+    } break;
+    case NOT_EQUAL:{
+      ASSERT(right.size() == 1, "in scalar comparison, valuelist must have only one value");
+      result = (left.compare(right[0]) != 0);
+    } break;
+    case LESS_THAN:{
+      ASSERT(right.size() == 1, "in scalar comparison, valuelist must have only one value");
+      result = (left.compare(right[0]) < 0);
+    } break;
+    case GREAT_EQUAL:{
+      ASSERT(right.size() == 1, "in scalar comparison, valuelist must have only one value");
+      result = (left.compare(right[0]) >= 0);
+    } break;
+    case GREAT_THAN:{
+      ASSERT(right.size() == 1, "in scalar comparison, valuelist must have only one value");
+      result = (left.compare(right[0]) > 0);
+    } break;
     case IN_T:{
       // 需要将非NULL的左值依次与右值进行比较
       if(left.is_null()){
