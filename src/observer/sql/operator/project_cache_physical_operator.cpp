@@ -28,36 +28,24 @@ ProjectCachePhysicalOperator::ProjectCachePhysicalOperator(vector<unique_ptr<Exp
 
 RC ProjectCachePhysicalOperator::open(Trx *trx)
 {
-  // open函数不需要做调整，仅打开子算子
-  if (children_.empty()) {
-    return RC::SUCCESS;
-  }
-
-  PhysicalOperator *child = children_[0].get();
-  RC                rc    = child->open(trx);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to open child operator: %s", strrc(rc));
-    return rc;
-  }
+  // 打开子算子的功能下放到next部分执行
+  trx_ = trx;
 
   return RC::SUCCESS;
 }
 
 RC ProjectCachePhysicalOperator::next()
 {
-  if(is_finished || children_.empty()){
-    if(!is_relevant_){
-      // is_finished代表已经完整迭代过一轮了，对于非相关子查询，此时可以省略本次迭代
-      // curr_tuple中也依然维持着上一次的结果
-      return RC::SUCCESS;
-    }else{
-      // 对于相关子查询，为关闭的状态下进行新一轮的next是非法的
-      LOG_WARN("Repeated invocation of next for relevant sub query is unreasonable");
-      return RC::INTERNAL;
-    }
+  if((is_finished && !is_relevant_) || children_.size() == 0){
+    // is_finished代表已经完整迭代过一轮了，对于非相关子查询，此时可以省略本次迭代
+    // curr_tuple中也依然维持着上一次的结果
+    return RC::SUCCESS;
   }
 
   PhysicalOperator *child = children_[0].get();
+  child->open(trx_);
+  child->set_parent_tuple(this->parent_tuple_);
+
   RC rc = RC::SUCCESS;
   while(OB_SUCC(rc = child->next())){
     Tuple *child_tuple = child->current_tuple();
@@ -79,16 +67,15 @@ RC ProjectCachePhysicalOperator::next()
     tuple_.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
   }
 
+  child->close();
+
   is_finished = true;
   return RC::SUCCESS;
 }
 
 RC ProjectCachePhysicalOperator::close()
 {
-  // close部分不需要调整，仅关闭子算子
-  if (!children_.empty()) {
-    children_[0]->close();
-  }
+  // 关闭子算子的功能上提至next部分
   return RC::SUCCESS;
 }
 Tuple *ProjectCachePhysicalOperator::current_tuple()

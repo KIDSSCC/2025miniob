@@ -43,21 +43,21 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
   }
 
   ASSERT(logical_operator, "logical operator is null");
-  // logical_operator->print_tree();
-
+  
   // TODO: unify the RBO and CBO
   rc = rewrite(logical_operator);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to rewrite plan. rc=%s", strrc(rc));
     return rc;
   }
-
+  
   // TODO: better way
   logical_operator->generate_general_child();
   Optimizer optimizer;
   // TODO: error handle
   unique_ptr<PhysicalOperator> physical_operator;
-
+  
+  logical_operator->print_tree();
   // cascade级联选项是通过set语句手动启用的，一般可能用不上
   if (sql_event->session_event()->session()->use_cascade()) {
     physical_operator = optimizer.optimize(logical_operator.get());
@@ -77,6 +77,7 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
     }
   }
 
+  // physical_operator->print_tree();
   sql_event->set_operator(std::move(physical_operator));
 
   return rc;

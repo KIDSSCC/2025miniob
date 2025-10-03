@@ -41,3 +41,18 @@ string physical_operator_type_name(PhysicalOperatorType type)
 string PhysicalOperator::name() const { return physical_operator_type_name(type()); }
 
 string PhysicalOperator::param() const { return ""; }
+
+void PhysicalOperator::print_tree(int depth) const {
+  // 构造缩进字符串
+  std::string indent(depth * 2, ' ');
+
+  // 打印本节点
+  LOG_INFO("%s%s", indent.c_str(), PhysicalOperatorType_to_string(this->type()));
+
+  // 遍历子节点
+  for (const auto &child : children_) {
+    if (child) {
+      child->print_tree(depth + 1);
+    }
+  }
+}

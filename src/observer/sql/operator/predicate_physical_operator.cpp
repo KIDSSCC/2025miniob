@@ -65,6 +65,7 @@ RC PredicatePhysicalOperator::next()
     for(size_t i=0; i<children_.size()-1;i++){
       // 子查询的project是一定能在一轮next+curr_tuple下拿到结果的
       PhysicalOperator *sub_oper = children_[i].get();
+      sub_oper->set_parent_tuple(tuple);
       rc = sub_oper->next();
       if(rc != RC::SUCCESS){
         LOG_WARN("Failed to execute next for child oper");

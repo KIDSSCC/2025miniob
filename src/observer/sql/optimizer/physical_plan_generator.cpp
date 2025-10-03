@@ -48,6 +48,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/hash_group_by_physical_operator.h"
 #include "sql/operator/scalar_group_by_physical_operator.h"
 #include "sql/operator/table_scan_vec_physical_operator.h"
+#include "sql/operator/nothing_physical_operator.h"
 #include "sql/optimizer/physical_plan_generator.h"
 
 using namespace std;
@@ -445,17 +446,23 @@ RC PhysicalPlanGenerator::create_plan(GroupByLogicalOperator &logical_oper, uniq
   }
 
   // GroupByLogicalOperator的子节点应该为predicate节点或直接为tableget节点
-  ASSERT(logical_oper.children().size() == 1, "group by operator should have 1 child");
+  // 一类特殊情况是predicate算子在逻辑计划优化阶段被直接优化掉了，此时groupby没有子节点，但是功能能够正常实现。
+  ASSERT(logical_oper.children().size() <= 1, "group by operator should have at most 1 child");
 
-  LogicalOperator             &child_oper = *logical_oper.children().front();
-  unique_ptr<PhysicalOperator> child_physical_oper;
-  rc = create(child_oper, child_physical_oper, session);
-  if (OB_FAIL(rc)) {
-    LOG_WARN("failed to create child physical operator of group by operator. rc=%s", strrc(rc));
-    return rc;
+  if(!logical_oper.children().empty()){
+    LogicalOperator             &child_oper = *logical_oper.children().front();
+    unique_ptr<PhysicalOperator> child_physical_oper;
+    rc = create(child_oper, child_physical_oper, session);
+    if (OB_FAIL(rc)) {
+      LOG_WARN("failed to create child physical operator of group by operator. rc=%s", strrc(rc));
+      return rc;
+    }
+    group_by_oper->add_child(std::move(child_physical_oper));
+  }else{
+    // 补充一个空算子占位
+    unique_ptr<PhysicalOperator> child_physical_oper = make_unique<NothingPhysicalOperator>();
+    group_by_oper->add_child(std::move(child_physical_oper));
   }
-
-  group_by_oper->add_child(std::move(child_physical_oper));
 
   oper = std::move(group_by_oper);
   return rc;

@@ -16,21 +16,20 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/physical_operator.h"
 #include "sql/expr/expression_tuple.h"
-#include "sql/expr/composite_tuple.h"
 
 /**
- * @brief 选择/投影物理算子, 用于子查询的特殊版本，缓存所有结果并一并返回
+ * @brief 空算子，部分算子强制检查需要有一个子算子，为了避免复杂调整，通过一个置位算子为其返回空结果
  * @ingroup PhysicalOperator
  */
-class ProjectCachePhysicalOperator : public PhysicalOperator
+class NothingPhysicalOperator : public PhysicalOperator
 {
 public:
-  ProjectCachePhysicalOperator(vector<unique_ptr<Expression>> &&expressions, bool is_relevant);
+  NothingPhysicalOperator() {};
 
-  virtual ~ProjectCachePhysicalOperator() = default;
+  virtual ~NothingPhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::PROJECT_CACHE; }
-  OpType               get_op_type() const override { return OpType::PROJECTTION_CACHE; }
+  PhysicalOperatorType type() const override { return PhysicalOperatorType::NOTHING; }
+  OpType               get_op_type() const override { return OpType::NOTHING; }
 
   virtual double calculate_cost(
       LogicalProperty *prop, const vector<LogicalProperty *> &child_log_props, CostModel *cm) override
@@ -42,17 +41,9 @@ public:
   RC next() override;
   RC close() override;
 
-  int cell_num() const { return tuple_.cell_num(); }
+  int cell_num() const { return 0; }
 
   Tuple *current_tuple() override;
 
   RC tuple_schema(TupleSchema &schema) const override;
-
-private:
-  vector<unique_ptr<Expression>>          expressions_;
-  ExpressionTuple<unique_ptr<Expression>> project_tuple_;
-  CompositeTuple tuple_;
-  bool is_finished = false;
-  bool is_relevant_;
-  Trx *trx_ = nullptr;
 };

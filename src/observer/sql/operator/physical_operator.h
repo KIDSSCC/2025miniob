@@ -56,7 +56,37 @@ enum class PhysicalOperatorType
   GROUP_BY_VEC,
   AGGREGATE_VEC,
   EXPR_VEC,
+  NOTHING
 };
+
+inline const char *PhysicalOperatorType_to_string(PhysicalOperatorType type) {
+  switch (type) {
+    case PhysicalOperatorType::TABLE_SCAN:       return "TABLE_SCAN";
+    case PhysicalOperatorType::TABLE_SCAN_VEC:   return "TABLE_SCAN_VEC";
+    case PhysicalOperatorType::INDEX_SCAN:       return "INDEX_SCAN";
+    case PhysicalOperatorType::NESTED_LOOP_JOIN: return "NESTED_LOOP_JOIN";
+    case PhysicalOperatorType::HASH_JOIN:        return "HASH_JOIN";
+    case PhysicalOperatorType::EXPLAIN:          return "EXPLAIN";
+    case PhysicalOperatorType::PREDICATE:        return "PREDICATE";
+    case PhysicalOperatorType::PREDICATE_VEC:    return "PREDICATE_VEC";
+    case PhysicalOperatorType::PROJECT:          return "PROJECT";
+    case PhysicalOperatorType::PROJECT_CACHE:    return "PROJECT_CACHE";
+    case PhysicalOperatorType::PROJECT_VEC:      return "PROJECT_VEC";
+    case PhysicalOperatorType::ORDER_BY:         return "ORDER_BY";
+    case PhysicalOperatorType::CALC:             return "CALC";
+    case PhysicalOperatorType::STRING_LIST:      return "STRING_LIST";
+    case PhysicalOperatorType::DELETE:           return "DELETE";
+    case PhysicalOperatorType::UPDATE:           return "UPDATE";
+    case PhysicalOperatorType::INSERT:           return "INSERT";
+    case PhysicalOperatorType::SCALAR_GROUP_BY:  return "SCALAR_GROUP_BY";
+    case PhysicalOperatorType::HASH_GROUP_BY:    return "HASH_GROUP_BY";
+    case PhysicalOperatorType::GROUP_BY_VEC:     return "GROUP_BY_VEC";
+    case PhysicalOperatorType::AGGREGATE_VEC:    return "AGGREGATE_VEC";
+    case PhysicalOperatorType::EXPR_VEC:         return "EXPR_VEC";
+    case PhysicalOperatorType::NOTHING:           return "NOTHING";
+    default:                                     return "UNKNOWN";
+  }
+}
 
 /**
  * @brief 与LogicalOperator对应，物理算子描述执行计划将如何执行
@@ -93,6 +123,11 @@ public:
 
   vector<unique_ptr<PhysicalOperator>> &children() { return children_; }
 
+  void set_parent_tuple(const Tuple* parent_tuple){ parent_tuple_ = parent_tuple; }
+
+  void print_tree(int depth = 0) const;
+
 protected:
   vector<unique_ptr<PhysicalOperator>> children_;
+  const Tuple*                          parent_tuple_ = nullptr;
 };

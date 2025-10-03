@@ -69,23 +69,6 @@ RC ScalarGroupByPhysicalOperator::open(Trx *trx)
 
       init = true;
     }
-    // // 计算聚合值
-    // if (group_value_ == nullptr) {
-    //   AggregatorList aggregator_list;
-    //   create_aggregator_list(aggregator_list);
-
-    //   // 将子节点返回的tuple转换为 valuelisttuple
-    //   ValueListTuple child_tuple_to_value;
-    //   rc = ValueListTuple::make(*child_tuple, child_tuple_to_value);
-    //   if (OB_FAIL(rc)) {
-    //     LOG_WARN("failed to make tuple to value list. rc=%s", strrc(rc));
-    //     return rc;
-    //   }
-
-    //   CompositeTuple composite_tuple;
-    //   composite_tuple.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
-    //   group_value_ = make_unique<GroupValueType>(std::move(aggregator_list), std::move(composite_tuple));
-    // }
     
     rc = aggregate(get<0>(*group_value_), group_value_expression_tuple);
     if (OB_FAIL(rc)) {
