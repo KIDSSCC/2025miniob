@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/sys/rc.h"
 #include "sql/stmt/stmt.h"
+#include "sql/parser/expression_binder.h"
 
 class Table;
 class FilterStmt;
@@ -31,7 +32,7 @@ public:
   ~UpdateStmt() override;
 
 public:
-  static RC create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt);
+  static RC create(Db *db, UpdateSqlNode &update_sql, Stmt *&stmt);
   StmtType type() const override { return StmtType::UPDATE; }
 
 public:

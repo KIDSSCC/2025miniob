@@ -176,7 +176,6 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   // where谓词的condition部分也可能包含expression, 在stmt层面对其进行重新绑定
   vector<unique_ptr<Expression>> condition_expessions;
   for(ConditionSqlNode& condition_node : select_sql.conditions){
-    
     RC rc = bind_condition_node(condition_node, condition_expessions);
     if(rc != RC::SUCCESS){
       LOG_WARN("Cannot bind condition_node");
@@ -229,6 +228,15 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   // 对join部分的条件谓词，生成过滤语句
   function<RC(unique_ptr<RelationNode>&)> generate_filter = [&](unique_ptr<RelationNode>& relation_node) -> RC{
     if(relation_node->is_join){
+      // on条件部分的表达式也需要进行绑定
+      vector<unique_ptr<Expression>> on_condition_expessions;
+      for(ConditionSqlNode& condition_node : relation_node->join_conditions){
+        rc = bind_condition_node(condition_node, condition_expessions);
+        if(rc != RC::SUCCESS){
+          LOG_WARN("Cannot bind condition_node");
+          return rc;
+        }
+      }
 
       FilterStmt *filter_stmt_ = nullptr;
       rc = FilterStmt::create(db, default_table, &table_map, 

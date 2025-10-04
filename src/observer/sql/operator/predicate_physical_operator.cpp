@@ -98,6 +98,7 @@ RC PredicatePhysicalOperator::next()
       sub_query_tuple.add_tuple(make_unique<ValueListTuple>(std::move(parent_tuple_pack)));
     }
 
+    LOG_INFO("in predicate, sub_query_tuple is %s", sub_query_tuple.to_string().c_str());
     // 谓词算子的表达式一般可以是 ConjunctionExpr，通过ConjunctionExpr计算tuple的值
     Value value;
     rc = expression_->get_value(sub_query_tuple, value);

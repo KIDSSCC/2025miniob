@@ -28,7 +28,7 @@ DeleteStmt::~DeleteStmt()
   }
 }
 
-RC DeleteStmt::create(Db *db, const DeleteSqlNode &delete_sql, Stmt *&stmt)
+RC DeleteStmt::create(Db *db, DeleteSqlNode &delete_sql, Stmt *&stmt)
 {
   const char *table_name = delete_sql.relation_name.c_str();
   if (nullptr == db || nullptr == table_name) {
@@ -42,6 +42,65 @@ RC DeleteStmt::create(Db *db, const DeleteSqlNode &delete_sql, Stmt *&stmt)
     LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
+
+  BinderContext binder_context;
+  binder_context.add_table(table);
+  binder_context.set_separate(binder_context.query_tables().size());
+  ExpressionBinder expression_binder(binder_context);
+  bool unused_relevant;
+
+  // condition字段部分目前全部设置为了表达式，filterstmt中无法对表达式执行绑定，因此需要将绑定过程提到上层stmt中
+  function<RC(ConditionSqlNode&, vector<unique_ptr<Expression>>&)> bind_condition_node = [&](ConditionSqlNode& condition_node, vector<unique_ptr<Expression>>& expressions) -> RC{
+    function<RC(int, unique_ptr<Expression>&)> check_expr =[&] (int is_attr, unique_ptr<Expression>& expr_node) -> RC{
+      RC rc = RC::SUCCESS;
+      // update中暂时不考虑子查询的情况，仅对一般表达式进行绑定
+      if(is_attr == 2){
+        // 左值为表达式
+        rc = expression_binder.bind_expression(expr_node, expressions, unused_relevant);
+        if (OB_FAIL(rc)) {
+          LOG_WARN("bind expression failed. rc=%s", strrc(rc));
+          return rc;
+        }
+        // 替换左值表达式if
+        unique_ptr<Expression> &left = expressions[0];
+        if (left.get() != expr_node.get()) {
+          expr_node.reset(left.release());
+        }
+      }else{
+        LOG_WARN("condition node is not expr");
+        return RC::INTERNAL;
+      }
+      expressions.clear();
+      return rc;
+    };
+
+    RC rc = RC::SUCCESS;
+    rc = check_expr(condition_node.left_is_attr, condition_node.left_expressions);
+    if(rc != RC::SUCCESS){
+      LOG_WARN("Failed to check_expr");
+      return rc;
+    }
+
+    rc = check_expr(condition_node.right_is_attr, condition_node.right_expressions);
+    if(rc != RC::SUCCESS){
+      LOG_WARN("Failed to check_expr");
+      return rc;
+    }
+
+    return rc;
+  };
+
+  // where谓词的condition部分也可能包含expression, 在stmt层面对其进行重新绑定
+  vector<unique_ptr<Expression>> condition_expessions;
+  for(ConditionSqlNode& condition_node : delete_sql.conditions){
+    
+    RC rc = bind_condition_node(condition_node, condition_expessions);
+    if(rc != RC::SUCCESS){
+      LOG_WARN("Cannot bind condition_node");
+      return rc;
+    }
+  }
+
 
   unordered_map<string, Table *> table_map;
   table_map.insert(pair<string, Table *>(string(table_name), table));
