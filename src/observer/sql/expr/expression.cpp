@@ -127,33 +127,40 @@ ComparisonExpr::~ComparisonExpr() {}
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
   RC  rc         = RC::SUCCESS;
-  int cmp_result = left.compare(right);
   result         = false;
-  // 标量值的比较运算，有一种特殊情况也会落入这一层计算，即针对元素数为1的值列表。此时需要单独处理in和exist计算
-  // 值列表元素数为1，in运算等价于equal，exist运算为真
-
   // 比较运算，针对NULL的运算结果均为false
+  LOG_INFO("comp is %d, left is %s, right is %s", comp_, left.to_string().c_str(), right.to_string().c_str());
   if(comp_ < IS_T &&(left.is_null()||right.is_null())){
     result = false;
     return rc;
   }
+  
+  // 标量值的比较运算，有一种特殊情况也会落入这一层计算，即针对元素数为1的值列表。此时需要单独处理in和exist计算
+  // 值列表元素数为1，in运算等价于equal，exist运算为真
+  
   switch (comp_) {
     case EQUAL_TO: {
+      int cmp_result = left.compare(right);
       result = (0 == cmp_result);
     } break;
     case LESS_EQUAL: {
+      int cmp_result = left.compare(right);
       result = (cmp_result <= 0);
     } break;
     case NOT_EQUAL: {
+      int cmp_result = left.compare(right);
       result = (cmp_result != 0);
     } break;
     case LESS_THAN: {
+      int cmp_result = left.compare(right);
       result = (cmp_result < 0);
     } break;
     case GREAT_EQUAL: {
+      int cmp_result = left.compare(right);
       result = (cmp_result >= 0);
     } break;
     case GREAT_THAN: {
+      int cmp_result = left.compare(right);
       result = (cmp_result > 0);
     } break;
     case LIKE_OP: {
@@ -195,6 +202,7 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
       if(left.is_null() || right.is_null()){
         result = false;
       }else{
+        int cmp_result = left.compare(right);
         result = (0 == cmp_result);
       }
     }break;
@@ -203,6 +211,7 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
       if(left.is_null() || right.is_null()){
         result = false;
       }else {
+        int cmp_result = left.compare(right);
         result = (0 != cmp_result);
       }
     } break;
@@ -226,32 +235,9 @@ RC ComparisonExpr::compare_value_list(const vector<Value> &left, const vector<Va
 {
   RC  rc         = RC::SUCCESS;
   result         = false;
+
   // 针对值列表的in运算和exist运算
   switch (comp_){
-    case EQUAL_TO:{
-      ASSERT(left.size() == 1 && right.size() == 1, "in scalar comparison, valuelist must have only one value");
-      result = (left[0].compare(right[0]) == 0);
-    } break;
-    case LESS_EQUAL:{
-      ASSERT(left.size() == 1 && right.size() == 1, "in scalar comparison, valuelist must have only one value");
-      result = (left[0].compare(right[0]) <= 0);
-    } break;
-    case NOT_EQUAL:{
-      ASSERT(left.size() == 1 && right.size() == 1, "in scalar comparison, valuelist must have only one value");
-      result = (left[0].compare(right[0]) != 0);
-    } break;
-    case LESS_THAN:{
-      ASSERT(left.size() == 1 && right.size() == 1, "in scalar comparison, valuelist must have only one value");
-      result = (left[0].compare(right[0]) < 0);
-    } break;
-    case GREAT_EQUAL:{
-      ASSERT(left.size() == 1 && right.size() == 1, "in scalar comparison, valuelist must have only one value");
-      result = (left[0].compare(right[0]) >= 0);
-    } break;
-    case GREAT_THAN:{
-      ASSERT(left.size() == 1 && right.size() == 1, "in scalar comparison, valuelist must have only one value");
-      result = (left[0].compare(right[0]) > 0);
-    } break;
     // IN 和 EXIST 相关运算下，均是右值为值列表，左值为标量
     case IN_T:{
       // 需要将非NULL的左值依次与右值进行比较
@@ -387,7 +373,15 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     }
     
     bool bool_value = false;
-    rc = compare_value_list(left_values, right_values, bool_value);
+    if(left_values.size() == 1 && right_values.size() == 1){
+      // 标量值比较，退化到compare_value上
+      LOG_INFO("scalar compare");
+      rc = compare_value(left_values[0], right_values[0], bool_value);
+    }else{
+      // 值列表比较，使用compare_value_list
+      LOG_INFO("valuelist compare");
+      rc = compare_value_list(left_values, right_values, bool_value);
+    }
     LOG_INFO("bool value is %d", bool_value);
     if (rc == RC::SUCCESS) {
       value.set_boolean(bool_value);
