@@ -54,9 +54,13 @@ RC ProjectPhysicalOperator::open(Trx *trx)
     all_tuple.emplace_back(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
   }
 
+  if(rc != RC::RECORD_EOF && rc != RC::SUCCESS){
+    LOG_WARN("Error when open project");
+    return rc;
+  }
   curr_tuple_ = all_tuple.begin();
   first_emited_ = false;
-  return rc;
+  return RC::SUCCESS;
 }
 
 RC ProjectPhysicalOperator::next()
