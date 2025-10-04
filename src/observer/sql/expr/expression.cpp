@@ -23,6 +23,7 @@ void init_destruction(SelectStmt*){}
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
+  LOG_INFO("FieldExpr::get_value, table name is %s, field name is %s", table_name(), field_name());
   return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
 }
 
@@ -329,7 +330,6 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     // 左值右值均没有valuelist，按照正常的比较逻辑进行比较即可
     Value left_value;
     Value right_value;
-  
     rc = left_->get_value(tuple, left_value);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
@@ -340,7 +340,8 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
       LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
       return rc;
     }
-  
+    
+    LOG_INFO("left value is %s, right_value is %s", left_value.to_string().c_str(), right_value.to_string().c_str());
     bool bool_value = false;
   
     rc = compare_value(left_value, right_value, bool_value);

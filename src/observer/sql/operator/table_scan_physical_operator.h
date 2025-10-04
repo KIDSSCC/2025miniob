@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/record/record_manager.h"
 #include "storage/record/record_scanner.h"
 #include "common/types.h"
+#include "sql/expr/composite_tuple.h"
 
 class Table;
 
@@ -70,7 +71,7 @@ public:
   void set_predicates(vector<unique_ptr<Expression>> &&exprs);
 
 private:
-  RC filter(RowTuple &tuple, bool &result);
+  RC filter(Tuple &tuple, bool &result);
 
 private:
   Table                         *table_ = nullptr;

@@ -802,39 +802,45 @@ condition:
       $$ = new ConditionSqlNode;
       Expression * left_exp = $1;
       Expression * right_exp = $3;
-      if(left_exp->type()==ExprType::UNBOUND_FIELD){
-        // 左值是一个字段
-        $$->left_is_attr = 1;
-        $$->left_attr.relation_name = static_cast<UnboundFieldExpr*>(left_exp)->table_name();
-        $$->left_attr.attribute_name = static_cast<UnboundFieldExpr*>(left_exp)->field_name();
-        delete $1;
-      }else if(left_exp->type()==ExprType::VALUE){
-        // 左值是一个常量值expre
-        $$->left_is_attr = 0;
-        $$->left_value =  static_cast<ValueExpr*>(left_exp)->get_value();
-        delete $1;
-      }else{
-        // TODO: 左值是一个表达式
-        $$->left_is_attr = 2;
-        $$->left_expressions.reset(left_exp);
-      }
 
-      if(right_exp->type()==ExprType::UNBOUND_FIELD){
-        // 右值是一个字段
-        $$->right_is_attr = 1;
-        $$->right_attr.relation_name = static_cast<UnboundFieldExpr*>(right_exp)->table_name();
-        $$->right_attr.attribute_name = static_cast<UnboundFieldExpr*>(right_exp)->field_name();
-        delete $3;
-      }else if(right_exp->type()==ExprType::VALUE){
-        // 右值是一个常量值
-        $$->right_is_attr = 0;
-        $$->right_value =  static_cast<ValueExpr*>(right_exp)->get_value();
-        delete $3;
-      }else{
-        // TODO: 右值是一个表达式
-        $$->right_is_attr = 2;
-        $$->right_expressions.reset(right_exp);
-      }
+      $$->left_is_attr = 2;
+      $$->left_expressions.reset(left_exp);
+
+      $$->right_is_attr = 2;
+      $$->right_expressions.reset(right_exp);
+      // if(left_exp->type()==ExprType::UNBOUND_FIELD){
+      //   // 左值是一个字段
+      //   $$->left_is_attr = 1;
+      //   $$->left_attr.relation_name = static_cast<UnboundFieldExpr*>(left_exp)->table_name();
+      //   $$->left_attr.attribute_name = static_cast<UnboundFieldExpr*>(left_exp)->field_name();
+      //   delete $1;
+      // }else if(left_exp->type()==ExprType::VALUE){
+      //   // 左值是一个常量值expre
+      //   $$->left_is_attr = 0;
+      //   $$->left_value =  static_cast<ValueExpr*>(left_exp)->get_value();
+      //   delete $1;
+      // }else{
+      //   // TODO: 左值是一个表达式
+      //   $$->left_is_attr = 2;
+      //   $$->left_expressions.reset(left_exp);
+      // }
+
+      // if(right_exp->type()==ExprType::UNBOUND_FIELD){
+      //   // 右值是一个字段
+      //   $$->right_is_attr = 1;
+      //   $$->right_attr.relation_name = static_cast<UnboundFieldExpr*>(right_exp)->table_name();
+      //   $$->right_attr.attribute_name = static_cast<UnboundFieldExpr*>(right_exp)->field_name();
+      //   delete $3;
+      // }else if(right_exp->type()==ExprType::VALUE){
+      //   // 右值是一个常量值
+      //   $$->right_is_attr = 0;
+      //   $$->right_value =  static_cast<ValueExpr*>(right_exp)->get_value();
+      //   delete $3;
+      // }else{
+      //   // TODO: 右值是一个表达式
+      //   $$->right_is_attr = 2;
+      //   $$->right_expressions.reset(right_exp);
+      // }
 
       $$->comp = $2;
     }

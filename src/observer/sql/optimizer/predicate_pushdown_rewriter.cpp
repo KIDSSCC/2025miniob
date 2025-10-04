@@ -34,6 +34,7 @@ RC PredicatePushdownRewriter::rewrite(unique_ptr<LogicalOperator> &oper, bool &c
     return rc;
   }
 
+  // 本算子为predicate，且子算子仅有一个tableget
   auto table_get_oper = static_cast<TableGetLogicalOperator *>(child_oper.get());
 
   vector<unique_ptr<Expression>> &predicate_oper_exprs = oper->expressions();

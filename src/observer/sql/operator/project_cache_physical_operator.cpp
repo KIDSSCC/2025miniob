@@ -30,12 +30,12 @@ RC ProjectCachePhysicalOperator::open(Trx *trx)
 {
   // 打开子算子的功能下放到next部分执行
   trx_ = trx;
-
   return RC::SUCCESS;
 }
 
 RC ProjectCachePhysicalOperator::next()
 {
+  LOG_INFO("ProjectCachePhysicalOperator::next, parent_tuple is %d, is_relevant is %d", parent_tuple_ == nullptr, is_relevant_);
   if((is_finished && !is_relevant_) || children_.size() == 0){
     // is_finished代表已经完整迭代过一轮了，对于非相关子查询，此时可以省略本次迭代
     // curr_tuple中也依然维持着上一次的结果
@@ -44,22 +44,27 @@ RC ProjectCachePhysicalOperator::next()
 
   PhysicalOperator *child = children_[0].get();
   child->open(trx_);
-  child->set_parent_tuple(this->parent_tuple_);
+  if(is_relevant_){
+    // 相关子查询时，需要project_cache将父查询当前的tuple传下去，非相关子查询就不需要了，
+    // parent_tuple默认为nullptr，由底层的predicate或者tablescan各自进行处理
+    child->set_parent_tuple(this->parent_tuple_);
+  }
 
+  LOG_INFO("begin to while");
   RC rc = RC::SUCCESS;
+  tuple_.clear();
   while(OB_SUCC(rc = child->next())){
     Tuple *child_tuple = child->current_tuple();
-    LOG_INFO("in project cache ,child_tuple spec is %s", child_tuple->spec_to_string().c_str());
     if (nullptr == child_tuple) {
       LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
       return RC::INTERNAL;
     }
     project_tuple_.set_tuple(child_tuple);
-    LOG_INFO("in project cache ,project_tuple_ spec is %s", project_tuple_.spec_to_string().c_str());
 
     // 子节点返回的curr_tuple重新copy成一份valuelisttuple
     ValueListTuple child_tuple_to_value;
     rc = ValueListTuple::make(project_tuple_, child_tuple_to_value);
+    LOG_INFO("project cache get tuple %s", child_tuple_to_value.to_string().c_str());
     if(rc != RC::SUCCESS){
       LOG_WARN("Failed to make valuelist tuple");
       return rc;
@@ -67,6 +72,7 @@ RC ProjectCachePhysicalOperator::next()
     tuple_.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
   }
 
+  LOG_INFO("final tuple %s", tuple_.to_string().c_str());
   child->close();
 
   is_finished = true;

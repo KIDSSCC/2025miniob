@@ -103,12 +103,10 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   binder_context.set_separate(binder_context.query_tables().size());
   if(parent_bind_context){
     for(size_t i=0;i<parent_bind_context->query_tables().size();i++){
-      binder_context.add_table(parent_bind_context->query_tables()[i]);
+      Table* parent_table = parent_bind_context->query_tables()[i];
+      binder_context.add_table(parent_table);
+      table_map.insert({parent_table->name(), parent_table});
     }
-  }
-  LOG_INFO("size of context is %d", binder_context.query_tables().size());
-  for(size_t i=0;i<binder_context.query_tables().size();i++){
-    LOG_INFO("Table name is %s", binder_context.query_tables()[i]->name());
   }
 
   // collect query fields in `select` statement
@@ -120,7 +118,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   for (unique_ptr<Expression> &expression : select_sql.expressions) {
     RC rc = expression_binder.bind_expression(expression, bound_expressions, is_relevant);
     if (OB_FAIL(rc)) {
-      LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+      LOG_WARN("bind expression failed. rc=%s", strrc(rc));
       return rc;
     }
   }
@@ -146,7 +144,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
         // 左值为表达式
         rc = expression_binder.bind_expression(expr_node, expressions, is_relevant);
         if (OB_FAIL(rc)) {
-          LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+          LOG_WARN("bind expression failed. rc=%s", strrc(rc));
           return rc;
         }
         // 替换左值表达式
@@ -178,6 +176,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   // where谓词的condition部分也可能包含expression, 在stmt层面对其进行重新绑定
   vector<unique_ptr<Expression>> condition_expessions;
   for(ConditionSqlNode& condition_node : select_sql.conditions){
+    
     RC rc = bind_condition_node(condition_node, condition_expessions);
     if(rc != RC::SUCCESS){
       LOG_WARN("Cannot bind condition_node");
@@ -190,7 +189,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   for (unique_ptr<Expression> &expression : select_sql.group_by) {
     RC rc = expression_binder.bind_expression(expression, group_by_expressions, is_relevant);
     if (OB_FAIL(rc)) {
-      LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+      LOG_WARN("bind expression failed. rc=%s", strrc(rc));
       return rc;
     }
   }
@@ -210,7 +209,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   for(pair<Order, unique_ptr<Expression>>& order_field : select_sql.order_by){
     RC rc = expression_binder.bind_expression(order_field.second, orderby_expessions, is_relevant);
     if (OB_FAIL(rc)) {
-      LOG_INFO("bind order by expression failed. rc=%s", strrc(rc));
+      LOG_WARN("bind order by expression failed. rc=%s", strrc(rc));
       return rc;
     }
     unique_ptr<Expression> &bounded_expr = orderby_expessions[0];

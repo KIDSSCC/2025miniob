@@ -26,6 +26,7 @@ RC PredicateRewriteRule::rewrite(unique_ptr<LogicalOperator> &oper, bool &change
   if (child_oper->type() != LogicalOperatorType::PREDICATE) {
     return RC::SUCCESS;
   }
+  // 改写的对象为：本节点的子节点为predicate
 
   vector<unique_ptr<Expression>> &expressions = child_oper->expressions();
   if (expressions.size() != 1) {
@@ -43,6 +44,7 @@ RC PredicateRewriteRule::rewrite(unique_ptr<LogicalOperator> &oper, bool &change
   auto value_expr = static_cast<ValueExpr *>(expr.get());
   bool bool_value = value_expr->get_value().get_boolean();
   if (true == bool_value) {
+    LOG_INFO("The predicate is always true, skipping the comparison");
     vector<unique_ptr<LogicalOperator>> grand_child_opers;
     grand_child_opers.swap(child_oper->children());
     child_opers.clear();
@@ -50,6 +52,7 @@ RC PredicateRewriteRule::rewrite(unique_ptr<LogicalOperator> &oper, bool &change
       oper->add_child(std::move(grand_child_oper));
     }
   } else {
+    LOG_INFO("The predicate is always false, deleting subsequent node");
     child_opers.clear();
   }
 

@@ -30,6 +30,8 @@ RC TableScanPhysicalOperator::open(Trx *trx)
 
 RC TableScanPhysicalOperator::next()
 {
+  LOG_INFO("TableScanPhysicalOperator::next, %s", table_->name());
+  // predicate的简单过滤逻辑会被下推到tablescan中，
   RC rc = RC::SUCCESS;
 
   bool filter_result = false;
@@ -37,7 +39,22 @@ RC TableScanPhysicalOperator::next()
     LOG_TRACE("got a record. rid=%s", current_record_.rid().to_string().c_str());
     
     tuple_.set_record(&current_record_);
-    rc = filter(tuple_, filter_result);
+
+    CompositeTuple composite_tuple;
+    ValueListTuple curr_tuple;
+    ValueListTuple::make(tuple_, curr_tuple);
+    composite_tuple.add_tuple(make_unique<ValueListTuple>(std::move(curr_tuple)));
+
+    if(parent_tuple_ != nullptr){
+      ValueListTuple parent_tuple_pack;
+      ValueListTuple::make(*parent_tuple_, parent_tuple_pack);
+      composite_tuple.add_tuple(make_unique<ValueListTuple>(std::move(parent_tuple_pack)));
+      LOG_INFO("parent tuple is not null, %s", parent_tuple_->to_string().c_str());
+      LOG_INFO("tuple to get value is %s", composite_tuple.spec_to_string().c_str());
+    }
+
+
+    rc = filter(composite_tuple, filter_result);
     if (rc != RC::SUCCESS) {
       LOG_TRACE("record filtered failed=%s", strrc(rc));
       return rc;
@@ -80,7 +97,7 @@ void TableScanPhysicalOperator::set_predicates(vector<unique_ptr<Expression>> &&
   predicates_ = std::move(exprs);
 }
 
-RC TableScanPhysicalOperator::filter(RowTuple &tuple, bool &result)
+RC TableScanPhysicalOperator::filter(Tuple &tuple, bool &result)
 {
   RC    rc = RC::SUCCESS;
   Value value;

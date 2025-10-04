@@ -21,6 +21,7 @@ using namespace std;
 
 ExpressionRewriter::ExpressionRewriter()
 {
+  // 表达式重写默认包含两条规则，比较表达式简化（常量推断？） + conjunction简化（单conjuntion退化为comparison）
   expr_rewrite_rules_.emplace_back(new ComparisonSimplificationRule);
   expr_rewrite_rules_.emplace_back(new ConjunctionSimplificationRule);
 }
@@ -47,6 +48,7 @@ RC ExpressionRewriter::rewrite(unique_ptr<LogicalOperator> &oper, bool &change_m
     return rc;
   }
 
+  // 完成了对本逻辑节点的改写后，尝试改写逻辑节点树中的其他节点。
   vector<unique_ptr<LogicalOperator>> &child_opers = oper->children();
   for (unique_ptr<LogicalOperator> &child_oper : child_opers) {
     bool sub_change_made = false;
@@ -63,10 +65,12 @@ RC ExpressionRewriter::rewrite(unique_ptr<LogicalOperator> &oper, bool &change_m
 
 RC ExpressionRewriter::rewrite_expression(unique_ptr<Expression> &expr, bool &change_made)
 {
+  // 尝试重写表达式
   RC rc = RC::SUCCESS;
 
   change_made = false;
   for (unique_ptr<ExpressionRewriteRule> &rule : expr_rewrite_rules_) {
+    // 逐一应用每一条重写规则
     bool sub_change_made = false;
 
     rc                   = rule->rewrite(expr, sub_change_made);
@@ -78,6 +82,7 @@ RC ExpressionRewriter::rewrite_expression(unique_ptr<Expression> &expr, bool &ch
     }
   }
 
+  // change_made为true时，说明已经对本表达式进行了改写，此时可以直接返回，否则，即通过后续的switch部分遍历本表达式的子表达式
   if (change_made || rc != RC::SUCCESS) {
     return rc;
   }
@@ -89,12 +94,14 @@ RC ExpressionRewriter::rewrite_expression(unique_ptr<Expression> &expr, bool &ch
     } break;
 
     case ExprType::CAST: {
+      // CAST表达式尝试重写底层的原表达式
       unique_ptr<Expression> &child_expr = (static_cast<CastExpr *>(expr.get()))->child();
 
       rc                                      = rewrite_expression(child_expr, change_made);
     } break;
 
     case ExprType::COMPARISON: {
+      // 比较表达式尝试重写左右表达式
       auto                         comparison_expr = static_cast<ComparisonExpr *>(expr.get());
 
       unique_ptr<Expression> &left_expr       = comparison_expr->left();
@@ -120,6 +127,7 @@ RC ExpressionRewriter::rewrite_expression(unique_ptr<Expression> &expr, bool &ch
     } break;
 
     case ExprType::CONJUNCTION: {
+      // conjunction表达式尝试重写每一个子表达式
       auto                                      conjunction_expr = static_cast<ConjunctionExpr *>(expr.get());
 
       vector<unique_ptr<Expression>> &children         = conjunction_expr->children();

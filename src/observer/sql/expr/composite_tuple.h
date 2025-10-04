@@ -51,6 +51,8 @@ public:
 
   Tuple* get_part(int idx) const;
 
+  void clear(){ tuples_.clear(); }
+
 private:
   vector<unique_ptr<Tuple>> tuples_;
 };

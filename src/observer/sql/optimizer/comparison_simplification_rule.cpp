@@ -22,6 +22,7 @@ RC ComparisonSimplificationRule::rewrite(unique_ptr<Expression> &expr, bool &cha
 
   change_made = false;
   if (expr->type() == ExprType::COMPARISON) {
+    // 比较表达式能够直接获取结果，则将比较表达式替换为一个ValueExpr
     Value value;
 
     ComparisonExpr *cmp_expr = static_cast<ComparisonExpr *>(expr.get());
