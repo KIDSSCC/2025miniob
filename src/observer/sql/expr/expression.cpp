@@ -279,8 +279,13 @@ RC ComparisonExpr::compare_value_list(const vector<Value> &left, const vector<Va
       result = right.empty();
     }break;
     default: {
-      LOG_WARN("unsupported comparison. %d", comp_);
-      rc = RC::INTERNAL;
+      // 针对值列表相关的非in exist比较，在值列表为空时返回false，在值列表多个元素时报错
+      if(left.size()>1 || right.size()>1){
+        LOG_WARN("unsupported comparison. %d", comp_);
+        rc = RC::INTERNAL;
+      }else{
+        result = false;
+      }
     } break;
   }
 
@@ -375,11 +380,9 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     bool bool_value = false;
     if(left_values.size() == 1 && right_values.size() == 1){
       // 标量值比较，退化到compare_value上
-      LOG_INFO("scalar compare");
       rc = compare_value(left_values[0], right_values[0], bool_value);
     }else{
       // 值列表比较，使用compare_value_list
-      LOG_INFO("valuelist compare");
       rc = compare_value_list(left_values, right_values, bool_value);
     }
     LOG_INFO("bool value is %d", bool_value);
