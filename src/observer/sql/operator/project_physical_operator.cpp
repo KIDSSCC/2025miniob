@@ -37,15 +37,42 @@ RC ProjectPhysicalOperator::open(Trx *trx)
     return rc;
   }
 
-  return RC::SUCCESS;
+  while(OB_SUCC(rc = child->next())){
+    Tuple *child_tuple = child->current_tuple();
+    if (nullptr == child_tuple) {
+      LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
+      return RC::INTERNAL;
+    }
+    tuple_.set_tuple(child_tuple);
+
+    ValueListTuple child_tuple_to_value;
+    rc = ValueListTuple::make(tuple_, child_tuple_to_value);
+    if (OB_FAIL(rc)) {
+      LOG_WARN("failed to make tuple to value list. rc=%s", strrc(rc));
+      return rc;
+    }
+    all_tuple.emplace_back(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
+  }
+
+  curr_tuple_ = all_tuple.begin();
+  first_emited_ = false;
+  return rc;
 }
 
 RC ProjectPhysicalOperator::next()
 {
-  if (children_.empty()) {
+  if (curr_tuple_ == all_tuple.end()) {
     return RC::RECORD_EOF;
   }
-  return children_[0]->next();
+  if (first_emited_) {
+    ++curr_tuple_;
+  } else {
+    first_emited_ = true;
+  }
+  if (curr_tuple_ == all_tuple.end()) {
+    return RC::RECORD_EOF;
+  }
+  return RC::SUCCESS;
 }
 
 RC ProjectPhysicalOperator::close()
@@ -57,11 +84,11 @@ RC ProjectPhysicalOperator::close()
 }
 Tuple *ProjectPhysicalOperator::current_tuple()
 {
-  tuple_.set_tuple(children_[0]->current_tuple());
-
-  // const Tuple *child_tuple = tuple_.get_tuple();
-
-  return &tuple_;
+  if (curr_tuple_ != all_tuple.end()) {
+    Tuple* res = (*curr_tuple_).get();
+    return res;
+  }
+  return nullptr;
 }
 
 RC ProjectPhysicalOperator::tuple_schema(TupleSchema &schema) const

@@ -190,6 +190,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
     return write_state(event, need_disconnect);
   }
 
+  // 打开顶层物理算子
   rc = sql_result->open();
   if (OB_FAIL(rc)) {
     sql_result->close();
@@ -247,6 +248,12 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
 
   // write_tuple_result返回的非RECORD_EOF的错误会使得此处直接返回，没人关闭物理算子，补一个关闭的功能
   if (OB_FAIL(rc)) {
+    sql_result->set_return_code(rc);
+    rc = write_state(event, need_disconnect);
+    if(OB_FAIL(rc)){
+      LOG_WARN("Failed to write state");
+    }
+
     RC rc_close = sql_result->close();
     if(OB_FAIL(rc_close)){
       LOG_INFO("execute failed and close operator also failed");
@@ -330,8 +337,6 @@ RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
   if (rc == RC::RECORD_EOF) {
     rc = RC::SUCCESS;
   }
-
-  LOG_INFO("write_tuple_result rc is %s", strrc(rc));
   return rc;
 }
 
