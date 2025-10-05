@@ -98,7 +98,6 @@ RC TableScanPhysicalOperator::filter(Tuple &tuple, bool &result)
 {
   RC    rc = RC::SUCCESS;
   Value value;
-  LOG_INFO("table get filter expressions size is %d", predicates_.size());
   for (unique_ptr<Expression> &expr : predicates_) {
     rc = expr->get_value(tuple, value);
     if (rc != RC::SUCCESS) {

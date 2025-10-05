@@ -377,37 +377,36 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     conjunction_types.emplace_back(filter_unit->conjunction_type());
   }
 
-  // 由于AND和OR的优先级不同，此处对逻辑表达式的构建需要拆分成两层。先整合所有的OR，再整合所有的AND
-  vector<unique_ptr<Expression>> after_merge_or;
+  // 由于AND和OR的优先级不同，此处对逻辑表达式的构建需要拆分成两层。先整合所有的AND，再整合所有的OR
+  vector<unique_ptr<Expression>> after_merge_and;
   for(size_t i=0;i<cmp_exprs.size();i++){
     if(conjunction_types[i] != 0){
-        // 当前节点与其前向节点之间非OR连接，先放入栈内
-        after_merge_or.emplace_back(std::move(cmp_exprs[i]));
+        // 当前节点与其前向节点之间非AND连接，先放入栈内
+        after_merge_and.emplace_back(std::move(cmp_exprs[i]));
     }else{
-      // 当前节点与其前向节点之间为OR连接，合并为一个Conjunction，压入栈中
+      // 当前节点与其前向节点之间为AND连接，合并为一个Conjunction，压入栈中
       vector<unique_ptr<Expression>> children;
-      children.emplace_back(std::move(after_merge_or.back()));
+      children.emplace_back(std::move(after_merge_and.back()));
       children.emplace_back(std::move(cmp_exprs[i]));
       unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, children));
-      after_merge_or.pop_back();
-      after_merge_or.emplace_back(std::move(conjunction_expr));
+      after_merge_and.pop_back();
+      after_merge_and.emplace_back(std::move(conjunction_expr));
     }
   }
-  LOG_INFO("after_merge_or size is %d", after_merge_or.size());
   
-  // 此时after_merge_or中剩余的节点均为AND连接（或只有一个元素的无连接）
+  // 此时after_merge_or中剩余的节点均为OR连接（或只有一个元素的无连接）
   vector<unique_ptr<ConjunctionExpr>> tmp_stack;
-  for(size_t i=0;i<after_merge_or.size();i++){
+  for(size_t i=0;i<after_merge_and.size();i++){
     if(tmp_stack.empty()){
       vector<unique_ptr<Expression>> children;
-      children.emplace_back(std::move(after_merge_or[i]));
+      children.emplace_back(std::move(after_merge_and[i]));
       unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::OR, children));
       tmp_stack.emplace_back(std::move(conjunction_expr));
     }else{
       // 有需要连接的前向节点
       vector<unique_ptr<Expression>> children;
       children.emplace_back(std::move(tmp_stack.front()));
-      children.emplace_back(std::move(after_merge_or[i]));
+      children.emplace_back(std::move(after_merge_and[i]));
       unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::OR, children));
       tmp_stack.clear();
       tmp_stack.emplace_back(std::move(conjunction_expr));
