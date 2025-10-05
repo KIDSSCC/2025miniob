@@ -34,7 +34,6 @@ HeapTableEngine::~HeapTableEngine()
   }
   indexes_.clear();
 
-  LOG_INFO("Table has been closed: %s", table_meta_->name());
 }
 RC HeapTableEngine::insert_record(Record &record)
 {
@@ -136,7 +135,7 @@ RC HeapTableEngine::get_chunk_scanner(ChunkFileScanner &scanner, Trx *trx, ReadW
 RC HeapTableEngine::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name)
 {
   if (common::is_blank(index_name) || nullptr == field_meta) {
-    LOG_INFO("Invalid input arguments, table name is %s, index_name is blank or attribute_name is blank", table_meta_->name());
+    LOG_WARN("Invalid input arguments, table name is %s, index_name is blank or attribute_name is blank", table_meta_->name());
     return RC::INVALID_ARGUMENT;
   }
 

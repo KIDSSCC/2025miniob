@@ -42,7 +42,7 @@ RC PredicateRewriteRule::rewrite(unique_ptr<LogicalOperator> &oper, bool &change
   // 并且这个子节点可以判断为恒为TRUE，那么可以省略这个子节点，并把他的子节点们（就是孙子节点）接管过来
   // 如果可以判断恒为false，那么就可以删除子节点
   auto value_expr = static_cast<ValueExpr *>(expr.get());
-  bool bool_value = value_expr->get_value().get_boolean();
+  bool bool_value = (value_expr->get_value().get_boolean() == 1);
   if (true == bool_value) {
     LOG_INFO("The predicate is always true, skipping the comparison");
     vector<unique_ptr<LogicalOperator>> grand_child_opers;

@@ -66,7 +66,6 @@ RC PredicatePhysicalOperator::next()
     for(size_t i=0; i<children_.size()-1;i++){
       // 子查询的project是一定能在一轮next+curr_tuple下拿到结果的
       PhysicalOperator *sub_oper = children_[i].get();
-      LOG_INFO("prepare to set parent tuple %s",tuple->to_string().c_str());
       sub_oper->set_parent_tuple(tuple);
       rc = sub_oper->next();
       if(rc != RC::SUCCESS){
@@ -82,7 +81,6 @@ RC PredicatePhysicalOperator::next()
 
       ValueListTuple child_tuple_to_value;
       rc = ValueListTuple::make(*sub_tuple, child_tuple_to_value);
-      LOG_INFO("in predicate sub query get tuple %s", child_tuple_to_value.to_string().c_str());
       sub_query_tuple.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
     }
 
@@ -98,7 +96,6 @@ RC PredicatePhysicalOperator::next()
       sub_query_tuple.add_tuple(make_unique<ValueListTuple>(std::move(parent_tuple_pack)));
     }
 
-    LOG_INFO("in predicate, sub_query_tuple is %s", sub_query_tuple.to_string().c_str());
     // 谓词算子的表达式一般可以是 ConjunctionExpr，通过ConjunctionExpr计算tuple的值
     Value value;
     rc = expression_->get_value(sub_query_tuple, value);
@@ -106,7 +103,7 @@ RC PredicatePhysicalOperator::next()
       return rc;
     }
     // 不断循环，直至找到一个使 ConjunctionExpr 表达式为true的tuple
-    if (value.get_boolean()) {
+    if (value.get_boolean() == 1) {
       return rc;
     }
   }

@@ -256,9 +256,9 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
 
     RC rc_close = sql_result->close();
     if(OB_FAIL(rc_close)){
-      LOG_INFO("execute failed and close operator also failed");
+      LOG_WARN("execute failed and close operator also failed");
     }else{
-      LOG_INFO("execute failed but close operator successfully");
+      LOG_WARN("execute failed but close operator successfully");
     }
     return rc;
   }

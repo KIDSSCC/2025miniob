@@ -136,7 +136,7 @@ public:
   void set_data(char *data, int length);
   void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
   void set_value(const Value &value);
-  void set_boolean(bool val);
+  void set_boolean(int val);
 
   string to_string() const;
 
@@ -158,7 +158,7 @@ public:
   int    get_int() const;
   float  get_float() const;
   string get_string() const;
-  bool   get_boolean() const;
+  int   get_boolean() const;
 
 public:
   void set_int(int val);
@@ -179,7 +179,7 @@ private:
   {
     int32_t int_value_;
     float   float_value_;
-    bool    bool_value_;
+    int    bool_value_;
     char   *pointer_value_;
   } value_ = {.int_value_ = 0};
 

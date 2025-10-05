@@ -260,8 +260,6 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
       right = move(const_cast<FilterObj &>(filter_obj_right).expr);
     }
 
-    LOG_INFO("logical plan generate, left is %d type is %s, right is %d, type is %s", left->type(), attr_type_to_string(left->value_type()), right->type(), attr_type_to_string(right->value_type()));
-
     // 已获取到left和right部分对应的表达式，针对SelectPackExpr生成子查询的逻辑计划
     function<RC(unique_ptr<Expression>&)> generate_sub_node = [&](unique_ptr<Expression>& expr) -> RC{
       if(expr->type() == ExprType::SELECT_T){

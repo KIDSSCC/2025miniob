@@ -30,7 +30,6 @@ RC TableScanPhysicalOperator::open(Trx *trx)
 
 RC TableScanPhysicalOperator::next()
 {
-  LOG_INFO("TableScanPhysicalOperator::next, %s", table_->name());
   // predicate的简单过滤逻辑会被下推到tablescan中，
   RC rc = RC::SUCCESS;
 
@@ -49,8 +48,6 @@ RC TableScanPhysicalOperator::next()
       ValueListTuple parent_tuple_pack;
       ValueListTuple::make(*parent_tuple_, parent_tuple_pack);
       composite_tuple.add_tuple(make_unique<ValueListTuple>(std::move(parent_tuple_pack)));
-      LOG_INFO("parent tuple is not null, %s", parent_tuple_->to_string().c_str());
-      LOG_INFO("tuple to get value is %s", composite_tuple.spec_to_string().c_str());
     }
 
 
@@ -107,7 +104,7 @@ RC TableScanPhysicalOperator::filter(Tuple &tuple, bool &result)
       return rc;
     }
 
-    bool tmp_result = value.get_boolean();
+    bool tmp_result = (value.get_boolean() == 1);
     if (!tmp_result) {
       result = false;
       return rc;

@@ -20,7 +20,7 @@ RC try_to_get_bool_constant(unique_ptr<Expression> &expr, bool &constant_value)
 {
   if (expr->type() == ExprType::VALUE && expr->value_type() == AttrType::BOOLEANS) {
     auto value_expr = static_cast<ValueExpr *>(expr.get());
-    constant_value  = value_expr->get_value().get_boolean();
+    constant_value  = (value_expr->get_value().get_boolean() == 1);
     return RC::SUCCESS;
   }
   return RC::INTERNAL;

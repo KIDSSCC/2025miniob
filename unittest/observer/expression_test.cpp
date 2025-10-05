@@ -262,7 +262,7 @@ TEST(ComparisonExpr, comparison_expr_test)
   {
     Value int_value1(1);
     Value int_value2(2);
-    bool  bool_res = false;
+    int  bool_res = -1;
     Value bool_value;
 
     unique_ptr<Expression> left_expr(new ValueExpr(int_value1));
@@ -270,11 +270,11 @@ TEST(ComparisonExpr, comparison_expr_test)
     ComparisonExpr         expr_eq(CompOp::EQUAL_TO, std::move(left_expr), std::move(right_expr));
     ASSERT_EQ(AttrType::BOOLEANS, expr_eq.value_type());
     ASSERT_EQ(expr_eq.compare_value(int_value1, int_value2, bool_res), RC::SUCCESS);
-    ASSERT_EQ(bool_res, false);
+    ASSERT_EQ(bool_res, -1);
     ASSERT_EQ(expr_eq.compare_value(int_value1, int_value1, bool_res), RC::SUCCESS);
-    ASSERT_EQ(bool_res, true);
+    ASSERT_EQ(bool_res, 1);
     ASSERT_EQ(expr_eq.try_get_value(bool_value), RC::SUCCESS);
-    ASSERT_EQ(bool_value.get_boolean(), false);
+    ASSERT_EQ(bool_value.get_boolean(), -1);
   }
   {
     const int               int_len = sizeof(int);

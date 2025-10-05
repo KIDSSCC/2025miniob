@@ -24,7 +24,10 @@ Value::Value(int val) { set_int(val); }
 
 Value::Value(float val) { set_float(val); }
 
-Value::Value(bool val) { set_boolean(val); }
+Value::Value(bool val) { 
+  int res = val? 1 : -1;
+  set_boolean(res); 
+}
 
 Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
@@ -145,7 +148,7 @@ void Value::set_data(char *data, int length)
       length_             = length;
     } break;
     case AttrType::BOOLEANS: {
-      value_.bool_value_ = *(int *)data != 0;
+      value_.bool_value_ = *(int *)data;
       length_            = length;
     } break;
     case AttrType::DATES: {
@@ -181,7 +184,7 @@ void Value::set_float(float val)
   value_.float_value_ = val;
   length_             = sizeof(val);
 }
-void Value::set_boolean(bool val)
+void Value::set_boolean(int val)
 {
   reset();
   attr_type_         = AttrType::BOOLEANS;
@@ -345,43 +348,59 @@ float Value::get_float() const
 
 string Value::get_string() const { return this->to_string(); }
 
-bool Value::get_boolean() const
+int Value::get_boolean() const
 {
+  if(this->is_null()){
+    // 空值为unknown
+    return 0;
+  }
   switch (attr_type_) {
     case AttrType::CHARS: {
       try {
         float val = stof(value_.pointer_value_);
         if (val >= EPSILON || val <= -EPSILON) {
-          return true;
+          return 1;
         }
 
         int int_val = stol(value_.pointer_value_);
         if (int_val != 0) {
-          return true;
+          return 1;
         }
 
-        return value_.pointer_value_ != nullptr;
+        if(value_.pointer_value_ != nullptr){
+          return 1;
+        }else{
+          return -1;
+        }
       } catch (exception const &ex) {
         LOG_TRACE("failed to convert string to float or integer. s=%s, ex=%s", value_.pointer_value_, ex.what());
-        return value_.pointer_value_ != nullptr;
+        if(value_.pointer_value_ != nullptr){
+          return 1;
+        }else{
+          return -1;
+        }
       }
     } break;
     case AttrType::INTS: {
-      return value_.int_value_ != 0;
+      if(value_.int_value_ !=0){
+        return 1;
+      }else{
+        return -1;
+      }
     } break;
     case AttrType::FLOATS: {
       float val = value_.float_value_;
-      return val >= EPSILON || val <= -EPSILON;
+      return (val >= EPSILON || val <= -EPSILON)? 1 : -1;
     } break;
     case AttrType::BOOLEANS: {
       return value_.bool_value_;
     } break;
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
-      return false;
+      return -1;
     }
   }
-  return false;
+  return -1;
 }
 
 void Value::set_bitmap(int idx, bool is_null){

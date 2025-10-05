@@ -362,9 +362,9 @@ public:
    * compare the two tuple cells
    * @param value the result of comparison
    */
-  RC compare_value(const Value &left, const Value &right, bool &value) const;
+  RC compare_value(const Value &left, const Value &right, int &value) const;
 
-  RC compare_value_list(const vector<Value> &left, const vector<Value> &right, bool &value) const;
+  RC compare_value_list(const vector<Value> &left, const vector<Value> &right, int &value) const;
 
   template <typename T>
   RC compare_column(const Column &left, const Column &right, vector<uint8_t> &result) const;
@@ -384,6 +384,7 @@ private:
 class ConjunctionExpr : public Expression
 {
   // ConjunctionExpr与ComparisonExpr同理，结果类型需要调整为三元，支持unknown
+  // 多重比较下，为了简便实现，每个ConjunctionExpr只连接两个compare
 public:
   enum class Type
   {

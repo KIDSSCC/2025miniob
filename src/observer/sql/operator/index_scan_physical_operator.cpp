@@ -124,7 +124,7 @@ RC IndexScanPhysicalOperator::filter(RowTuple &tuple, bool &result)
       return rc;
     }
 
-    bool tmp_result = value.get_boolean();
+    bool tmp_result = (value.get_boolean() == 1);
     if (!tmp_result) {
       result = false;
       return rc;

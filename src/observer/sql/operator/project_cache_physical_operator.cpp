@@ -35,7 +35,6 @@ RC ProjectCachePhysicalOperator::open(Trx *trx)
 
 RC ProjectCachePhysicalOperator::next()
 {
-  LOG_INFO("ProjectCachePhysicalOperator::next, parent_tuple is %d, is_relevant is %d", parent_tuple_ == nullptr, is_relevant_);
   if((is_finished && !is_relevant_) || children_.size() == 0){
     // is_finished代表已经完整迭代过一轮了，对于非相关子查询，此时可以省略本次迭代
     // curr_tuple中也依然维持着上一次的结果
@@ -50,7 +49,6 @@ RC ProjectCachePhysicalOperator::next()
     child->set_parent_tuple(this->parent_tuple_);
   }
 
-  LOG_INFO("begin to while");
   RC rc = RC::SUCCESS;
   tuple_.clear();
   while(OB_SUCC(rc = child->next())){
@@ -64,7 +62,6 @@ RC ProjectCachePhysicalOperator::next()
     // 子节点返回的curr_tuple重新copy成一份valuelisttuple
     ValueListTuple child_tuple_to_value;
     rc = ValueListTuple::make(project_tuple_, child_tuple_to_value);
-    LOG_INFO("project cache get tuple %s", child_tuple_to_value.to_string().c_str());
     if(rc != RC::SUCCESS){
       LOG_WARN("Failed to make valuelist tuple");
       return rc;
@@ -72,7 +69,6 @@ RC ProjectCachePhysicalOperator::next()
     tuple_.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
   }
 
-  LOG_INFO("final tuple %s", tuple_.to_string().c_str());
   child->close();
 
   is_finished = true;

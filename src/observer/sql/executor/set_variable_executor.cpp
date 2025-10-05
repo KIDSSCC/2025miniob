@@ -62,7 +62,7 @@ RC SetVariableExecutor::var_value_to_boolean(const Value &var_value, bool &bool_
     RC rc = RC::SUCCESS;
 
     if (var_value.attr_type() == AttrType::BOOLEANS) {
-      bool_value = var_value.get_boolean();
+      bool_value = (var_value.get_boolean() == 1);
     } else if (var_value.attr_type() == AttrType::INTS) {
       bool_value = var_value.get_int() != 0;
     } else if (var_value.attr_type() == AttrType::FLOATS) {

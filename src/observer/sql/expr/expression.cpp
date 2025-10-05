@@ -23,7 +23,6 @@ void init_destruction(SelectStmt*){}
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
-  LOG_INFO("FieldExpr::get_value, table name is %s, field name is %s", table_name(), field_name());
   return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
 }
 
@@ -124,14 +123,13 @@ ComparisonExpr::ComparisonExpr(CompOp comp, unique_ptr<Expression> left, unique_
 
 ComparisonExpr::~ComparisonExpr() {}
 
-RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
+RC ComparisonExpr::compare_value(const Value &left, const Value &right, int &result) const
 {
   RC  rc         = RC::SUCCESS;
-  result         = false;
+  result         = -1;
   // 比较运算，针对NULL的运算结果均为false
-  LOG_INFO("comp is %d, left is %s, right is %s", comp_, left.to_string().c_str(), right.to_string().c_str());
   if(comp_ < IS_T &&(left.is_null()||right.is_null())){
-    result = false;
+    result = 0;
     return rc;
   }
   
@@ -141,27 +139,27 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
   switch (comp_) {
     case EQUAL_TO: {
       int cmp_result = left.compare(right);
-      result = (0 == cmp_result);
+      result = (0 == cmp_result)? 1 : -1;
     } break;
     case LESS_EQUAL: {
       int cmp_result = left.compare(right);
-      result = (cmp_result <= 0);
+      result = (cmp_result <= 0)? 1 : -1;
     } break;
     case NOT_EQUAL: {
       int cmp_result = left.compare(right);
-      result = (cmp_result != 0);
+      result = (cmp_result != 0)? 1 : -1;
     } break;
     case LESS_THAN: {
       int cmp_result = left.compare(right);
-      result = (cmp_result < 0);
+      result = (cmp_result < 0)? 1 : -1;
     } break;
     case GREAT_EQUAL: {
       int cmp_result = left.compare(right);
-      result = (cmp_result >= 0);
+      result = (cmp_result >= 0)? 1 : -1;
     } break;
     case GREAT_THAN: {
       int cmp_result = left.compare(right);
-      result = (cmp_result > 0);
+      result = (cmp_result > 0)? 1 : -1;
     } break;
     case LIKE_OP: {
       int like_result = left.like(right);
@@ -169,7 +167,7 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
         LOG_WARN("failed to compare value with like operator");
         rc = RC::INTERNAL;
       } else {
-        result = (like_result != 0);
+        result = (like_result != 0)? 1 : -1;
       }
     } break;
     case NOT_LIKE:{
@@ -178,49 +176,49 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
         LOG_WARN("failed to compare value with like operator");
         rc = RC::INTERNAL;
       } else {
-        result = (like_result == 0);
+        result = (like_result == 0)? 1 : -1;
       }
     } break;
     case IS_T:{
       // is 判断只适用于NULL
       if(left.is_null() && right.is_null()){
-        result = true;
+        result = 1;
       }else{
-        result = false;
+        result = -1;
       }
     } break;
     case IS_NOT:{
       // is 判断只适用于NULL
       if(left.is_null() && right.is_null()){
-        result = false;
+        result = -1;
       }else{
-        result = true;
+        result = 1;
       }
     } break;
     case IN_T:{
       // 因为是一对一比较，二者有一个为null，in判断都是不成立的
       if(left.is_null() || right.is_null()){
-        result = false;
+        result = 0;
       }else{
         int cmp_result = left.compare(right);
-        result = (0 == cmp_result);
+        result = (0 == cmp_result)? 1 : -1;
       }
     }break;
     case NOT_IN:{
       // 一对一比较，二者有一个为null， not in判断都是不成立的
       if(left.is_null() || right.is_null()){
-        result = false;
+        result = 0;
       }else {
         int cmp_result = left.compare(right);
-        result = (0 != cmp_result);
+        result = (0 != cmp_result)? 1 : -1;
       }
     } break;
     case EXIST_T:{
       // 已经确定值列表元素数为1，直接true就行
-      result = true;
+      result = 1;
     }break;
     case NOT_EXIST:{
-      result = false;
+      result = -1;
     }break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
@@ -231,10 +229,10 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
   return rc;
 }
 
-RC ComparisonExpr::compare_value_list(const vector<Value> &left, const vector<Value> &right, bool &result) const
+RC ComparisonExpr::compare_value_list(const vector<Value> &left, const vector<Value> &right, int &result) const
 {
   RC  rc         = RC::SUCCESS;
-  result         = false;
+  result         = -1;
 
   // 针对值列表的in运算和exist运算
   switch (comp_){
@@ -242,35 +240,51 @@ RC ComparisonExpr::compare_value_list(const vector<Value> &left, const vector<Va
     case IN_T:{
       // 需要将非NULL的左值依次与右值进行比较
       if(left[0].is_null()){
-        result = false;
+        result = 0;
         break;
       }
+
+      bool right_have_null = false;
       for(size_t i=0;i<right.size();i++){
         if(right[i].is_null()){
+          right_have_null = true;
           continue;
         }
         int cmp_result = left[0].compare(right[i]);
-        result = (0 == cmp_result);
-        if(result)
+        result = (0 == cmp_result) ? 1 : -1;
+        if(result == 1)
           break;
+      }
+      // for循环转完了，但仍然没退出，说明result一直是-1.
+      if(right_have_null){
+        result = 0;
       }
     }break;
     case NOT_IN:{
       // 需要将非NULL的左值依次与右值进行比较
       if(left[0].is_null()){
-        result = false;
+        result = 0;
         break;
       }
+      bool right_have_null = false;
       for(size_t i=0;i<right.size();i++){
         if(right[i].is_null()){
+          right_have_null = true;
           continue;
         }
         int cmp_result = left[0].compare(right[i]);
-        result = (0 == cmp_result);
-        if(result)
+        if(cmp_result == 0){
+          // 存在相等的元素，直接短路false
+          result = -1;
           break;
+        }
       }
-      result = !result;
+      // for循环转完了，但仍然没退出，left起码不在right中
+      if(right_have_null){
+        result = 0;
+      }else{
+        result = 1;
+      }
     }break;
     case EXIST_T:{
       result = !right.empty();
@@ -284,7 +298,8 @@ RC ComparisonExpr::compare_value_list(const vector<Value> &left, const vector<Va
         LOG_WARN("unsupported comparison. %d", comp_);
         rc = RC::INTERNAL;
       }else{
-        result = false;
+        // 这里可能需要进一步扩展，考虑null的情况
+        result = -1;
       }
     } break;
   }
@@ -300,7 +315,7 @@ RC ComparisonExpr::try_get_value(Value &cell) const
     const Value &left_cell        = left_value_expr->get_value();
     const Value &right_cell       = right_value_expr->get_value();
 
-    bool value = false;
+    int value = -1;
     RC   rc    = compare_value(left_cell, right_cell, value);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to compare tuple cells. rc=%s", strrc(rc));
@@ -315,7 +330,6 @@ RC ComparisonExpr::try_get_value(Value &cell) const
 
 RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 {
-  LOG_INFO("ComparisonExpr, left expr is %s and right expr is %s", left_->type_string(), right_->type_string());
   RC rc = RC::SUCCESS;
   if(left_->type() < ExprType::VALUELIST && right_->type() < ExprType::VALUELIST){
     // 左值右值均没有valuelist，按照正常的比较逻辑进行比较即可
@@ -332,8 +346,7 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
       return rc;
     }
     
-    LOG_INFO("left value is %s, right_value is %s", left_value.to_string().c_str(), right_value.to_string().c_str());
-    bool bool_value = false;
+    int bool_value = -1;
   
     rc = compare_value(left_value, right_value, bool_value);
     if (rc == RC::SUCCESS) {
@@ -377,7 +390,7 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
       right_values.emplace_back(right_value);
     }
     
-    bool bool_value = false;
+    int bool_value = -1;
     if(left_values.size() == 1 && right_values.size() == 1){
       // 标量值比较，退化到compare_value上
       rc = compare_value(left_values[0], right_values[0], bool_value);
@@ -385,7 +398,6 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
       // 值列表比较，使用compare_value_list
       rc = compare_value_list(left_values, right_values, bool_value);
     }
-    LOG_INFO("bool value is %d", bool_value);
     if (rc == RC::SUCCESS) {
       value.set_boolean(bool_value);
     }
@@ -454,29 +466,47 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
   // tuple为当前要进行判断的record，判断的结果写入value
   RC rc = RC::SUCCESS;
   if (children_.empty()) {
-    value.set_boolean(true);
+    value.set_boolean(1);
     return rc;
   }
 
-  Value tmp_value;
-  for (const unique_ptr<Expression> &expr : children_) {
-    LOG_INFO("in conjunction expr, sub expr is %s", expr->type_string());
-    rc = expr->get_value(tuple, tmp_value);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to get value by child expression. rc=%s", strrc(rc));
-      return rc;
-    }
-    bool bool_value = tmp_value.get_boolean();
-
-    // 逻辑短路
-    if ((conjunction_type_ == Type::AND && !bool_value) || (conjunction_type_ == Type::OR && bool_value)) {
-      value.set_boolean(bool_value);
-      return rc;
-    }
+  if(children_.size() > 2){
+    LOG_WARN("Conjunction cannot process more than two child");
+    return RC::INTERNAL;
   }
 
-  bool default_value = (conjunction_type_ == Type::AND);
-  value.set_boolean(default_value);
+  Value left_value;
+  rc = children_[0]->get_value(tuple, left_value);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to get value by child expression. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  if(conjunction_type_ == Type::AND && left_value.get_boolean() == -1){
+    // left已确定为false，在and的场景下，整个表达式一定为false
+    value.set_boolean(-1);
+    return rc;
+  }
+
+  if(conjunction_type_ == Type::OR && left_value.get_boolean() == 1){
+    // left已确定为true，在or的场景下，整个表达式一定为true
+    value.set_boolean(1);
+  }
+
+  // 非短路场景下，需要结合right进行判断
+  Value right_value;
+  rc = children_[1]->get_value(tuple, right_value);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to get value by child expression. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  if(conjunction_type_ == Type::AND){
+    value.set_boolean(min(left_value.get_boolean(), right_value.get_boolean()));
+  }else{
+    value.set_boolean(max(left_value.get_boolean(), right_value.get_boolean()));
+  }
+
   return rc;
 }
 
