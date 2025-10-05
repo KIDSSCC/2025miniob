@@ -747,9 +747,10 @@ relation_node:
 
       $$->left.reset($1);
       $$->right.reset(right);
-      $$->join_conditions.swap(*$6);
 
       if($6){
+        std::reverse($6->begin(), $6->end());
+        $$->join_conditions.swap(*$6);
         delete $6;
       }
     }
@@ -893,6 +894,7 @@ have:
     }
     | HAVING condition_list
     {
+      std::reverse($2->begin(), $2->end());
       $$ = $2;
     }
     ;
