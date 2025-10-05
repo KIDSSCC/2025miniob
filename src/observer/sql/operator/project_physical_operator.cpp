@@ -51,6 +51,7 @@ RC ProjectPhysicalOperator::open(Trx *trx)
       LOG_WARN("failed to make tuple to value list. rc=%s", strrc(rc));
       return rc;
     }
+
     all_tuple.emplace_back(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
   }
 
