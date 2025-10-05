@@ -252,8 +252,9 @@ RC ComparisonExpr::compare_value_list(const vector<Value> &left, const vector<Va
         }
         int cmp_result = left[0].compare(right[i]);
         result = (0 == cmp_result) ? 1 : -1;
-        if(result == 1)
-          break;
+        if(result == 1){
+          return RC::SUCCESS;
+        }
       }
       // for循环转完了，但仍然没退出，说明result一直是-1.
       if(right_have_null){
@@ -276,7 +277,7 @@ RC ComparisonExpr::compare_value_list(const vector<Value> &left, const vector<Va
         if(cmp_result == 0){
           // 存在相等的元素，直接短路false
           result = -1;
-          break;
+          return RC::SUCCESS;
         }
       }
       // for循环转完了，但仍然没退出，left起码不在right中
