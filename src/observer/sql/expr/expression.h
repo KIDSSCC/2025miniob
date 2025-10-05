@@ -414,11 +414,14 @@ public:
   vector<unique_ptr<Expression>> &children() { return children_; }
 
   void print_structure();
+  void set_default(int default_) { default_value = default_; }
+  int get_default() const { return default_value; }
 
 private:
   // 子表达式，一般为若干比较表达式，根据conjunction_type_的逻辑，将子表达式的结果进行连接
   Type                           conjunction_type_;
   vector<unique_ptr<Expression>> children_;
+  int                             default_value = 0;
 };
 
 /**

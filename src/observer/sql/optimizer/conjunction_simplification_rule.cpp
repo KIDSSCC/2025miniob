@@ -34,7 +34,6 @@ RC ConjunctionSimplificationRule::rewrite(unique_ptr<Expression> &expr, bool &ch
 
   change_made                                                = false;
   auto                                      conjunction_expr = static_cast<ConjunctionExpr *>(expr.get());
-
   vector<unique_ptr<Expression>> &child_exprs      = conjunction_expr->children();
 
   // 先看看有没有能够直接去掉的表达式。比如AND时恒为true的表达式可以删除
@@ -49,29 +48,37 @@ RC ConjunctionSimplificationRule::rewrite(unique_ptr<Expression> &expr, bool &ch
       continue;
     }
 
+    // 此处相当意义不明，A AND B 下，A不可知，B为True，此时应忽略B。B为False，那整个Conjunction就都一边凉快去吧
+    // 同理，A OR B 下，A不可知，B为True，此时整个Conjunction均为True B为False，此时应忽略B
     if (conjunction_expr->conjunction_type() == ConjunctionExpr::Type::AND) {
       if (constant_value == true) {
         child_exprs.erase(iter);
       } else {
         // always be false
-        unique_ptr<Expression> child_expr = std::move(child_exprs.front());
         child_exprs.clear();
-        expr = std::move(child_expr);
+        conjunction_expr->set_default(-1);
         return rc;
+        // unique_ptr<Expression> child_expr = std::move(child_exprs.front());
+        // child_exprs.clear();
+        // expr = std::move(child_expr);
       }
     } else {
       // conjunction_type == OR
       if (constant_value == true) {
         // always be true
-        unique_ptr<Expression> child_expr = std::move(child_exprs.front());
         child_exprs.clear();
-        expr = std::move(child_expr);
+        conjunction_expr->set_default(1);
         return rc;
+        // unique_ptr<Expression> child_expr = std::move(child_exprs.front());
+        // child_exprs.clear();
+        // expr = std::move(child_expr);
       } else {
         child_exprs.erase(iter);
       }
     }
   }
+
+  // 这里子节点数量为1有两种可能，一种是本身有两个，被常量优化掉一个，一种是本来就一个
   if (child_exprs.size() == 1) {
     LOG_TRACE("conjunction expression has only 1 child");
     unique_ptr<Expression> child_expr = std::move(child_exprs.front());

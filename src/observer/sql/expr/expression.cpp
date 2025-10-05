@@ -467,7 +467,8 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
   // tuple为当前要进行判断的record，判断的结果写入value
   RC rc = RC::SUCCESS;
   if (children_.empty()) {
-    value.set_boolean(1);
+    // 只有Conjunction没有子节点的时候（可能被优化过程删干净了） 才启用default_value
+    value.set_boolean(default_value);
     return rc;
   }
 
@@ -523,10 +524,12 @@ void ConjunctionExpr::print_structure(){
     LOG_INFO("left type is %d", children_[0]->type());
     if(children_[0]->type() == ExprType::COMPARISON){
       LOG_INFO("left node is %s, %s", static_cast<ComparisonExpr*>(children_[0].get())->left()->name(), static_cast<ComparisonExpr*>(children_[0].get())->right()->name());
-    }else{
+    }else if(children_[0]->type() == ExprType::CONJUNCTION){
       LOG_INFO("prepare to recursion");
       static_cast<ConjunctionExpr*>(children_[0].get())->print_structure();
       LOG_INFO("end to recursion");
+    }else if(children_[0]->type() == ExprType::VALUE){
+      LOG_INFO("left node is valueexpr, value is %s", static_cast<ValueExpr*>(children_[0].get())->get_value().to_string().c_str());
     }
   }
 
@@ -534,10 +537,12 @@ void ConjunctionExpr::print_structure(){
     LOG_INFO("right type is %d", children_[1]->type());
     if(children_[1]->type() == ExprType::COMPARISON){
       LOG_INFO("right node is %s, %s", static_cast<ComparisonExpr*>(children_[1].get())->left()->name(), static_cast<ComparisonExpr*>(children_[1].get())->right()->name());
-    }else{
+    }else if(children_[1]->type() == ExprType::CONJUNCTION){
       LOG_INFO("prepare to recursion");
       static_cast<ConjunctionExpr*>(children_[1].get())->print_structure();
       LOG_INFO("end to recursion");
+    }else if(children_[1]->type() == ExprType::VALUE){
+      LOG_INFO("right node is valueexpr, value is %s", static_cast<ValueExpr*>(children_[1].get())->get_value().to_string().c_str());
     }
   }
 }
