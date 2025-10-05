@@ -37,6 +37,10 @@ RC HashGroupByPhysicalOperator::open(Trx *trx)
     return rc;
   }
 
+  if(parent_tuple_ != nullptr){
+    child.set_parent_tuple(parent_tuple_);
+  }
+
   // value_expressions_ 计算聚合时用到的表达式
   ExpressionTuple<Expression *> group_value_expression_tuple(value_expressions_);
 

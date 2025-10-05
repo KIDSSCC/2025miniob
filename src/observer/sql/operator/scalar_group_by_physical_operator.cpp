@@ -36,6 +36,9 @@ RC ScalarGroupByPhysicalOperator::open(Trx *trx)
     LOG_WARN("failed to open child operator. rc=%s", strrc(rc));
     return rc;
   }
+  if(parent_tuple_ != nullptr){
+    child.set_parent_tuple(parent_tuple_);
+  }
 
   // value_expressions_: 内部的聚合字段
   ExpressionTuple<Expression *> group_value_expression_tuple(value_expressions_);

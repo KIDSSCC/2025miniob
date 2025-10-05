@@ -372,7 +372,6 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
       }
     }
     ComparisonExpr *cmp_expr = new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));
-    LOG_INFO("curr_node is %s, %s, %d", cmp_expr->left()->name(), cmp_expr->right()->name(), filter_unit->conjunction_type());
     cmp_exprs.emplace_back(cmp_expr);
     conjunction_types.emplace_back(filter_unit->conjunction_type());
   }

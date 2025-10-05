@@ -50,7 +50,6 @@ RC TableScanPhysicalOperator::next()
       composite_tuple.add_tuple(make_unique<ValueListTuple>(std::move(parent_tuple_pack)));
     }
 
-
     rc = filter(composite_tuple, filter_result);
     if (rc != RC::SUCCESS) {
       LOG_TRACE("record filtered failed=%s", strrc(rc));

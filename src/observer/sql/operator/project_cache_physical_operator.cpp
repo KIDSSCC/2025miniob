@@ -42,12 +42,13 @@ RC ProjectCachePhysicalOperator::next()
   }
 
   PhysicalOperator *child = children_[0].get();
-  child->open(trx_);
   if(is_relevant_){
     // 相关子查询时，需要project_cache将父查询当前的tuple传下去，非相关子查询就不需要了，
     // parent_tuple默认为nullptr，由底层的predicate或者tablescan各自进行处理
     child->set_parent_tuple(this->parent_tuple_);
   }
+  // groupby类算子，功能实现放在open中，因此需要在open之前就把parent_tuple传下去，对于predicate和tableget则没有影响。
+  child->open(trx_);
 
   RC rc = RC::SUCCESS;
   tuple_.clear();
