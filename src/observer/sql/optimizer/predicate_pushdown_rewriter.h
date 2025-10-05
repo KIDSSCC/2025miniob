@@ -32,5 +32,6 @@ public:
 
 private:
   RC   get_exprs_can_pushdown(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &pushdown_exprs);
+  RC  check_expr_can_pushdown(unique_ptr<Expression> &expr, bool& can_pushdown);
   bool is_empty_predicate(unique_ptr<Expression> &expr);
 };

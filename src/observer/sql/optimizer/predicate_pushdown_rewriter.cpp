@@ -20,6 +20,8 @@ See the Mulan PSL v2 for more details. */
 
 RC PredicatePushdownRewriter::rewrite(unique_ptr<LogicalOperator> &oper, bool &change_made)
 {
+  // 条件算子的下推需要做出一定的调整，在引入了OR的情况下，由于逻辑关系的复杂，一味的下推容易出现错误
+  // 原有的实现是将每一个compare推到了tableget上。在现有的实现下，顶层表达式可能是conjunction或者compare，对其进行检查，判断其是否满足下推的条件，如果满足条件，则将顶层表达式整体进行下推。
   RC rc = RC::SUCCESS;
   if (oper->type() != LogicalOperatorType::PREDICATE) {
     return rc;
@@ -42,27 +44,47 @@ RC PredicatePushdownRewriter::rewrite(unique_ptr<LogicalOperator> &oper, bool &c
     return rc;
   }
 
+  // 条件判断的顶层表达式，可能为conjunction或compare
   unique_ptr<Expression>             &predicate_expr = predicate_oper_exprs.front();
-  vector<unique_ptr<Expression>> pushdown_exprs;
-  rc = get_exprs_can_pushdown(predicate_expr, pushdown_exprs);
+  bool can_pushdown = false;
+  rc = check_expr_can_pushdown(predicate_expr, can_pushdown);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get exprs can pushdown. rc=%s", strrc(rc));
     return rc;
   }
 
-  if (!predicate_expr || is_empty_predicate(predicate_expr)) {
-    // 所有的表达式都下推到了下层算子
-    // 这个predicate operator其实就可以不要了。但是这里没办法删除，弄一个空的表达式吧
-    LOG_TRACE("all expressions of predicate operator were pushdown to table get operator, then make a fake one");
+  if(can_pushdown){
+    // 底层传来喜讯
+    change_made = true;
+    vector<unique_ptr<Expression>> tmp;
+    tmp.emplace_back(std::move(predicate_expr));
+    table_get_oper->set_predicates(std::move(tmp));
 
+    LOG_TRACE("all expressions of predicate operator were pushdown to table get operator, then make a fake one");
     Value value((bool)true);
     predicate_expr = unique_ptr<Expression>(new ValueExpr(value));
   }
 
-  if (!pushdown_exprs.empty()) {
-    change_made = true;
-    table_get_oper->set_predicates(std::move(pushdown_exprs));
-  }
+  // vector<unique_ptr<Expression>> pushdown_exprs;
+  // rc = get_exprs_can_pushdown(predicate_expr, pushdown_exprs);
+  // if (rc != RC::SUCCESS) {
+  //   LOG_WARN("failed to get exprs can pushdown. rc=%s", strrc(rc));
+  //   return rc;
+  // }
+
+  // if (!predicate_expr || is_empty_predicate(predicate_expr)) {
+  //   // 所有的表达式都下推到了下层算子
+  //   // 这个predicate operator其实就可以不要了。但是这里没办法删除，弄一个空的表达式吧
+  //   LOG_TRACE("all expressions of predicate operator were pushdown to table get operator, then make a fake one");
+
+  //   Value value((bool)true);
+  //   predicate_expr = unique_ptr<Expression>(new ValueExpr(value));
+  // }
+
+  // if (!pushdown_exprs.empty()) {
+  //   change_made = true;
+  //   table_get_oper->set_predicates(std::move(pushdown_exprs));
+  // }
   return rc;
 }
 
@@ -96,11 +118,11 @@ RC PredicatePushdownRewriter::get_exprs_can_pushdown(
   if (expr->type() == ExprType::CONJUNCTION) {
     ConjunctionExpr *conjunction_expr = static_cast<ConjunctionExpr *>(expr.get());
     // 或 操作的比较，太复杂，现在不考虑
-    if (conjunction_expr->conjunction_type() == ConjunctionExpr::Type::OR) {
-      LOG_WARN("unsupported or operation");
-      rc = RC::UNIMPLEMENTED;
-      return rc;
-    }
+    // if (conjunction_expr->conjunction_type() == ConjunctionExpr::Type::OR) {
+    //   LOG_WARN("unsupported or operation");
+    //   rc = RC::UNIMPLEMENTED;
+    //   return rc;
+    // }
 
     vector<unique_ptr<Expression>> &child_exprs = conjunction_expr->children();
     for (auto iter = child_exprs.begin(); iter != child_exprs.end();) {
@@ -135,5 +157,53 @@ RC PredicatePushdownRewriter::get_exprs_can_pushdown(
 
     pushdown_exprs.emplace_back(std::move(expr));
   }
+  return rc;
+}
+
+RC PredicatePushdownRewriter::check_expr_can_pushdown(unique_ptr<Expression> &expr, bool& can_pushdown)
+{
+  if(expr == nullptr){
+    can_pushdown = false;
+    return RC::SUCCESS;
+  }
+
+  RC rc = RC::SUCCESS;
+  if (expr->type() == ExprType::CONJUNCTION){
+    ConjunctionExpr *conjunction_expr = static_cast<ConjunctionExpr *>(expr.get());
+    vector<unique_ptr<Expression>> &child_exprs = conjunction_expr->children();
+    for (auto iter = child_exprs.begin(); iter != child_exprs.end();){
+      rc = check_expr_can_pushdown(*iter, can_pushdown);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to get pushdown expressions. rc=%s", strrc(rc));
+        can_pushdown = false;
+        return rc;
+      }
+      if(!can_pushdown){
+        // 如果某一部分不能下推，那么后面的也不用接着判断了
+        return RC::SUCCESS;
+      }
+      if (!*iter) {
+        iter = child_exprs.erase(iter);
+      } else {
+        ++iter;
+      }
+    }
+  } else if(expr->type() == ExprType::COMPARISON) {
+    auto   comparison_expr = static_cast<ComparisonExpr *>(expr.get());
+    unique_ptr<Expression> &left_expr  = comparison_expr->left();
+    unique_ptr<Expression> &right_expr = comparison_expr->right();
+    // 比较操作的左右两边只要有一个是取列字段值的并且另一边也是取字段值或常量，就pushdown
+    if (left_expr->type() != ExprType::FIELD && right_expr->type() != ExprType::FIELD) {
+      can_pushdown = false;
+      return rc;
+    }
+    if (left_expr->type() != ExprType::FIELD && left_expr->type() != ExprType::VALUE &&
+        right_expr->type() != ExprType::FIELD && right_expr->type() != ExprType::VALUE) {
+      can_pushdown = false;
+      return rc;
+    }
+    can_pushdown = true;
+  }
+
   return rc;
 }

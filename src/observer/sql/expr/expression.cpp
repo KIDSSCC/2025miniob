@@ -482,7 +482,13 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
     LOG_WARN("failed to get value by child expression. rc=%s", strrc(rc));
     return rc;
   }
+  // Conjunction中只有这一个子节点，则直接以该子节点的值作为自身的返回值
+  if(children_.size() == 1){
+    value.set_boolean(left_value.get_boolean());
+    return rc;
+  }
 
+  // 两个Compare之间的连接，短路场景处理
   if(conjunction_type_ == Type::AND && left_value.get_boolean() == -1){
     // left已确定为false，在and的场景下，整个表达式一定为false
     value.set_boolean(-1);
@@ -509,6 +515,31 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
   }
 
   return rc;
+}
+
+void ConjunctionExpr::print_structure(){
+  LOG_INFO("conjunction type is %d, children size is %d", conjunction_type_, children_.size());
+  if(children_.size() > 0){
+    LOG_INFO("left type is %d", children_[0]->type());
+    if(children_[0]->type() == ExprType::COMPARISON){
+      LOG_INFO("left node is %s, %s", static_cast<ComparisonExpr*>(children_[0].get())->left()->name(), static_cast<ComparisonExpr*>(children_[0].get())->right()->name());
+    }else{
+      LOG_INFO("prepare to recursion");
+      static_cast<ConjunctionExpr*>(children_[0].get())->print_structure();
+      LOG_INFO("end to recursion");
+    }
+  }
+
+  if(children_.size()>1){
+    LOG_INFO("right type is %d", children_[1]->type());
+    if(children_[1]->type() == ExprType::COMPARISON){
+      LOG_INFO("right node is %s, %s", static_cast<ComparisonExpr*>(children_[1].get())->left()->name(), static_cast<ComparisonExpr*>(children_[1].get())->right()->name());
+    }else{
+      LOG_INFO("prepare to recursion");
+      static_cast<ConjunctionExpr*>(children_[1].get())->print_structure();
+      LOG_INFO("end to recursion");
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

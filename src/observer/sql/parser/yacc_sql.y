@@ -109,6 +109,7 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
         LIKE
         NOT
         AND
+        OR
         SET
         ON
         LOAD
@@ -777,10 +778,13 @@ where:
       $$ = nullptr;
     }
     | WHERE condition_list {
+      // condition_list构建的时候是右结合，也就是声明顺序的逆序，为了方便后期处理AND和OR的合并，此处把逆序condition调整为正序
+      std::reverse($2->begin(), $2->end());
       $$ = $2;  
     }
     ;
 condition_list:
+    // 暂时不考虑那种通过括号设置结合性的情况，仅遵循从左至右依次比较
     /* empty */
     {
       $$ = nullptr;
@@ -792,6 +796,13 @@ condition_list:
     }
     | condition AND condition_list {
       $$ = $3;
+      $3->back().conjunction_forward = 0;
+      $$->emplace_back(std::move(*$1));
+      delete $1;
+    }
+    | condition OR condition_list {
+      $$ = $3;
+      $3->back().conjunction_forward = 1;
       $$->emplace_back(std::move(*$1));
       delete $1;
     }
@@ -808,39 +819,6 @@ condition:
 
       $$->right_is_attr = 2;
       $$->right_expressions.reset(right_exp);
-      // if(left_exp->type()==ExprType::UNBOUND_FIELD){
-      //   // 左值是一个字段
-      //   $$->left_is_attr = 1;
-      //   $$->left_attr.relation_name = static_cast<UnboundFieldExpr*>(left_exp)->table_name();
-      //   $$->left_attr.attribute_name = static_cast<UnboundFieldExpr*>(left_exp)->field_name();
-      //   delete $1;
-      // }else if(left_exp->type()==ExprType::VALUE){
-      //   // 左值是一个常量值expre
-      //   $$->left_is_attr = 0;
-      //   $$->left_value =  static_cast<ValueExpr*>(left_exp)->get_value();
-      //   delete $1;
-      // }else{
-      //   // TODO: 左值是一个表达式
-      //   $$->left_is_attr = 2;
-      //   $$->left_expressions.reset(left_exp);
-      // }
-
-      // if(right_exp->type()==ExprType::UNBOUND_FIELD){
-      //   // 右值是一个字段
-      //   $$->right_is_attr = 1;
-      //   $$->right_attr.relation_name = static_cast<UnboundFieldExpr*>(right_exp)->table_name();
-      //   $$->right_attr.attribute_name = static_cast<UnboundFieldExpr*>(right_exp)->field_name();
-      //   delete $3;
-      // }else if(right_exp->type()==ExprType::VALUE){
-      //   // 右值是一个常量值
-      //   $$->right_is_attr = 0;
-      //   $$->right_value =  static_cast<ValueExpr*>(right_exp)->get_value();
-      //   delete $3;
-      // }else{
-      //   // TODO: 右值是一个表达式
-      //   $$->right_is_attr = 2;
-      //   $$->right_expressions.reset(right_exp);
-      // }
 
       $$->comp = $2;
     }

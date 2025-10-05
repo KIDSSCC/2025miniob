@@ -102,6 +102,8 @@ struct ConditionSqlNode
   Value          right_value;    ///< right-hand side value if right_is_attr = FALSE
   unique_ptr<Expression>  right_expressions;
 
+  int conjunction_forward = -1;   // 当前contion与前者condition之间的连接策略，-1代表无连接，0代表and，1代表or
+
   ConditionSqlNode() = default;
 
   // 只能移动

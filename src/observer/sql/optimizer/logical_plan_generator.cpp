@@ -234,6 +234,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
 {
   RC                                  rc = RC::SUCCESS;
   vector<unique_ptr<Expression>> cmp_exprs;
+  vector<int> conjunction_types;
   const vector<FilterUnit *>    &filter_units = filter_stmt->filter_units();
   vector<unique_ptr<LogicalOperator>> sub_querys;
 
@@ -371,19 +372,67 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
       }
     }
     ComparisonExpr *cmp_expr = new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));
+    // LOG_INFO("curr_node is %s, %s, %d", cmp_expr->left()->name(), cmp_expr->right()->name(), filter_unit->conjunction_type());
     cmp_exprs.emplace_back(cmp_expr);
+    conjunction_types.emplace_back(filter_unit->conjunction_type());
   }
 
+  // 由于AND和OR的优先级不同，此处对逻辑表达式的构建需要拆分成两层。先整合所有的OR，再整合所有的AND
+  vector<unique_ptr<Expression>> after_merge_or;
+  for(size_t i=0;i<cmp_exprs.size();i++){
+    if(conjunction_types[i] != 0){
+        // 当前节点与其前向节点之间非OR连接，先放入栈内
+        after_merge_or.emplace_back(std::move(cmp_exprs[i]));
+    }else{
+      // 当前节点与其前向节点之间为OR连接，合并为一个Conjunction，压入栈中
+      vector<unique_ptr<Expression>> children;
+      children.emplace_back(std::move(after_merge_or.back()));
+      children.emplace_back(std::move(cmp_exprs[i]));
+      unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, children));
+      after_merge_or.pop_back();
+      after_merge_or.emplace_back(std::move(conjunction_expr));
+    }
+  }
+  LOG_INFO("after_merge_or size is %d", after_merge_or.size());
+  
+  // 此时after_merge_or中剩余的节点均为AND连接（或只有一个元素的无连接）
+  vector<unique_ptr<ConjunctionExpr>> tmp_stack;
+  for(size_t i=0;i<after_merge_or.size();i++){
+    if(tmp_stack.empty()){
+      vector<unique_ptr<Expression>> children;
+      children.emplace_back(std::move(after_merge_or[i]));
+      unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::OR, children));
+      tmp_stack.emplace_back(std::move(conjunction_expr));
+    }else{
+      // 有需要连接的前向节点
+      vector<unique_ptr<Expression>> children;
+      children.emplace_back(std::move(tmp_stack.front()));
+      children.emplace_back(std::move(after_merge_or[i]));
+      unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::OR, children));
+      tmp_stack.clear();
+      tmp_stack.emplace_back(std::move(conjunction_expr));
+    }
+  }
+  
+  // 如果cmp_exprs非空，则tmp_stack中会留下一个节点，否则tmp_stack为空
   unique_ptr<PredicateLogicalOperator> predicate_oper;
-  if (!cmp_exprs.empty()) {
-    // conjunction_expr，将若干ComparisonExpr以何种逻辑进行连接，默认是and逻辑
-    unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
-    predicate_oper = unique_ptr<PredicateLogicalOperator>(new PredicateLogicalOperator(std::move(conjunction_expr)));
+  if(!tmp_stack.empty()){
+    // tmp_stack.front()->print_structure();
+    predicate_oper = unique_ptr<PredicateLogicalOperator>(new PredicateLogicalOperator(std::move(tmp_stack.front())));
     // 构建PredicateLogicalOperator，将子查询部分的逻辑计划接入Predicate的子算子
     for(size_t i=0;i<sub_querys.size();i++){
       predicate_oper->add_child(std::move(sub_querys[i]));
     }
   }
+  
+  // if (!cmp_exprs.empty()) {
+    //   unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
+  //   predicate_oper = unique_ptr<PredicateLogicalOperator>(new PredicateLogicalOperator(std::move(conjunction_expr)));
+  //   // 构建PredicateLogicalOperator，将子查询部分的逻辑计划接入Predicate的子算子
+  //   for(size_t i=0;i<sub_querys.size();i++){
+  //     predicate_oper->add_child(std::move(sub_querys[i]));
+  //   }
+  // }
   logical_operator = std::move(predicate_oper);
   return rc;
 }

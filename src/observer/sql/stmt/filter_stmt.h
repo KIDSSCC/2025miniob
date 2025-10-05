@@ -64,14 +64,17 @@ public:
 
   void set_left(FilterObj &obj) { left_ = std::move(obj); }
   void set_right(FilterObj &obj) { right_ = std::move(obj); }
+  void set_conjunction(int type) { conjunction_forward = type; }
 
   const FilterObj &left() const { return left_; }
   const FilterObj &right() const { return right_; }
+  const int conjunction_type() const { return conjunction_forward; }
 
 private:
   CompOp    comp_ = NO_OP;
   FilterObj left_;
   FilterObj right_;
+  int conjunction_forward = -1;
 };
 
 /**
