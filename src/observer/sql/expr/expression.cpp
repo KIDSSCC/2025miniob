@@ -300,7 +300,8 @@ RC ComparisonExpr::compare_value_list(const vector<Value> &left, const vector<Va
         rc = RC::INTERNAL;
       }else{
         // 这里可能需要进一步扩展，考虑null的情况
-        result = -1;
+        LOG_WARN("unsupported comparison. %d", comp_);
+        rc = RC::INTERNAL;
       }
     } break;
   }
@@ -331,6 +332,7 @@ RC ComparisonExpr::try_get_value(Value &cell) const
 
 RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 {
+  // LOG_INFO("ComparisonExpr::get_value, left type is %d, right type is %d", left_->type(), right_->type());
   RC rc = RC::SUCCESS;
   if(left_->type() < ExprType::VALUELIST && right_->type() < ExprType::VALUELIST){
     // 左值右值均没有valuelist，按照正常的比较逻辑进行比较即可
@@ -392,6 +394,7 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     }
     
     int bool_value = -1;
+    // LOG_INFO("left size is %d, right size is %d", left_values.size(), right_values.size());
     if(left_values.size() == 1 && right_values.size() == 1){
       // 标量值比较，退化到compare_value上
       rc = compare_value(left_values[0], right_values[0], bool_value);
