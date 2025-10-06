@@ -372,6 +372,12 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
       }
     }
     ComparisonExpr *cmp_expr = new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));
+    rc = cmp_expr->check_valid();
+    if(rc != RC::SUCCESS){
+      LOG_WARN("Failed to check valid");
+      delete cmp_expr;
+      return rc;
+    }
     cmp_exprs.emplace_back(cmp_expr);
     conjunction_types.emplace_back(filter_unit->conjunction_type());
   }

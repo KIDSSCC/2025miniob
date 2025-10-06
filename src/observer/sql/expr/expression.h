@@ -140,6 +140,11 @@ public:
    */
   virtual RC get_valuelist(const Tuple &tuple, vector<Value> &values) const { return RC::UNIMPLEMENTED; };
 
+  /**
+   * @brief 用于 值列表和子查询 的合法性检查，判断一个值列表是否为标量值
+   */
+  virtual RC check_scalar(bool& is_scalar) const { return RC::UNIMPLEMENTED; }
+
   inline const char *type_string()
   {
       ExprType curr_type = type();
@@ -365,6 +370,8 @@ public:
   RC compare_value(const Value &left, const Value &right, int &value) const;
 
   RC compare_value_list(const vector<Value> &left, const vector<Value> &right, int &value) const;
+
+  RC check_valid() const ;
 
   template <typename T>
   RC compare_column(const Column &left, const Column &right, vector<uint8_t> &result) const;
@@ -593,6 +600,11 @@ public:
 
   RC get_valuelist(const Tuple &tuple, vector<Value> &values) const override;
 
+  RC check_scalar(bool& is_scalar) const override{ 
+    is_scalar = (vec_.size() == 1);
+    return RC::SUCCESS;
+  }
+
   RC try_get_value(Value &value);
 
 public:
@@ -623,10 +635,13 @@ public:
 
   RC get_valuelist(const Tuple &tuple, vector<Value> &values) const override;
 
+  RC check_scalar(bool& is_scalar) const override;
+
 public:
   SelectSqlNode selection_;
   SelectStmtHandle select_stmt_;
   AttrType value_type_;
+  bool is_scalar_;
 };
 
 // 子查询表达式的一层封装，selectsqlnode本身不方便拷贝管理，所以叠加一层，用共享指针管理SelectExpr，底层的SelectSqlNode始终不动
@@ -670,6 +685,10 @@ public:
 
   RC get_valuelist(const Tuple &tuple, vector<Value> &values) const override{
     return select_expr_->get_valuelist(tuple, values);
+  }
+
+  RC check_scalar(bool& is_scalar){
+    return select_expr_->check_scalar(is_scalar);
   }
 
 public:

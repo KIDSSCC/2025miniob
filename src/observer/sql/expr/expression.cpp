@@ -123,6 +123,33 @@ ComparisonExpr::ComparisonExpr(CompOp comp, unique_ptr<Expression> left, unique_
 
 ComparisonExpr::~ComparisonExpr() {}
 
+RC ComparisonExpr::check_valid() const{
+  // 叠加一个异常检查，对于标量比较中出现的值列表，强制要求其必须为聚合表达式，即单值标量
+  RC rc = RC::SUCCESS;
+  if(comp_ < IN_T){
+    if(left_->type() >= ExprType::VALUELIST){
+      bool left_is_scalar;
+      rc = left_->check_scalar(left_is_scalar);
+      // LOG_INFO("left is valuelist, check scalar is %d", left_is_scalar);
+      if(rc != RC::SUCCESS || !left_is_scalar){
+        LOG_WARN("Failed to check scalar or left is not scalar");
+        return RC::INTERNAL;
+      }
+    }
+    if(right_->type() >= ExprType::VALUELIST){
+      bool right_is_scalar;
+      rc = right_->check_scalar(right_is_scalar);
+      // LOG_INFO("right is valuelist, check scalar is %d", right_is_scalar);
+      if(rc != RC::SUCCESS || !right_is_scalar){
+        LOG_WARN("Failed to check scalar or right is not scalar");
+        return RC::INTERNAL;
+      }
+    }
+  }
+
+  return rc;
+}
+
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, int &result) const
 {
   RC  rc         = RC::SUCCESS;
@@ -394,7 +421,6 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     }
     
     int bool_value = -1;
-    // LOG_INFO("left size is %d, right size is %d", left_values.size(), right_values.size());
     if(left_values.size() == 1 && right_values.size() == 1){
       // 标量值比较，退化到compare_value上
       rc = compare_value(left_values[0], right_values[0], bool_value);
@@ -1046,3 +1072,7 @@ RC SelectExpr::get_valuelist(const Tuple &tuple, vector<Value> &values) const {
   }
 }
 
+RC SelectExpr::check_scalar(bool& is_scalar) const{
+  is_scalar = is_scalar_;
+  return RC::SUCCESS;
+}

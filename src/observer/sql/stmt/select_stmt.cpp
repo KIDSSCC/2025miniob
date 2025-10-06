@@ -139,8 +139,16 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
         }
 
         std::unique_ptr<SelectStmt, void(*)(SelectStmt*)> raw(static_cast<SelectStmt*>(sub_select_stmt), manual_destruction);
+        bool is_scalar = false;
+        if(raw->query_expressions().size() == 1){
+          if(raw->query_expressions()[0]->type() == ExprType::AGGREGATION){
+            // 子查询的查询字段仅有一个聚合字段时，标记该子查询为标量子查询
+            is_scalar = true;
+          }
+        }
         static_cast<SelectPackExpr*>(expr)->select_expr_->value_type_ = raw->get_type();
         static_cast<SelectPackExpr*>(expr)->select_expr_->select_stmt_ = std::move(raw);
+        static_cast<SelectPackExpr*>(expr)->select_expr_->is_scalar_ = is_scalar;
 
       } else if(is_attr == 2){
         // 左值为表达式
