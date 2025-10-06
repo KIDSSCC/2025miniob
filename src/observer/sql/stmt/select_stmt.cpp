@@ -51,7 +51,7 @@ void manual_destruction(FilterStmt* stmt){
   }
 }
 
-RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderContext* parent_bind_context)
+RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderContext* parent_bind_context, int* max_table_index)
 {
   if (nullptr == db) {
     LOG_WARN("invalid argument. db is null");
@@ -100,7 +100,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
     table_map.insert({table_name, table});
   }
 
-  BinderContext only_oneself_context(binder_context);
+  // BinderContext only_oneself_context(binder_context);
   // binder_context中以separate作为分界线，前一部分为子查询相关的表，后一部分为父查询相关的表
   binder_context.set_separate(binder_context.query_tables().size());
   if(parent_bind_context){
@@ -114,11 +114,11 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   // collect query fields in `select` statement
   vector<unique_ptr<Expression>> bound_expressions;
   ExpressionBinder expression_binder(binder_context);
-  bool is_relevant = false;
+  int max_table = -1;
   
   // 对select部分的字段的绑定，主要涉及*绑定为全字段，unboundedfield绑定为field，unboundedaggregate绑定为aggregate
   for (unique_ptr<Expression> &expression : select_sql.expressions) {
-    RC rc = expression_binder.bind_expression(expression, bound_expressions, is_relevant);
+    RC rc = expression_binder.bind_expression(expression, bound_expressions, max_table);
     if (OB_FAIL(rc)) {
       LOG_WARN("bind expression failed. rc=%s", strrc(rc));
       return rc;
@@ -132,7 +132,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
         // 对子查询表达式的特殊绑定: 子查询表达式生成一个单独的语句，保存在expr中
         Stmt *sub_select_stmt = nullptr;
         Expression* expr = expr_node.get();
-        rc = SelectStmt::create(db, static_cast<SelectPackExpr*>(expr)->get_node(), sub_select_stmt, &only_oneself_context);
+        rc = SelectStmt::create(db, static_cast<SelectPackExpr*>(expr)->get_node(), sub_select_stmt, &binder_context, &max_table);
         if(rc != RC::SUCCESS){
           LOG_WARN("Failed to create sub select node");
           return rc;
@@ -144,7 +144,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
 
       } else if(is_attr == 2){
         // 左值为表达式
-        rc = expression_binder.bind_expression(expr_node, expressions, is_relevant);
+        rc = expression_binder.bind_expression(expr_node, expressions, max_table);
         if (OB_FAIL(rc)) {
           LOG_WARN("bind expression failed. rc=%s", strrc(rc));
           return rc;
@@ -188,7 +188,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   // 绑定groupby部分的表达式, 暂时认为groupby部分不会出现子查询
   vector<unique_ptr<Expression>> group_by_expressions;
   for (unique_ptr<Expression> &expression : select_sql.group_by) {
-    RC rc = expression_binder.bind_expression(expression, group_by_expressions, is_relevant);
+    RC rc = expression_binder.bind_expression(expression, group_by_expressions, max_table);
     if (OB_FAIL(rc)) {
       LOG_WARN("bind expression failed. rc=%s", strrc(rc));
       return rc;
@@ -208,7 +208,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   // 绑定order by部分的表达式, 暂时认为orderby部分不会出现子查询
   vector<unique_ptr<Expression>> orderby_expessions;
   for(pair<Order, unique_ptr<Expression>>& order_field : select_sql.order_by){
-    RC rc = expression_binder.bind_expression(order_field.second, orderby_expessions, is_relevant);
+    RC rc = expression_binder.bind_expression(order_field.second, orderby_expessions, max_table);
     if (OB_FAIL(rc)) {
       LOG_WARN("bind order by expression failed. rc=%s", strrc(rc));
       return rc;
@@ -325,10 +325,21 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
       LOG_WARN("cannot construct having filter stmt");
       return rc;
     }
-    
+  
+  
   // everything alright
   for(size_t i=0;i<select_sql.order_by.size();i++){
     select_stmt->order_by_.emplace_back(select_sql.order_by[i].first, std::move(select_sql.order_by[i].second));
+  }
+  bool is_relevant = false;
+  if(max_table > 0 && max_table >= binder_context.separate()){
+    // max_table大于separate，说明当前查询引用到了父查询乃至更早查询的表，标记当前select为相关查询
+    is_relevant = true;
+  }
+
+  if(max_table_index != nullptr){
+    // 将max_table传递给更上层，例如A->B->C, 其中C跨层引用了A，此处C将max_table传给B，B判断出自己也应该是relevant
+    *max_table_index = max_table - binder_context.separate();
   }
   select_stmt->tables_.swap(tables);
   select_stmt->relations_ = move(select_sql.relations);

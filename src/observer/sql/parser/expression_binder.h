@@ -50,25 +50,25 @@ public:
   ExpressionBinder(BinderContext &context) : context_(context) {}
   virtual ~ExpressionBinder() = default;
 
-  RC bind_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
+  RC bind_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index);
 
 private:
-  RC bind_star_expression(unique_ptr<Expression> &star_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
+  RC bind_star_expression(unique_ptr<Expression> &star_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index);
   RC bind_unbound_field_expression(
-      unique_ptr<Expression> &unbound_field_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
-  RC bind_field_expression(unique_ptr<Expression> &field_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
-  RC bind_value_expression(unique_ptr<Expression> &value_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
-  RC bind_cast_expression(unique_ptr<Expression> &cast_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
+      unique_ptr<Expression> &unbound_field_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index);
+  RC bind_field_expression(unique_ptr<Expression> &field_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index);
+  RC bind_value_expression(unique_ptr<Expression> &value_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index);
+  RC bind_cast_expression(unique_ptr<Expression> &cast_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index);
   RC bind_comparison_expression(
-      unique_ptr<Expression> &comparison_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
+      unique_ptr<Expression> &comparison_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index);
   RC bind_conjunction_expression(
-      unique_ptr<Expression> &conjunction_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
+      unique_ptr<Expression> &conjunction_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index);
   RC bind_arithmetic_expression(
-      unique_ptr<Expression> &arithmetic_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
+      unique_ptr<Expression> &arithmetic_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index);
   RC bind_aggregate_expression(
-      unique_ptr<Expression> &aggregate_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
+      unique_ptr<Expression> &aggregate_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index);
 
-  RC bind_valuelist_expression(unique_ptr<Expression> &valuelist, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant);
+  RC bind_valuelist_expression(unique_ptr<Expression> &valuelist, vector<unique_ptr<Expression>> &bound_expressions, int& max_index);
 
 private:
   BinderContext &context_;

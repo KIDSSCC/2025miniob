@@ -35,9 +35,10 @@ RC TableScanPhysicalOperator::next()
 
   bool filter_result = false;
   while (OB_SUCC(rc = record_scanner_->next(current_record_))) {
-    LOG_TRACE("got a record. rid=%s", current_record_.rid().to_string().c_str());
+    // LOG_TRACE("got a record. rid=%s", current_record_.rid().to_string().c_str());
     
     tuple_.set_record(&current_record_);
+    LOG_INFO("Table %s, get a tuple %s", table_->name(), tuple_.to_string().c_str());
 
     CompositeTuple composite_tuple;
     ValueListTuple curr_tuple;
@@ -55,6 +56,7 @@ RC TableScanPhysicalOperator::next()
       LOG_TRACE("record filtered failed=%s", strrc(rc));
       return rc;
     }
+    LOG_INFO("Filter tuple is %s, res is %d", composite_tuple.to_string().c_str(), filter_result);
 
     if (filter_result) {
       sql_debug("get a tuple: %s", tuple_.to_string().c_str());

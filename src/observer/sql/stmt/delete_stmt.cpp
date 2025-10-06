@@ -47,7 +47,7 @@ RC DeleteStmt::create(Db *db, DeleteSqlNode &delete_sql, Stmt *&stmt)
   binder_context.add_table(table);
   binder_context.set_separate(binder_context.query_tables().size());
   ExpressionBinder expression_binder(binder_context);
-  bool unused_relevant;
+  int unused_relevant = -1;
 
   // condition字段部分目前全部设置为了表达式，filterstmt中无法对表达式执行绑定，因此需要将绑定过程提到上层stmt中
   function<RC(ConditionSqlNode&, vector<unique_ptr<Expression>>&)> bind_condition_node = [&](ConditionSqlNode& condition_node, vector<unique_ptr<Expression>>& expressions) -> RC{

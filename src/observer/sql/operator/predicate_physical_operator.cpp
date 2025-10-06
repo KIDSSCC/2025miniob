@@ -46,6 +46,7 @@ RC PredicatePhysicalOperator::open(Trx *trx)
 
 RC PredicatePhysicalOperator::next()
 {
+  // 在子元祖的传递过程中，只有predicate算子是需要向两个方向set_parent，子查询在predicate这里分支
   RC                rc   = RC::SUCCESS;
   PhysicalOperator *oper = children_.back().get();
   oper->set_parent_tuple(parent_tuple_);
@@ -65,7 +66,21 @@ RC PredicatePhysicalOperator::next()
     for(size_t i=0; i<children_.size()-1;i++){
       // 子查询的project是一定能在一轮next+curr_tuple下拿到结果的
       PhysicalOperator *sub_oper = children_[i].get();
-      sub_oper->set_parent_tuple(tuple);
+
+      // 在predicate中是针对所有的子查询，无条件的将parent tuple传下去。
+      // 由子查询的project_cache根据自身是否是相关子查询来决定是否将parent tuple传到子查询底层的predicate或tableget上
+      CompositeTuple parent_tuples;
+      if(parent_tuple_ != nullptr){
+        ValueListTuple grand_tuple;
+        ValueListTuple::make(*parent_tuple_, grand_tuple);
+        parent_tuples.add_tuple(make_unique<ValueListTuple>(grand_tuple));
+      }
+      ValueListTuple parent_tuple;
+      ValueListTuple::make(*tuple, parent_tuple);
+      parent_tuples.add_tuple(make_unique<ValueListTuple>(parent_tuple));
+
+
+      sub_oper->set_parent_tuple(&parent_tuples);
       rc = sub_oper->next();
       if(rc != RC::SUCCESS){
         LOG_WARN("Failed to execute next for child oper");

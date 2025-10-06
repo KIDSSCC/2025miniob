@@ -39,7 +39,7 @@ public:
   StmtType type() const override { return StmtType::SELECT; }
 
 public:
-  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderContext* parent_bind_context = nullptr);
+  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderContext* parent_bind_context = nullptr, int* max_table_index = nullptr);
 
 public:
   const vector<Table *> &tables() const { return tables_; }

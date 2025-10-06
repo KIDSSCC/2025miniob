@@ -46,7 +46,7 @@ static void wildcard_fields(Table *table, vector<unique_ptr<Expression>> &expres
   }
 }
 
-RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant)
+RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -54,39 +54,39 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
 
   switch (expr->type()) {
     case ExprType::STAR: {
-      return bind_star_expression(expr, bound_expressions, is_relevant);
+      return bind_star_expression(expr, bound_expressions, max_index);
     } break;
 
     case ExprType::UNBOUND_FIELD: {
-      return bind_unbound_field_expression(expr, bound_expressions, is_relevant);
+      return bind_unbound_field_expression(expr, bound_expressions, max_index);
     } break;
 
     case ExprType::UNBOUND_AGGREGATION: {
-      return bind_aggregate_expression(expr, bound_expressions, is_relevant);
+      return bind_aggregate_expression(expr, bound_expressions, max_index);
     } break;
 
     case ExprType::FIELD: {
-      return bind_field_expression(expr, bound_expressions, is_relevant);
+      return bind_field_expression(expr, bound_expressions, max_index);
     } break;
 
     case ExprType::VALUE: {
-      return bind_value_expression(expr, bound_expressions, is_relevant);
+      return bind_value_expression(expr, bound_expressions, max_index);
     } break;
 
     case ExprType::CAST: {
-      return bind_cast_expression(expr, bound_expressions, is_relevant);
+      return bind_cast_expression(expr, bound_expressions, max_index);
     } break;
 
     case ExprType::COMPARISON: {
-      return bind_comparison_expression(expr, bound_expressions, is_relevant);
+      return bind_comparison_expression(expr, bound_expressions, max_index);
     } break;
 
     case ExprType::CONJUNCTION: {
-      return bind_conjunction_expression(expr, bound_expressions, is_relevant);
+      return bind_conjunction_expression(expr, bound_expressions, max_index);
     } break;
 
     case ExprType::ARITHMETIC: {
-      return bind_arithmetic_expression(expr, bound_expressions, is_relevant);
+      return bind_arithmetic_expression(expr, bound_expressions, max_index);
     } break;
 
     case ExprType::AGGREGATION: {
@@ -94,7 +94,7 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
     } break;
 
     case ExprType::VALUELIST: {
-      return bind_valuelist_expression(expr, bound_expressions, is_relevant);
+      return bind_valuelist_expression(expr, bound_expressions, max_index);
     }
 
     default: {
@@ -106,7 +106,7 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
 }
 
 RC ExpressionBinder::bind_star_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant)
+    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -125,9 +125,8 @@ RC ExpressionBinder::bind_star_expression(
       return RC::SCHEMA_TABLE_NOT_EXIST;
     }
 
-    if(index >= context_.separate()){
-      is_relevant = true;
-    }
+    // max_index记录了当前查询中所需要的表在context中的索引，用于判断当前查询是否引用到了父查询乃至祖查询中的表
+    max_index = std::max(max_index, index);
 
     tables_to_wildcard.push_back(table);
   } else {
@@ -144,7 +143,7 @@ RC ExpressionBinder::bind_star_expression(
 }
 
 RC ExpressionBinder::bind_unbound_field_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant)
+    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   // 确定未绑定字段
   if (nullptr == expr) {
@@ -172,9 +171,7 @@ RC ExpressionBinder::bind_unbound_field_expression(
       LOG_WARN("no such table in from list: %s", table_name);
       return RC::SCHEMA_TABLE_NOT_EXIST;
     }
-    if(index >= context_.separate()){
-      is_relevant = true;
-    }
+    max_index = std::max(max_index, index);
   }
 
   if (0 == strcmp(field_name, "*")) {
@@ -197,21 +194,21 @@ RC ExpressionBinder::bind_unbound_field_expression(
 }
 
 RC ExpressionBinder::bind_field_expression(
-    unique_ptr<Expression> &field_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant)
+    unique_ptr<Expression> &field_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   bound_expressions.emplace_back(std::move(field_expr));
   return RC::SUCCESS;
 }
 
 RC ExpressionBinder::bind_value_expression(
-    unique_ptr<Expression> &value_expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant)
+    unique_ptr<Expression> &value_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   bound_expressions.emplace_back(std::move(value_expr));
   return RC::SUCCESS;
 }
 
 RC ExpressionBinder::bind_cast_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant)
+    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -222,7 +219,7 @@ RC ExpressionBinder::bind_cast_expression(
   vector<unique_ptr<Expression>> child_bound_expressions;
   unique_ptr<Expression>        &child_expr = cast_expr->child();
 
-  RC rc = bind_expression(child_expr, child_bound_expressions, is_relevant);
+  RC rc = bind_expression(child_expr, child_bound_expressions, max_index);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -243,7 +240,7 @@ RC ExpressionBinder::bind_cast_expression(
 }
 
 RC ExpressionBinder::bind_comparison_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant)
+    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -255,7 +252,7 @@ RC ExpressionBinder::bind_comparison_expression(
   unique_ptr<Expression>        &left_expr  = comparison_expr->left();
   unique_ptr<Expression>        &right_expr = comparison_expr->right();
 
-  RC rc = bind_expression(left_expr, child_bound_expressions, is_relevant);
+  RC rc = bind_expression(left_expr, child_bound_expressions, max_index);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -271,7 +268,7 @@ RC ExpressionBinder::bind_comparison_expression(
   }
 
   child_bound_expressions.clear();
-  rc = bind_expression(right_expr, child_bound_expressions, is_relevant);
+  rc = bind_expression(right_expr, child_bound_expressions, max_index);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -291,7 +288,7 @@ RC ExpressionBinder::bind_comparison_expression(
 }
 
 RC ExpressionBinder::bind_valuelist_expression(unique_ptr<Expression> &expr,
-   vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant)
+   vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -300,7 +297,7 @@ RC ExpressionBinder::bind_valuelist_expression(unique_ptr<Expression> &expr,
   auto valuelist_expr = static_cast<ValueListExpr *>(expr.get());
   vector<unique_ptr<Expression>> child_bound_expressions;
   for(size_t i=0;i<valuelist_expr->vec_.size();i++){
-    RC rc = bind_expression(valuelist_expr->vec_[i], child_bound_expressions, is_relevant);
+    RC rc = bind_expression(valuelist_expr->vec_[i], child_bound_expressions, max_index);
     if (rc != RC::SUCCESS) {
       return rc;
     }
@@ -322,7 +319,7 @@ RC ExpressionBinder::bind_valuelist_expression(unique_ptr<Expression> &expr,
 }
 
 RC ExpressionBinder::bind_conjunction_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant)
+    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -336,7 +333,7 @@ RC ExpressionBinder::bind_conjunction_expression(
   for (unique_ptr<Expression> &child_expr : children) {
     child_bound_expressions.clear();
 
-    RC rc = bind_expression(child_expr, child_bound_expressions, is_relevant);
+    RC rc = bind_expression(child_expr, child_bound_expressions, max_index);
     if (rc != RC::SUCCESS) {
       return rc;
     }
@@ -358,7 +355,7 @@ RC ExpressionBinder::bind_conjunction_expression(
 }
 
 RC ExpressionBinder::bind_arithmetic_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant)
+    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -370,7 +367,7 @@ RC ExpressionBinder::bind_arithmetic_expression(
   unique_ptr<Expression>        &left_expr  = arithmetic_expr->left();
   unique_ptr<Expression>        &right_expr = arithmetic_expr->right();
 
-  RC rc = bind_expression(left_expr, child_bound_expressions, is_relevant);
+  RC rc = bind_expression(left_expr, child_bound_expressions, max_index);
   if (OB_FAIL(rc)) {
     return rc;
   }
@@ -388,7 +385,7 @@ RC ExpressionBinder::bind_arithmetic_expression(
   child_bound_expressions.clear();
   if(right_expr != nullptr){
     // 一元表达式如取负，可能不存在右值
-    rc = bind_expression(right_expr, child_bound_expressions, is_relevant);
+    rc = bind_expression(right_expr, child_bound_expressions, max_index);
     if (OB_FAIL(rc)) {
       return rc;
     }
@@ -456,7 +453,7 @@ RC check_aggregate_expression(AggregateExpr &expression)
 }
 
 RC ExpressionBinder::bind_aggregate_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, bool& is_relevant)
+    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -484,7 +481,7 @@ RC ExpressionBinder::bind_aggregate_expression(
     ValueExpr *value_expr = new ValueExpr(Value(1));
     child_expr.reset(value_expr);
   } else {
-    rc = bind_expression(child_expr, child_bound_expressions, is_relevant);
+    rc = bind_expression(child_expr, child_bound_expressions, max_index);
     if (OB_FAIL(rc)) {
       return rc;
     }
