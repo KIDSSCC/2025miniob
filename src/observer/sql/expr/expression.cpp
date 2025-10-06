@@ -384,6 +384,27 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     }
   }
   else{
+    if(comp_ < IN_T){
+      if(left_->type() >= ExprType::VALUELIST){
+        bool left_is_scalar;
+        rc = left_->check_scalar(left_is_scalar);
+        // LOG_INFO("left is valuelist, check scalar is %d", left_is_scalar);
+        if(rc != RC::SUCCESS || !left_is_scalar){
+          LOG_WARN("Failed to check scalar or left is not scalar");
+          return RC::INTERNAL;
+        }
+      }
+      if(right_->type() >= ExprType::VALUELIST){
+        bool right_is_scalar;
+        rc = right_->check_scalar(right_is_scalar);
+        // LOG_INFO("right is valuelist, check scalar is %d", right_is_scalar);
+        if(rc != RC::SUCCESS || !right_is_scalar){
+          LOG_WARN("Failed to check scalar or right is not scalar");
+          return RC::INTERNAL;
+        }
+      }
+    }
+
     // 左值右值均有可能出现valuelist
     vector<Value> left_values;
     vector<Value> right_values;
