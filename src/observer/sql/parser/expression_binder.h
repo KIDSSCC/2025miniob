@@ -22,6 +22,11 @@ public:
   BinderContext()          = default;
   virtual ~BinderContext() = default;
 
+  BinderContext(const BinderContext &other): query_tables_(other.query_tables_), separate_(other.separate_)           // 拷贝标量成员
+  {
+    // 浅拷贝指针，深拷贝容器
+  }
+
   void add_table(Table *table) { query_tables_.push_back(table); }
   void set_separate(int separate) { separate_ = separate; }
 

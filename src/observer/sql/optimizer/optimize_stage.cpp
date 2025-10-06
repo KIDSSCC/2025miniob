@@ -77,7 +77,7 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
       return rc;
     }
   }
-
+  
   // LOG_INFO("Physical Operator Tree");
   // physical_operator->print_tree();
   sql_event->set_operator(std::move(physical_operator));

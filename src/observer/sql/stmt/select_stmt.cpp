@@ -99,6 +99,8 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
     tables.push_back(table);
     table_map.insert({table_name, table});
   }
+
+  BinderContext only_oneself_context(binder_context);
   // binder_context中以separate作为分界线，前一部分为子查询相关的表，后一部分为父查询相关的表
   binder_context.set_separate(binder_context.query_tables().size());
   if(parent_bind_context){
@@ -130,7 +132,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
         // 对子查询表达式的特殊绑定: 子查询表达式生成一个单独的语句，保存在expr中
         Stmt *sub_select_stmt = nullptr;
         Expression* expr = expr_node.get();
-        rc = SelectStmt::create(db, static_cast<SelectPackExpr*>(expr)->get_node(), sub_select_stmt, &binder_context);
+        rc = SelectStmt::create(db, static_cast<SelectPackExpr*>(expr)->get_node(), sub_select_stmt, &only_oneself_context);
         if(rc != RC::SUCCESS){
           LOG_WARN("Failed to create sub select node");
           return rc;
