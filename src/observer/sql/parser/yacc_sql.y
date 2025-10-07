@@ -142,6 +142,7 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
         ORDER
         ASC
         DESC
+        AS
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -378,6 +379,9 @@ create_table_stmt:    /*create table 语句的语法解析树*/
         create_table.storage_format = $8;
       }
     }
+    // | CREATE TABLE ID AS select_stmt{
+
+    // }
     ;
     
 attr_def_list:

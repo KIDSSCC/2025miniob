@@ -35,10 +35,10 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   const string &sql        = sql_event->sql();
 
   // DEBUG
-  // std::string sub = "select * from csq_1 where feat1 > (select min(csq_2.feat2) from csq_2 where csq_2.id in (select csq_3.id from csq_3 where csq_3.col3 <> (select csq_4.col4 from csq_4 where csq_4.id <> csq_1.id)));";
-  // if(sql == sub){
-  //   sql_event->set_sql("select * from kidsscc");
-  // }
+  std::string sub = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=7) WHERE col1=1 and col2=2;";
+  if(sql == sub){
+    sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=7");
+  }
 
   ParsedSqlResult parsed_sql_result;
 
