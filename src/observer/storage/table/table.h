@@ -78,7 +78,7 @@ public:
    */
   RC make_record(int value_num, const Value *values, Record &record);
 
-  RC make_record_from_record(const Record &src_record, Record &dest_record, int field_idx, const Value *new_value);
+  RC make_record_from_record(const Record &src_record, Record &dest_record, vector<int> field_idx, vector<Value>& new_value);
 
   /**
    * @brief 在当前的表中插入一条记录

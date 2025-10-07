@@ -25,6 +25,9 @@ class FilterStmt;
 class Db;
 class Table;
 
+void manual_destruction(SelectStmt* stmt);
+void manual_destruction(FilterStmt* stmt);
+
 /**
  * @brief 表示select语句
  * @ingroup Statement

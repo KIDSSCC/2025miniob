@@ -265,16 +265,18 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     function<RC(unique_ptr<Expression>&)> generate_sub_node = [&](unique_ptr<Expression>& expr) -> RC{
       if(expr->type() == ExprType::SELECT_T){
         // 在表达式中记录子查询节点在目标算子中的索引位置，便于后期从tuple中获取元素
-        // 这里设置pos需要定位到底层的SelectExpr上
+        // 这里设置SelectPackExpr的pos为-1，底层SelectExpr的pos为真实索引。代表从composite中截取的片段的位置。（另一种情况再在update部分说明）
         unique_ptr<LogicalOperator> sub_query_node;
+        static_cast<SelectPackExpr*>(expr.get())->set_pos(-1);
         static_cast<SelectPackExpr*>(expr.get())->select_expr_->set_pos(sub_querys.size());
+        
         SelectStmt* sub_stmt = static_cast<SelectPackExpr*>(expr.get())->select_expr_->select_stmt_.get();
         RC rc = create_plan(sub_stmt, sub_query_node, true);
         sub_querys.emplace_back(std::move(sub_query_node));
         if(rc != RC::SUCCESS){
           LOG_WARN("Failed to create plan for sub query");
+          return rc;
         }
-        return rc;
       }
       return RC::SUCCESS;
     };
@@ -473,8 +475,8 @@ RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, unique_ptr<Logical
 
   Table* table = update_stmt->table();
   FilterStmt* filter_stmt = update_stmt->filter_stmt();
-  int field_index = update_stmt->value_amount();
-  const Value* value = update_stmt->values();
+  vector<int> field_index = update_stmt->value_amount();
+  vector<unique_ptr<Expression>>& value = update_stmt->values();
 
   unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
   unique_ptr<LogicalOperator> predicate_oper;
@@ -485,7 +487,31 @@ RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, unique_ptr<Logical
     return rc;
   }
 
+  // value调整为表达式后，需要针对其中的子查询生成分支节点
+  vector<unique_ptr<LogicalOperator>> sub_querys;
+  for(size_t i=0;i<value.size();i++){
+    unique_ptr<Expression>& expr = value[i];
+    if(expr->type() == ExprType::SELECT_T){
+      // 与filter中的情况相对，此处的子查询设置SelectPackExpr的索引为pos，底层SelectExpr的索引为-1，代表届时传递为get_valuelist的tuple是由当前子查询独享
+      static_cast<SelectPackExpr*>(expr.get())->set_pos(sub_querys.size());
+      static_cast<SelectPackExpr*>(expr.get())->select_expr_->set_pos(-1);
+
+      unique_ptr<LogicalOperator> sub_query_node;
+      SelectStmt* sub_stmt = static_cast<SelectPackExpr*>(expr.get())->select_expr_->select_stmt_.get();
+      RC rc = create_plan(sub_stmt, sub_query_node, true);
+      sub_querys.emplace_back(std::move(sub_query_node));
+      if(rc != RC::SUCCESS){
+        LOG_WARN("Failed to create plan for sub query");
+        return rc;
+      }
+    }
+  }
+
+  // 子查询的project_cache接入update作为分支
   unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, field_index, value));
+  for(size_t i=0;i<sub_querys.size();i++){
+    update_oper->add_child(std::move(sub_querys[i]));
+  }
 
   if (predicate_oper) {
     predicate_oper->add_child(std::move(table_get_oper));

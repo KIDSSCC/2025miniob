@@ -304,7 +304,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   return RC::SUCCESS;
 }
 
-RC Table::make_record_from_record(const Record &src_record, Record &dest_record, int field_idx, const Value *new_value)
+RC Table::make_record_from_record(const Record &src_record, Record &dest_record, vector<int> field_idx, vector<Value>& new_value)
 {
   RC rc = RC::SUCCESS;
   dest_record.copy_data(src_record.data(), src_record.len()); // 先拷贝旧的record
@@ -312,31 +312,37 @@ RC Table::make_record_from_record(const Record &src_record, Record &dest_record,
   const int normal_field_start_index = table_meta_.sys_field_num();
   const FieldMeta * null_bit_field = table_meta_.field(normal_field_start_index - 1);
 
+  // 记录更新后的新record中的null情况
   Value null_bitmap;
   null_bitmap.reset();
   null_bitmap.set_type(AttrType::CHARS);
   null_bitmap.set_data(dest_record.data() + null_bit_field->offset(), null_bit_field->len());
 
-  if(new_value->is_null()){
-    null_bitmap.set_bitmap(field_idx - normal_field_start_index, true);
-  }
+  for(size_t i=0;i<field_idx.size();i++){
+    int idx = field_idx[i];
+    Value& new_val = new_value[i];
 
-  const FieldMeta *field = table_meta_.field(field_idx);
-  if(new_value->is_null() && !field->allow_null()){
-    LOG_DEBUG("update set null in a field which is not allowed null");
-    return RC::INVALID_ARGUMENT;
-  }
-
-  if(field->type() != new_value->attr_type()){
-    Value real_value;
-    rc = Value::cast_to(*new_value, field->type(), real_value);
-    if (OB_FAIL(rc)) {
-        LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
-            table_meta_.name(), field->name(), (*new_value).to_string().c_str());
+    if(new_val.is_null()){
+      null_bitmap.set_bitmap(idx - normal_field_start_index, true);
     }
-    rc = set_value_to_record(dest_record.data(), real_value, field);
-  } else {
-    rc = set_value_to_record(dest_record.data(), *new_value, field);
+
+    const FieldMeta *field = table_meta_.field(idx);
+    if(new_val.is_null() && !field->allow_null()){
+      LOG_DEBUG("update set null in a field which is not allowed null");
+      return RC::INVALID_ARGUMENT;
+    }
+
+    if(field->type() != new_val.attr_type()){
+      Value real_value;
+      rc = Value::cast_to(new_val, field->type(), real_value);
+      if (OB_FAIL(rc)) {
+        LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
+              table_meta_.name(), field->name(), new_val.to_string().c_str());
+      }
+      rc = set_value_to_record(dest_record.data(), real_value, field);
+    }else{
+      rc = set_value_to_record(dest_record.data(), new_val, field);
+    }
   }
 
   rc = set_value_to_record(dest_record.data(), null_bitmap, null_bit_field);

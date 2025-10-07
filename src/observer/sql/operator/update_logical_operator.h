@@ -23,17 +23,17 @@ See the Mulan PSL v2 for more details. */
 class UpdateLogicalOperator : public LogicalOperator
 {
 public:
-  UpdateLogicalOperator(Table *table, int field_index, const Value *update_value);
+  UpdateLogicalOperator(Table *table, vector<int> field_index, vector<unique_ptr<Expression>>& update_value);
   virtual ~UpdateLogicalOperator() = default;
 
   LogicalOperatorType type() const override { return LogicalOperatorType::UPDATE; }
   OpType              get_op_type() const override { return OpType::LOGICALUPDATE; }
   Table              *table() const { return table_; }
-  int                 field_index() const { return field_index_; }
-  const Value*       value() const { return update_value; }
+  vector<int>                           field_index() const { return field_index_; }
+  vector<unique_ptr<Expression>>&       value()  { return update_value_; }
 
 private:
   Table *table_ = nullptr;
-  int  field_index_ = -1;
-  const Value* update_value = nullptr;
+  vector<int>  field_index_;
+  vector<unique_ptr<Expression>> update_value_;
 };

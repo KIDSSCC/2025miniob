@@ -58,7 +58,7 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
   unique_ptr<PhysicalOperator> physical_operator;
   
   // LOG_INFO("Logical Operator Tree");
-  logical_operator->print_tree();
+  // logical_operator->print_tree();
   // cascade级联选项是通过set语句手动启用的，一般可能用不上
   if (sql_event->session_event()->session()->use_cascade()) {
     physical_operator = optimizer.optimize(logical_operator.get());
@@ -79,7 +79,7 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
   }
   
   // LOG_INFO("Physical Operator Tree");
-  physical_operator->print_tree();
+  // physical_operator->print_tree();
   sql_event->set_operator(std::move(physical_operator));
 
   return rc;

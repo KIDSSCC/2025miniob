@@ -26,7 +26,7 @@ class UpdateStmt;
 class UpdatePhysicalOperator : public PhysicalOperator
 {
 public:
-  UpdatePhysicalOperator(Table *table, Value new_value, int field_idx) : table_(table), new_value_(std::move(new_value)), field_index_(field_idx) {}
+  UpdatePhysicalOperator(Table *table, vector<unique_ptr<Expression>>& new_value, vector<int> field_idx) : table_(table), new_expr_(std::move(new_value)), field_index_(field_idx) {}
 
   virtual ~UpdatePhysicalOperator() = default;
 
@@ -46,6 +46,6 @@ private:
   // 经过滤语句过滤后，需要处理的record
   vector<Record> records_;
 
-  Value new_value_;
-  int field_index_;
+  vector<unique_ptr<Expression>> new_expr_;
+  vector<int> field_index_;
 };

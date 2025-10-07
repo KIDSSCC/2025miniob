@@ -161,6 +161,8 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
   vector<RelAttrSqlNode> *                   rel_attr_list;
   vector<string> *                           relation_list;
   vector<string> *                           key_list;
+  pair<string, Expression*>*                  assign;
+  vector<pair<string, Expression*>>*          assign_list;
   char *                                     cstring;
   int                                        number;
   float                                      floats;
@@ -211,6 +213,8 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
 %type <order_list>          order_expr_list
 %type <order_list>          order_expr
 %type <expression_list>     group_by
+%type <assign>              assign
+%type <assign_list>         assign_list
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
 %type <sql_node>            insert_stmt
@@ -514,6 +518,26 @@ storage_format:
       $$ = $4;
     }
     ;
+
+assign_list:
+    assign
+    {
+      $$ = new vector<pair<string, Expression*>>;
+      $$->emplace_back(*$1);
+      delete $1;
+    }
+    | assign COMMA assign_list
+    {
+      $$ = $3;
+      $$->emplace_back(*$1);
+      delete $1;
+    }
+
+assign:
+    ID EQ expression
+    {
+      $$ = new pair<string, Expression*>($1, $3);
+    }
     
 delete_stmt:    /*  delete 语句的语法解析树*/
     DELETE FROM ID where 
@@ -527,20 +551,37 @@ delete_stmt:    /*  delete 语句的语法解析树*/
     }
     ;
 update_stmt:      /*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ value where 
+    UPDATE ID SET assign_list where 
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
       $$->update.relation_name = $2;
-      $$->update.attribute_name = $4;
-      $$->update.value = *$6;
-      if ($7 != nullptr) {
-        $$->update.conditions.swap(*$7);
-        delete $7;
+      for(size_t i=0;i<(*$4).size();i++){
+        $$->update.attribute_names.push_back((*$4)[i].first);
+        $$->update.values.push_back(unique_ptr<Expression>((*$4)[i].second));
+        (*$4)[i].second = nullptr;
       }
+      delete $4;
 
-      delete $6;
+      if ($5 != nullptr){
+        $$->update.conditions.swap(*$5);
+        delete $5;
+      }
     }
     ;
+    // UPDATE ID SET ID EQ value where 
+    // {
+    //   $$ = new ParsedSqlNode(SCF_UPDATE);
+    //   $$->update.relation_name = $2;
+    //   $$->update.attribute_name = $4;
+    //   $$->update.value = *$6;
+    //   if ($7 != nullptr) {
+    //     $$->update.conditions.swap(*$7);
+    //     delete $7;
+    //   }
+
+    //   delete $6;
+    // }
+    // ;
 select_stmt:        /*  select 语句的语法解析树*/
     SELECT expression_list FROM relation_node where group_by have order_by
     {

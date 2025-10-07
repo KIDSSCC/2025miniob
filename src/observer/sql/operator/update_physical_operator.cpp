@@ -19,14 +19,63 @@ See the Mulan PSL v2 for more details. */
 
 RC UpdatePhysicalOperator::open(Trx *trx)
 {
+  RC rc = RC::SUCCESS;
   if (children_.empty()) {
-    return RC::SUCCESS;
+    return rc;
   }
 
-  // update语句和delete语句一定会带有一个过滤节点。如果where字段为空，则过滤语句也为空，此时将不对记录进行过滤，返回表中全部的记录
-  unique_ptr<PhysicalOperator> &child = children_[0];
+  // 调整之后的update，子节点中的最后一个，是tableget或predicate，排在前面的依次是新值中的子查询
+  // update的方案是先把所有的value确定下来，再依次调用tableget从底层获取record，修改record，写回
+  vector<Value> new_values;
+  for(size_t i=0;i<new_expr_.size();i++){
+    unique_ptr<Expression>& expr = new_expr_[i];
+    if(expr->type() == ExprType::SELECT_T){
+      // 子查询,需要先通过子节点拿到tuple，将tuple解析成值列表
+      int node_pos = expr->pos();
+      unique_ptr<PhysicalOperator>& sub_oper = children_[node_pos];
+      rc = sub_oper->open(trx);
+      if(rc != RC::SUCCESS){
+        LOG_WARN("Failed to execute open for child oper");
+        return rc;
+      }
 
-  RC rc = child->open(trx);
+      rc = sub_oper->next();
+      if(rc != RC::SUCCESS){
+        LOG_WARN("Failed to execute next for child oper");
+        return rc;
+      }
+
+      Tuple* sub_tuple = sub_oper->current_tuple();
+      if (nullptr == sub_tuple) {
+        LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
+        return RC::INTERNAL;
+      }
+
+      vector<Value> valuelist;
+      expr->get_valuelist(*sub_tuple, valuelist);
+
+      if(valuelist.size() != 1){
+        LOG_WARN("The number of results returned by the subquery is not 1");
+        sub_oper->close();
+        return RC::INTERNAL;
+      }
+
+      // 返回的valuelist中仅有一个元素，是合理的情况
+      new_values.emplace_back(std::move(valuelist[0]));
+
+    }else{
+      // 一般表达式, 通常情况下不会和某一字段产生联系，先尝试使用try_get_value获取其值
+      Value curr_value;
+      expr->try_get_value(curr_value);
+      new_values.emplace_back(std::move(curr_value));
+    }
+  }
+
+
+  // update语句和delete语句一定会带有一个过滤节点。如果where字段为空，则过滤语句也为空，此时将不对记录进行过滤，返回表中全部的记录
+  unique_ptr<PhysicalOperator> &child = children_.back();
+
+  rc = child->open(trx);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to open child operator: %s", strrc(rc));
     return rc;
@@ -53,7 +102,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   for (Record &record : records_) {
     // 根据旧的record创建新的record
     Record new_record;
-    rc = table_->make_record_from_record(record, new_record, field_index_, &new_value_);
+    rc = table_->make_record_from_record(record, new_record, field_index_, new_values);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to make record from record: %s", strrc(rc));
       return rc;

@@ -1054,7 +1054,16 @@ RC SelectExpr::get_valuelist(const Tuple &tuple, vector<Value> &values) const {
   // 先根据pos，从tuple中解析出对应自身子查询部分的composite tuple, 实质已经被封装成了valuelistetuple
   if(tuple.type() == TupleType::COMPOSITE){
     const CompositeTuple& origin_tuple = static_cast<const CompositeTuple&>(tuple);
-    Tuple* sub_tuple = origin_tuple.get_part(this->pos_);
+
+    const Tuple* sub_tuple = nullptr;
+    if(this->pos_ == -1){
+      // pos为-1，说明是从update路线传过来的，此时tuple的结构为 tuple(Composite) -> (valuelist, valuelist, ...)。当前tuple中的所有元素由本SelectExpr独占
+      sub_tuple = &origin_tuple;
+    }else{
+      // pos为非负，说明是从predicate路线传过来的，此时tuple的结构为 tuple(Composite) -> (Composite, Composite, ...) -> ((valuelist, valuelist...), (valuelist, valuelist...),...)
+      // 本SelectExpr需要先解析出属于自己的二级Composite
+      sub_tuple = origin_tuple.get_part(this->pos_);
+    }
   
     // sub_tuple_内部理论上应该为若干valuelisttuple，对应子查询的每一个结果，直接解析结果即可
     int cell_num = sub_tuple->cell_num();

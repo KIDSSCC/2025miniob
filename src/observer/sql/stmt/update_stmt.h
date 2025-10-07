@@ -28,7 +28,7 @@ class FilterStmt;
 class UpdateStmt : public Stmt
 {
 public:
-  UpdateStmt(Table *table, const Value *values, int value_amount, FilterStmt *filter_stmt);
+  UpdateStmt(Table *table, vector<unique_ptr<Expression>>& values, vector<int> value_amount, FilterStmt *filter_stmt);
   ~UpdateStmt() override;
 
 public:
@@ -37,13 +37,13 @@ public:
 
 public:
   Table *table() const { return table_; }
-  const Value *values() const { return values_; }
-  int    value_amount() const { return value_amount_; }
+  vector<unique_ptr<Expression>>& values() { return values_; }
+  vector<int> value_amount() { return value_amount_; }
   FilterStmt *filter_stmt() const { return filter_stmt_; }
 
 private:
   Table *table_        = nullptr;
-  const Value *values_       = nullptr;
-  int    value_amount_ = 0;
+  vector<unique_ptr<Expression>> values_;
+  vector<int> value_amount_;
   FilterStmt *filter_stmt_ = nullptr;
 };

@@ -200,8 +200,11 @@ struct DeleteSqlNode
 struct UpdateSqlNode
 {
   string                   relation_name;   ///< Relation to update
-  string                   attribute_name;  ///< 更新的字段，仅支持一个字段
-  Value                    value;           ///< 更新的值，仅支持一个字段
+  // string                   attribute_name;  ///< 更新的字段，仅支持一个字段
+  // Value                    value;           ///< 更新的值，仅支持一个字段
+  // update调整为支持多个字段，且赋值支持表达式和子查询
+  vector<string>          attribute_names;
+  vector<unique_ptr<Expression>> values;
   vector<ConditionSqlNode> conditions;
 };
 

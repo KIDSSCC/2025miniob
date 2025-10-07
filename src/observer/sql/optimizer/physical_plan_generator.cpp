@@ -314,27 +314,30 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique
 {
   vector<unique_ptr<LogicalOperator>> &child_opers = update_oper.children();
 
-  unique_ptr<PhysicalOperator> child_physical_oper;
-
   RC rc = RC::SUCCESS;
-  if (!child_opers.empty()) {
-    LogicalOperator *child_oper = child_opers.front().get();
+  vector<unique_ptr<PhysicalOperator>> all_children_oper;
+  for(size_t i=0;i<child_opers.size();i++){
+    LogicalOperator &child_oper = *child_opers[i];
+    unique_ptr<PhysicalOperator> child_phy_oper;
 
-    rc = create(*child_oper, child_physical_oper, session);
+    rc = create(child_oper, child_phy_oper, session);
     if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to create physical operator. rc=%s", strrc(rc));
+      LOG_WARN("failed to create child operator of predicate operator. rc=%s", strrc(rc));
       return rc;
     }
+    all_children_oper.emplace_back(std::move(child_phy_oper));
   }
+  
 
   Table* table = update_oper.table();
-  int field_idx = update_oper.field_index();
-  Value* new_value = const_cast<Value*>(update_oper.value());
-  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(table, *new_value, field_idx));
+  vector<int> field_idx = update_oper.field_index();
+  vector<unique_ptr<Expression>>& new_value = update_oper.value();
+  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(table, new_value, field_idx));
 
-  if (child_physical_oper) {
-    oper->add_child(std::move(child_physical_oper));
+  for(size_t i=0;i<all_children_oper.size();i++){
+    oper->add_child(std::move(all_children_oper[i]));
   }
+  
   return rc;
 }
 

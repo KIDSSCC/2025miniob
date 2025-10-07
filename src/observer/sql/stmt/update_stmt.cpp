@@ -15,12 +15,15 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/update_stmt.h"
 #include "common/log/log.h"
 #include "sql/stmt/filter_stmt.h"
+#include "sql/stmt/select_stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 
-UpdateStmt::UpdateStmt(Table *table, const Value *values, int value_amount, FilterStmt *filter_stmt)
-    : table_(table), values_(values), value_amount_(value_amount), filter_stmt_(filter_stmt)
-{}
+UpdateStmt::UpdateStmt(Table *table, vector<unique_ptr<Expression>>& values, vector<int> value_amount, FilterStmt *filter_stmt)
+    : table_(table), value_amount_(value_amount), filter_stmt_(filter_stmt)
+{
+  values_ = std::move(values);
+}
 
 UpdateStmt::~UpdateStmt()
 {
@@ -46,27 +49,74 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
   }
 
   // 确定更新的字段在表中的位置
-  int field_index = -1;
+  vector<int> field_indexs;
   const vector<FieldMeta>* field_matas = table->table_meta().field_metas();
-
-  for(int i=0;i<(int)((*field_matas).size());i++) {
-    auto field_meta = (*field_matas)[i];
-    if (0 == strcmp(field_meta.name(), update.attribute_name.c_str())) {
-      field_index = i;
-      break;
+  
+  for(size_t i=0;i<update.attribute_names.size();i++){
+    int field_index = -1;
+    for(int j=0;j<(int)((*field_matas).size());j++) {
+      auto field_meta = (*field_matas)[j];
+      if (0 == strcmp(field_meta.name(), update.attribute_names[i].c_str())) {
+        field_index = j;
+        break;
+      }
     }
-  }
-  if(field_index < 0) {
-    LOG_ERROR("no such field. table=%s, field=%s", table_name, update.attribute_name.c_str());
-    return RC::SCHEMA_FIELD_NOT_EXIST;
+    if(field_index < 0) {
+      LOG_ERROR("no such field. table=%s, field=%s", table_name, update.attribute_names[i].c_str());
+      return RC::SCHEMA_FIELD_NOT_EXIST;
+    }
+    field_indexs.push_back(field_index);
   }
 
   BinderContext binder_context;
   binder_context.add_table(table);
   binder_context.set_separate(binder_context.query_tables().size());
   ExpressionBinder expression_binder(binder_context);
-  int unused_relevant = -1;
 
+  RC rc = RC::SUCCESS;
+  int unused_max_table;
+  // 更新后的新值由单一的value调整为表达式vector，需要单独进行绑定
+  for(size_t i=0;i<update.values.size();i++){
+    unique_ptr<Expression>& curr_value = update.values[i];
+    if(curr_value->type() == ExprType::SELECT_T){
+      // 生成子查询语句
+      Stmt *sub_select_stmt = nullptr;
+      Expression* expr = curr_value.get();
+      rc = SelectStmt::create(db, static_cast<SelectPackExpr*>(expr)->get_node(), sub_select_stmt, &binder_context, &unused_max_table);
+      if(rc != RC::SUCCESS){
+        LOG_WARN("Failed to create sub select node");
+        return rc;
+      }
+
+      std::unique_ptr<SelectStmt, void(*)(SelectStmt*)> raw(static_cast<SelectStmt*>(sub_select_stmt), manual_destruction);
+      bool is_scalar = false;
+      if(raw->query_expressions().size() == 1){
+        if(raw->query_expressions()[0]->type() == ExprType::AGGREGATION){
+          // 子查询的查询字段仅有一个聚合字段时，标记该子查询为标量子查询
+          is_scalar = true;
+        }
+      }
+      static_cast<SelectPackExpr*>(expr)->select_expr_->value_type_ = raw->get_type();
+      static_cast<SelectPackExpr*>(expr)->select_expr_->select_stmt_ = std::move(raw);
+      static_cast<SelectPackExpr*>(expr)->select_expr_->is_scalar_ = is_scalar;
+    }else{
+      // 绑定一般表达式
+      vector<unique_ptr<Expression>> expressions;
+      rc = expression_binder.bind_expression(curr_value, expressions, unused_max_table);
+      if (OB_FAIL(rc)) {
+        LOG_WARN("bind expression failed. rc=%s", strrc(rc));
+        return rc;
+      }
+      // 替换左值表达式
+      unique_ptr<Expression> &left = expressions[0];
+      if (left.get() != curr_value.get()) {
+        curr_value.reset(left.release());
+      }
+      expressions.clear();
+    }
+  }
+
+  int unused_relevant = -1;
   // condition字段部分目前全部设置为了表达式，filterstmt中无法对表达式执行绑定，因此需要将绑定过程提到上层stmt中
   function<RC(ConditionSqlNode&, vector<unique_ptr<Expression>>&)> bind_condition_node = [&](ConditionSqlNode& condition_node, vector<unique_ptr<Expression>>& expressions) -> RC{
     function<RC(int, unique_ptr<Expression>&)> check_expr =[&] (int is_attr, unique_ptr<Expression>& expr_node) -> RC{
@@ -124,7 +174,7 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
   table_map.insert(pair<string, Table *>(string(table_name), table));
 
   FilterStmt *filter_stmt = nullptr;
-  RC          rc          = FilterStmt::create(
+  rc          = FilterStmt::create(
       db, table, &table_map, update.conditions.data(), static_cast<int>(update.conditions.size()), filter_stmt);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create filter statement. rc=%d:%s", rc, strrc(rc));
@@ -132,6 +182,6 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
   }
 
 
-  stmt = new UpdateStmt(table, &update.value, field_index, filter_stmt);
+  stmt = new UpdateStmt(table, update.values, field_indexs, filter_stmt);
   return rc;
 }
