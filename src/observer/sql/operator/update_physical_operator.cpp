@@ -60,7 +60,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         return RC::INTERNAL;
       }
 
-      if(new_values.empty()){
+      if(valuelist.empty()){
         // valuelist为空集，此时目标字段更新为NULL
         Value null_value;
         null_value.set_type(AttrType::UNDEFINED);
