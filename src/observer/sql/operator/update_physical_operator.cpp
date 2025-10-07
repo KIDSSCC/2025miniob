@@ -54,11 +54,11 @@ RC UpdatePhysicalOperator::open(Trx *trx)
       vector<Value> valuelist;
       expr->get_valuelist(*sub_tuple, valuelist);
 
-      if(valuelist.size() > 1){
-        LOG_WARN("The number of results returned by the subquery is not 1");
-        sub_oper->close();
-        return RC::INTERNAL;
-      }
+      // if(valuelist.size() > 1){
+      //   LOG_WARN("The number of results returned by the subquery is not 1");
+      //   sub_oper->close();
+      //   return RC::INTERNAL;
+      // }
 
       if(valuelist.empty()){
         // valuelist为空集，此时目标字段更新为NULL
@@ -70,7 +70,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         // 返回的valuelist中仅有一个元素，是合理的情况
         new_values.emplace_back(std::move(valuelist[0]));
       }
-
+      sub_oper->close();
 
     }else{
       // 一般表达式, 通常情况下不会和某一字段产生联系，先尝试使用try_get_value获取其值
