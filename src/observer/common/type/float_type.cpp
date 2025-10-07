@@ -99,3 +99,23 @@ int FloatType::cast_cost(AttrType type)
   }
   return INT32_MAX;
 }
+
+RC FloatType::cast_to(const Value &val, AttrType type, Value &result) const
+{
+  switch (type) {
+  case AttrType::INTS: {
+    int int_val = val.get_float();
+    result.set_int(int_val);
+    return RC::SUCCESS;
+  }
+  case AttrType::CHARS: {
+    float origin_val = val.get_float();
+    string char_val = std::to_string(origin_val);
+    result.set_string(char_val.c_str(), char_val.size());
+    return RC::SUCCESS;
+  }
+  default:
+    LOG_WARN("unsupported type %d", type);
+    return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+  }
+}

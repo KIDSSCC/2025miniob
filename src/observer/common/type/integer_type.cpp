@@ -36,6 +36,12 @@ RC IntegerType::cast_to(const Value &val, AttrType type, Value &result) const
     result.set_float(float_value);
     return RC::SUCCESS;
   }
+  case AttrType::CHARS: {
+    int origin_val = val.get_int();
+    string char_val = std::to_string(origin_val);
+    result.set_string(char_val.c_str(), char_val.size());
+    return RC::SUCCESS;
+  }
   default:
     LOG_WARN("unsupported type %d", type);
     return RC::SCHEMA_FIELD_TYPE_MISMATCH;
