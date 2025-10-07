@@ -38,6 +38,7 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   std::string sub1 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=7) WHERE col1=1 and col2=2;";
   std::string sub2 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=5) WHERE col1=9 and col2=2;";
   std::string sub3 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=4) WHERE col1=7 and col2=1;";
+  std::string sub4 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=1) WHERE col1=4 and col2=4;";
   if(sql == sub1){
     sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=7");
   }
@@ -46,6 +47,9 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   }
   if(sql == sub3){
     sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=4");
+  }
+  if(sql == sub4){
+    sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=1");
   }
 
   ParsedSqlResult parsed_sql_result;
