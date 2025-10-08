@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/sys/rc.h"
 
 std::string SupplyInfo::info = "";
+bool SupplyInfo::sign = false;
 
 const char *strrc(RC rc)
 {

@@ -102,4 +102,5 @@ extern bool OB_FAIL(RC rc);
 class SupplyInfo{
 public:
   static std::string info;
+  static bool sign;
 };
