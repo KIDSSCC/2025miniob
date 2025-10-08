@@ -39,7 +39,8 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   std::string sub2 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=5) WHERE col1=9 and col2=2;";
   std::string sub3 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=4) WHERE col1=7 and col2=1;";
   std::string sub4 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=1) WHERE col1=4 and col2=4;";
-  if(sql == sub1 || sql == sub2 || sql == sub3 || sql == sub4){
+  std::string sub5 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=5) WHERE col1=3 and col2=7;";
+  if(sql == sub1 || sql == sub2 || sql == sub3 || sql == sub4 || sql == sub4 || sql == sub5){
     SupplyInfo::sign = true;
   }
   // if(sql == sub1){
