@@ -34,6 +34,7 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   SqlResult         *sql_result = sql_event->session_event()->sql_result();
   const string &sql        = sql_event->sql();
 
+  LOG_ERROR("error test");
   // DEBUG
   std::string sub1 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=7) WHERE col1=1 and col2=2;";
   std::string sub2 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=5) WHERE col1=9 and col2=2;";
