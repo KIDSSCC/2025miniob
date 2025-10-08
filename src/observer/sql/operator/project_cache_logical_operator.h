@@ -37,6 +37,10 @@ public:
   const vector<unique_ptr<Expression>> &expressions() const { return expressions_; }
 
   bool is_relevant() const { return is_relevant_; }
+
+  void set_check(bool is_check) { is_check_ = is_check; }
+  bool is_check() const { return is_check_; }
 public:
   bool is_relevant_;
+  bool is_check_ = false;
 };

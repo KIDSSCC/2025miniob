@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/operator/predicate_physical_operator.h"
+#include "sql/operator/project_cache_physical_operator.h"
 #include "common/log/log.h"
 #include "sql/stmt/filter_stmt.h"
 #include "storage/field/field.h"
@@ -46,15 +47,17 @@ RC PredicatePhysicalOperator::open(Trx *trx)
 
 RC PredicatePhysicalOperator::next()
 {
-  // 在子元祖的传递过程中，只有predicate算子是需要向两个方向set_parent，子查询在predicate这里分支
+  // 在子元组的传递过程中，只有predicate算子是需要向两个方向set_parent，子查询在predicate这里分支
   RC                rc   = RC::SUCCESS;
   PhysicalOperator *oper = children_.back().get();
   oper->set_parent_tuple(parent_tuple_);
   // 有关子查询场景下的predicate遍历逻辑，核心是围绕predicate自身底层的table_get(或join)展开遍历
   // 每从其中获取到一个tuple，再访问其他的projectcache子算子，得到子查询的结果。再将子查询的结果和自身的tuple一起送入bool判断
+  bool have_record = false;
   while (RC::SUCCESS == (rc = oper->next())) {
     // 得到自身底层的算子返回的tuple
     Tuple *tuple = oper->current_tuple();
+    have_record = true;
     if (nullptr == tuple) {
       rc = RC::INTERNAL;
       LOG_WARN("failed to get tuple from operator");
@@ -119,6 +122,35 @@ RC PredicatePhysicalOperator::next()
     // 不断循环，直至找到一个使 ConjunctionExpr 表达式为true的tuple
     if (value.get_boolean() == 1) {
       return rc;
+    }
+  }
+
+  if(!have_record){
+    // 如果底层的table_get没有返回元素，此时需要单独检查一轮所有的非相关子查询，如果其中元素数量违反了相关运算的要求，也一样要报错
+    for(size_t i=0;i<children_.size() - 1;i++){
+      PhysicalOperator *sub_oper = children_[i].get();
+      bool is_relevant = static_cast<ProjectCachePhysicalOperator*>(sub_oper)->get_relevant();
+      bool is_check = static_cast<ProjectCachePhysicalOperator*>(sub_oper)->get_check();
+      if(!is_relevant && is_check){
+        // 非相关子查询，且需要短路检查元素
+        rc = sub_oper->next();
+        if(rc != RC::SUCCESS){
+          LOG_WARN("Failed to execute next for child oper");
+          return rc;
+        }
+        Tuple* sub_tuple = sub_oper->current_tuple();
+        if (nullptr == sub_tuple) {
+          LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
+          return RC::INTERNAL;
+        }
+        ValueListTuple child_tuple_to_value;
+        rc = ValueListTuple::make(*sub_tuple, child_tuple_to_value);
+        // child_tuple_to_value即当前非相关子查询返回的结果，元素数超过1时需要报错
+        if(child_tuple_to_value.cell_num() > 1){
+          LOG_WARN("sub query has more than one row");
+          return RC::INTERNAL;
+        }
+      }
     }
   }
   return rc;

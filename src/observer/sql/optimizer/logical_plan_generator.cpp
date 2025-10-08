@@ -262,7 +262,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     }
 
     // 已获取到left和right部分对应的表达式，针对SelectPackExpr生成子查询的逻辑计划
-    function<RC(unique_ptr<Expression>&)> generate_sub_node = [&](unique_ptr<Expression>& expr) -> RC{
+    function<RC(unique_ptr<Expression>&, CompOp)> generate_sub_node = [&](unique_ptr<Expression>& expr, CompOp comp_op) -> RC{
       if(expr->type() == ExprType::SELECT_T){
         // 在表达式中记录子查询节点在目标算子中的索引位置，便于后期从tuple中获取元素
         // 这里设置SelectPackExpr的pos为-1，底层SelectExpr的pos为真实索引。代表从composite中截取的片段的位置。（另一种情况再在update部分说明）
@@ -272,6 +272,12 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
         
         SelectStmt* sub_stmt = static_cast<SelectPackExpr*>(expr.get())->select_expr_->select_stmt_.get();
         RC rc = create_plan(sub_stmt, sub_query_node, true);
+
+        // 视比较运算符，来决定子查询是否需要短路处理
+        if(comp_op < CompOp::IN_T){
+          static_cast<ProjectCacheLogicalOperator*>(sub_query_node.get())->set_check(true);
+        }
+
         sub_querys.emplace_back(std::move(sub_query_node));
         if(rc != RC::SUCCESS){
           LOG_WARN("Failed to create plan for sub query");
@@ -280,12 +286,12 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
       }
       return RC::SUCCESS;
     };
-    rc = generate_sub_node(left);
+    rc = generate_sub_node(left, filter_unit->comp());
     if(rc != RC::SUCCESS){
       LOG_WARN("Failed to create sub query oper for left expr");
       return rc;
     }
-    rc = generate_sub_node(right);
+    rc = generate_sub_node(right, filter_unit->comp());
     if(rc != RC::SUCCESS){
       LOG_WARN("Failed to create sub query oper for left expr");
       return rc;

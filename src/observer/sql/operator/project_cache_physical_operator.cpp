@@ -19,10 +19,11 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-ProjectCachePhysicalOperator::ProjectCachePhysicalOperator(vector<unique_ptr<Expression>> &&expressions, bool is_relevant)
+ProjectCachePhysicalOperator::ProjectCachePhysicalOperator(vector<unique_ptr<Expression>> &&expressions, bool is_relevant, bool is_check)
   : expressions_(std::move(expressions)), project_tuple_(expressions_)
 {
   is_relevant_ = is_relevant;
+  is_check_ = is_check;
   // ProjectCachePhysicalOperator和ProjectPhysicalOperator的内部构造保持完全一样即可
 }
 

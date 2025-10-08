@@ -291,7 +291,7 @@ RC PhysicalPlanGenerator::create_plan(ProjectCacheLogicalOperator &project_oper,
   }
 
   // 作为子查询，其字段应该是只有一个
-  auto project_operator = make_unique<ProjectCachePhysicalOperator>(std::move(project_oper.expressions()), project_oper.is_relevant());
+  auto project_operator = make_unique<ProjectCachePhysicalOperator>(std::move(project_oper.expressions()), project_oper.is_relevant(), project_oper.is_check());
   if (child_phy_oper) {
     project_operator->add_child(std::move(child_phy_oper));
   }
