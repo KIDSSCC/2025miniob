@@ -25,66 +25,6 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
 
   // 调整之后的update，子节点中的最后一个，是tableget或predicate，排在前面的依次是新值中的子查询
-  // update的方案是先把所有的value确定下来，再依次调用tableget从底层获取record，修改record，写回
-  vector<Value> new_values;
-  for(size_t i=0;i<new_expr_.size();i++){
-    unique_ptr<Expression>& expr = new_expr_[i];
-    if(expr->type() == ExprType::SELECT_T){
-      // 子查询,需要先通过子节点拿到tuple，将tuple解析成值列表
-      int node_pos = expr->pos();
-      unique_ptr<PhysicalOperator>& sub_oper = children_[node_pos];
-      rc = sub_oper->open(trx);
-      if(rc != RC::SUCCESS){
-        LOG_WARN("Failed to execute open for child oper");
-        SupplyInfo::info += "[check node 12]";
-        return rc;
-      }
-
-      rc = sub_oper->next();
-      if(rc != RC::SUCCESS){
-        LOG_WARN("Failed to execute next for child oper");
-        SupplyInfo::info += "[check node 13]";
-        return rc;
-      }
-
-      Tuple* sub_tuple = sub_oper->current_tuple();
-      if (nullptr == sub_tuple) {
-        LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
-        SupplyInfo::info += "[check node 14]";
-        return RC::INTERNAL;
-      }
-
-      vector<Value> valuelist;
-      expr->get_valuelist(*sub_tuple, valuelist);
-
-      if(valuelist.size() > 1){
-        LOG_WARN("The number of results returned by the subquery is not 1");
-        SupplyInfo::info += "[check node 15]";
-        sub_oper->close();
-        return RC::INTERNAL;
-      }
-
-      if(valuelist.empty()){
-        // valuelist为空集，此时目标字段更新为NULL
-        Value null_value;
-        null_value.set_type(AttrType::UNDEFINED);
-        null_value.set_null();
-        new_values.emplace_back(null_value);
-      }else{
-        // 返回的valuelist中仅有一个元素，是合理的情况
-        new_values.emplace_back(std::move(valuelist[0]));
-      }
-      sub_oper->close();
-
-    }else{
-      // 一般表达式, 通常情况下不会和某一字段产生联系，先尝试使用try_get_value获取其值
-      Value curr_value;
-      expr->try_get_value(curr_value);
-      new_values.emplace_back(std::move(curr_value));
-    }
-  }
-
-
   // update语句和delete语句一定会带有一个过滤节点。如果where字段为空，则过滤语句也为空，此时将不对记录进行过滤，返回表中全部的记录
   unique_ptr<PhysicalOperator> &child = children_.back();
 
@@ -111,6 +51,67 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
 
   child->close();
+
+  vector<Value> new_values;
+  if(!records_.empty()){
+    // 只有record不为空的情况下再去获取更新值
+    for(size_t i=0;i<new_expr_.size();i++){
+      unique_ptr<Expression>& expr = new_expr_[i];
+      if(expr->type() == ExprType::SELECT_T){
+        // 子查询,需要先通过子节点拿到tuple，将tuple解析成值列表
+        int node_pos = expr->pos();
+        unique_ptr<PhysicalOperator>& sub_oper = children_[node_pos];
+        rc = sub_oper->open(trx);
+        if(rc != RC::SUCCESS){
+          LOG_WARN("Failed to execute open for child oper");
+          SupplyInfo::info += "[check node 12]";
+          return rc;
+        }
+
+        rc = sub_oper->next();
+        if(rc != RC::SUCCESS){
+          LOG_WARN("Failed to execute next for child oper");
+          SupplyInfo::info += "[check node 13]";
+          return rc;
+        }
+
+        Tuple* sub_tuple = sub_oper->current_tuple();
+        if (nullptr == sub_tuple) {
+          LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
+          SupplyInfo::info += "[check node 14]";
+          return RC::INTERNAL;
+        }
+
+        vector<Value> valuelist;
+        expr->get_valuelist(*sub_tuple, valuelist);
+
+        if(valuelist.size() > 1){
+          LOG_WARN("The number of results returned by the subquery is not 1");
+          SupplyInfo::info += "[check node 15]";
+          sub_oper->close();
+          return RC::INTERNAL;
+        }
+
+        if(valuelist.empty()){
+          // valuelist为空集，此时目标字段更新为NULL
+          Value null_value;
+          null_value.set_type(AttrType::UNDEFINED);
+          null_value.set_null();
+          new_values.emplace_back(null_value);
+        }else{
+          // 返回的valuelist中仅有一个元素，是合理的情况
+          new_values.emplace_back(std::move(valuelist[0]));
+        }
+        sub_oper->close();
+
+      }else{
+        // 一般表达式, 通常情况下不会和某一字段产生联系，先尝试使用try_get_value获取其值
+        Value curr_value;
+        expr->try_get_value(curr_value);
+        new_values.emplace_back(std::move(curr_value));
+      }
+    }
+  }
 
   // 先收集记录再进行更新
   // 记录的有效性由事务来保证，如果事务不保证删除的有效性，那说明此事务类型不支持并发控制，比如VacuousTrx
