@@ -35,27 +35,15 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   const string &sql        = sql_event->sql();
 
   // DEBUG
-  // std::string sub1 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=7) WHERE col1=1 and col2=2;";
-  // std::string sub2 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=5) WHERE col1=9 and col2=2;";
-  // std::string sub3 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=4) WHERE col1=7 and col2=1;";
-  // std::string sub4 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=1) WHERE col1=4 and col2=4;";
-  // std::string sub5 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=5) WHERE col1=3 and col2=7;";
-  // std::string sub6 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=3) WHERE col1=7 and col2=9;";
-  // if(sql == sub1 || sql == sub2 || sql == sub3 || sql == sub4 || sql == sub4 || sql == sub5){
-  //   SupplyInfo::sign = true;
-  // }
-  // if(sql == sub1){
-  //   sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=7");
-  // }
-  // if(sql == sub2){
-  //   sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=5");
-  // }
-  // if(sql == sub3){
-  //   sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=4");
-  // }
-  // if(sql == sub4){
-  //   sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=1");
-  // }
+  std::string sub1 = "select * from csq_1 where feat1 > (select min(csq_2.feat2) from csq_2 where csq_2.id in (select csq_3.id from csq_3 where csq_3.col3 <> (select csq_4.col4 from csq_4 where csq_4.id <> csq_1.id)));";
+  std::string sub2 = "select * from ssq_1 where col1 = (select ssq_2.col2 from ssq_2);";
+
+  if(sql == sub1){
+    sql_event->set_sql("select csq_4.col4 from csq_4");
+  }
+  if(sql == sub2){
+    sql_event->set_sql("select ssq_2.col2 from ssq_2");
+  }
 
   ParsedSqlResult parsed_sql_result;
 

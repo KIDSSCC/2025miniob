@@ -28,7 +28,6 @@ RC PredicatePhysicalOperator::open(Trx *trx)
 {
   if (children_.size() < 1) {
     LOG_WARN("predicate operator must has at least one child");
-    SupplyInfo::info += "[check node 4]";
     return RC::INTERNAL;
   }
 
@@ -39,7 +38,6 @@ RC PredicatePhysicalOperator::open(Trx *trx)
     rc = children_[i]->open(trx);
     if(rc != RC::SUCCESS){
       LOG_WARN("Failed to open child oper");
-      SupplyInfo::info += "[check node 5]";
       return rc;
     }
   }
@@ -60,7 +58,6 @@ RC PredicatePhysicalOperator::next()
     if (nullptr == tuple) {
       rc = RC::INTERNAL;
       LOG_WARN("failed to get tuple from operator");
-      SupplyInfo::info += "[check node 6]";
       break;
     }
 
@@ -87,14 +84,12 @@ RC PredicatePhysicalOperator::next()
       rc = sub_oper->next();
       if(rc != RC::SUCCESS){
         LOG_WARN("Failed to execute next for child oper");
-        SupplyInfo::info += "[check node 7]";
         return rc;
       }
 
       Tuple* sub_tuple = sub_oper->current_tuple();
       if (nullptr == sub_tuple) {
         LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
-        SupplyInfo::info += "[check node 8]";
         return RC::INTERNAL;
       }
 
@@ -119,7 +114,6 @@ RC PredicatePhysicalOperator::next()
     Value value;
     rc = expression_->get_value(sub_query_tuple, value);
     if (rc != RC::SUCCESS) {
-      SupplyInfo::info += "[check node 9]";
       return rc;
     }
     // 不断循环，直至找到一个使 ConjunctionExpr 表达式为true的tuple

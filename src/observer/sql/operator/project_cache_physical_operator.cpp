@@ -56,7 +56,6 @@ RC ProjectCachePhysicalOperator::next()
     Tuple *child_tuple = child->current_tuple();
     if (nullptr == child_tuple) {
       LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
-      SupplyInfo::info += "[check node 10]";
       return RC::INTERNAL;
     }
     project_tuple_.set_tuple(child_tuple);
@@ -66,7 +65,6 @@ RC ProjectCachePhysicalOperator::next()
     rc = ValueListTuple::make(project_tuple_, child_tuple_to_value);
     if(rc != RC::SUCCESS){
       LOG_WARN("Failed to make valuelist tuple");
-      SupplyInfo::info += "[check node 11]";
       return rc;
     }
     tuple_.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));

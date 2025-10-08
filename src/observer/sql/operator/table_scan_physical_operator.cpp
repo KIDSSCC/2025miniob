@@ -53,7 +53,6 @@ RC TableScanPhysicalOperator::next()
     rc = filter(composite_tuple, filter_result);
     if (rc != RC::SUCCESS) {
       LOG_TRACE("record filtered failed=%s", strrc(rc));
-      SupplyInfo::info += "[check node 1 " + string(table_->name()) + "]";
       return rc;
     }
 
@@ -73,7 +72,6 @@ RC TableScanPhysicalOperator::close() {
     rc = record_scanner_->close_scan();
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to close record scanner");
-      SupplyInfo::info += "[check node 2 " + string(table_->name()) + "]";
     }
     delete record_scanner_;
     record_scanner_ = nullptr;
@@ -102,7 +100,6 @@ RC TableScanPhysicalOperator::filter(Tuple &tuple, bool &result)
   for (unique_ptr<Expression> &expr : predicates_) {
     rc = expr->get_value(tuple, value);
     if (rc != RC::SUCCESS) {
-      SupplyInfo::info += "[check node 3" + string(table_->name()) + "]";
       return rc;
     }
 
