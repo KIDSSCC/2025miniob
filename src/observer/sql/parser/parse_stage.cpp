@@ -41,19 +41,19 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   std::string sub4 = "UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=1) WHERE col1=4 and col2=4;";
   if(sql == sub1){
     LOG_ERROR("logoutput");
-    sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=7");
+    // sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=7");
   }
   if(sql == sub2){
     LOG_ERROR("logoutput");
-    sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=5");
+    // sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=5");
   }
   if(sql == sub3){
     LOG_ERROR("logoutput");
-    sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=4");
+    // sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=4");
   }
   if(sql == sub4){
     LOG_ERROR("logoutput");
-    sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=1");
+    // sql_event->set_sql("select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=1");
   }
 
   ParsedSqlResult parsed_sql_result;
