@@ -101,15 +101,15 @@ RC PlainCommunicator::write_state(SessionEvent *event, bool &need_disconnect)
   if (state_string.empty()) {
     RC ret_code = sql_result->return_code();
     string result_content;
-    if(SupplyInfo::info == "" && ret_code != RC::SUCCESS){
-      result_content = "FAILURE";
-    }else if(ret_code == RC::SUCCESS){
+
+    if(ret_code == RC::SUCCESS){
       result_content = "SUCCESS";
-    }else if(SupplyInfo::info != "" && SupplyInfo::sign){
-      result_content = SupplyInfo::info;
-    }else{
+    }else if(!SupplyInfo::sign){
       result_content = "FAILURE";
+    }else{
+      result_content = "Final failure" + SupplyInfo::info;
     }
+    
     // const char *result = RC::SUCCESS == sql_result->return_code() ? "SUCCESS" : "FAILURE";
     const char *result = result_content.c_str();
     snprintf(buf, buf_size, "%s\n", result);
