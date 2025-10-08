@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #pragma once
+#include<string>
 
 /**
  * @brief 这个文件定义函数返回码/错误码(Return Code)
@@ -97,3 +98,8 @@ extern const char *strrc(RC rc);
 
 extern bool OB_SUCC(RC rc);
 extern bool OB_FAIL(RC rc);
+
+class SupplyInfo{
+public:
+  static std::string info;
+};

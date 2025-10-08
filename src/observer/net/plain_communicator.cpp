@@ -99,7 +99,17 @@ RC PlainCommunicator::write_state(SessionEvent *event, bool &need_disconnect)
   char         *buf          = new char[buf_size];
   const string &state_string = sql_result->state_string();
   if (state_string.empty()) {
-    const char *result = RC::SUCCESS == sql_result->return_code() ? "SUCCESS" : "FAILURE";
+    RC ret_code = sql_result->return_code();
+    string result_content;
+    if(SupplyInfo::info == "" && ret_code != RC::SUCCESS){
+      result_content = "FAILURE";
+    }else if(SupplyInfo::info != ""){
+      result_content = SupplyInfo::info;
+    }else{
+      result_content = "SUCCESS";
+    }
+    // const char *result = RC::SUCCESS == sql_result->return_code() ? "SUCCESS" : "FAILURE";
+    const char *result = result_content.c_str();
     snprintf(buf, buf_size, "%s\n", result);
   } else {
     snprintf(buf, buf_size, "%s > %s\n", strrc(sql_result->return_code()), state_string.c_str());

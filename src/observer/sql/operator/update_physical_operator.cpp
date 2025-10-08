@@ -36,18 +36,21 @@ RC UpdatePhysicalOperator::open(Trx *trx)
       rc = sub_oper->open(trx);
       if(rc != RC::SUCCESS){
         LOG_WARN("Failed to execute open for child oper");
+        SupplyInfo::info += "[check node 12]";
         return rc;
       }
 
       rc = sub_oper->next();
       if(rc != RC::SUCCESS){
         LOG_WARN("Failed to execute next for child oper");
+        SupplyInfo::info += "[check node 13]";
         return rc;
       }
 
       Tuple* sub_tuple = sub_oper->current_tuple();
       if (nullptr == sub_tuple) {
         LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
+        SupplyInfo::info += "[check node 14]";
         return RC::INTERNAL;
       }
 
@@ -56,6 +59,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 
       if(valuelist.size() > 1){
         LOG_WARN("The number of results returned by the subquery is not 1");
+        SupplyInfo::info += "[check node 15]";
         sub_oper->close();
         return RC::INTERNAL;
       }
@@ -87,6 +91,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   rc = child->open(trx);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to open child operator: %s", strrc(rc));
+    SupplyInfo::info += "[check node 16]";
     return rc;
   }
 
@@ -96,6 +101,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     Tuple *tuple = child->current_tuple();
     if (nullptr == tuple) {
       LOG_WARN("failed to get current record: %s", strrc(rc));
+      SupplyInfo::info += "[check node 17]";
       return rc;
     }
 
@@ -114,6 +120,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     rc = table_->make_record_from_record(record, new_record, field_index_, new_values);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to make record from record: %s", strrc(rc));
+      SupplyInfo::info += "[check node 18]";
       return rc;
     }
 
@@ -121,6 +128,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     rc = trx_->update_record(table_, record, new_record);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to update record: %s", strrc(rc));
+      SupplyInfo::info += "[check node 19]";
       return rc;
     }
   }

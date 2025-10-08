@@ -14,6 +14,8 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/sys/rc.h"
 
+std::string SupplyInfo::info = "";
+
 const char *strrc(RC rc)
 {
 #define DEFINE_RC(name) \
@@ -33,3 +35,4 @@ const char *strrc(RC rc)
 bool OB_SUCC(RC rc) { return rc == RC::SUCCESS; }
 
 bool OB_FAIL(RC rc) { return rc != RC::SUCCESS; }
+

@@ -38,7 +38,6 @@ RC TableScanPhysicalOperator::next()
     // LOG_TRACE("got a record. rid=%s", current_record_.rid().to_string().c_str());
     
     tuple_.set_record(&current_record_);
-    // LOG_INFO("Table %s, get a tuple %s", table_->name(), tuple_.to_string().c_str());
 
     CompositeTuple composite_tuple;
     ValueListTuple curr_tuple;
@@ -54,9 +53,9 @@ RC TableScanPhysicalOperator::next()
     rc = filter(composite_tuple, filter_result);
     if (rc != RC::SUCCESS) {
       LOG_TRACE("record filtered failed=%s", strrc(rc));
+      SupplyInfo::info += "[check node 1 " + string(table_->name()) + "]";
       return rc;
     }
-    // LOG_INFO("Filter tuple is %s, res is %d", composite_tuple.to_string().c_str(), filter_result);
 
     if (filter_result) {
       sql_debug("get a tuple: %s", tuple_.to_string().c_str());
@@ -74,6 +73,7 @@ RC TableScanPhysicalOperator::close() {
     rc = record_scanner_->close_scan();
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to close record scanner");
+      SupplyInfo::info += "[check node 2 " + string(table_->name()) + "]";
     }
     delete record_scanner_;
     record_scanner_ = nullptr;
@@ -102,6 +102,7 @@ RC TableScanPhysicalOperator::filter(Tuple &tuple, bool &result)
   for (unique_ptr<Expression> &expr : predicates_) {
     rc = expr->get_value(tuple, value);
     if (rc != RC::SUCCESS) {
+      SupplyInfo::info += "[check node 3" + string(table_->name()) + "]";
       return rc;
     }
 
