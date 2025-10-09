@@ -45,4 +45,5 @@ public:
 private:
   // 谓词算子围绕该表达式展开过滤
   unique_ptr<Expression> expression_;
+  bool have_record = false;
 };

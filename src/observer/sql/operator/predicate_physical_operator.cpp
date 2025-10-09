@@ -53,7 +53,6 @@ RC PredicatePhysicalOperator::next()
   oper->set_parent_tuple(parent_tuple_);
   // 有关子查询场景下的predicate遍历逻辑，核心是围绕predicate自身底层的table_get(或join)展开遍历
   // 每从其中获取到一个tuple，再访问其他的projectcache子算子，得到子查询的结果。再将子查询的结果和自身的tuple一起送入bool判断
-  bool have_record = false;
   while (RC::SUCCESS == (rc = oper->next())) {
     // 得到自身底层的算子返回的tuple
     Tuple *tuple = oper->current_tuple();

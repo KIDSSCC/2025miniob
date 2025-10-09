@@ -274,7 +274,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
         RC rc = create_plan(sub_stmt, sub_query_node, true);
 
         // 视比较运算符，来决定子查询是否需要短路处理
-        if(comp_op < CompOp::IN_T){
+        if(sub_query_node != nullptr && comp_op < CompOp::IN_T){
           static_cast<ProjectCacheLogicalOperator*>(sub_query_node.get())->set_check(true);
         }
 
