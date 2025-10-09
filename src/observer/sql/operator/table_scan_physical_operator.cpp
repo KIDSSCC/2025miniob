@@ -49,6 +49,7 @@ RC TableScanPhysicalOperator::next()
       ValueListTuple::make(*parent_tuple_, parent_tuple_pack);
       composite_tuple.add_tuple(make_unique<ValueListTuple>(std::move(parent_tuple_pack)));
     }
+    // LOG_INFO("in %s table scan, get tuple %s, filter tuple is %s", table_->name(), tuple_.to_string().c_str(), composite_tuple.to_string().c_str());
 
     rc = filter(composite_tuple, filter_result);
     if (rc != RC::SUCCESS) {

@@ -130,7 +130,6 @@ RC ComparisonExpr::check_valid() const{
     if(left_->type() >= ExprType::VALUELIST){
       bool left_is_scalar;
       rc = left_->check_scalar(left_is_scalar);
-      // LOG_INFO("left is valuelist, check scalar is %d", left_is_scalar);
       if(rc != RC::SUCCESS || !left_is_scalar){
         LOG_WARN("Failed to check scalar or left is not scalar");
         return RC::INTERNAL;
@@ -139,7 +138,6 @@ RC ComparisonExpr::check_valid() const{
     if(right_->type() >= ExprType::VALUELIST){
       bool right_is_scalar;
       rc = right_->check_scalar(right_is_scalar);
-      // LOG_INFO("right is valuelist, check scalar is %d", right_is_scalar);
       if(rc != RC::SUCCESS || !right_is_scalar){
         LOG_WARN("Failed to check scalar or right is not scalar");
         return RC::INTERNAL;

@@ -125,30 +125,43 @@ RC PredicatePhysicalOperator::next()
   }
 
   if(!have_record){
-    // 如果底层的table_get没有返回元素，此时需要单独检查一轮所有的非相关子查询，如果其中元素数量违反了相关运算的要求，也一样要报错
+    // 如果底层的table_get没有返回元素，此时需要单独检查一轮所有的子查询，如果其中元素数量违反了相关运算的要求，也一样要报错
+    // 对于非相关子查询，是一定能够正常查询结果的
+    // 对于相关子查询，可能因为没有父查询tuple的支持，出现NOTFOUND的错误，这是可以接受的
     for(size_t i=0;i<children_.size() - 1;i++){
       PhysicalOperator *sub_oper = children_[i].get();
-      bool is_relevant = static_cast<ProjectCachePhysicalOperator*>(sub_oper)->get_relevant();
+      // bool is_relevant = static_cast<ProjectCachePhysicalOperator*>(sub_oper)->get_relevant();
       bool is_check = static_cast<ProjectCachePhysicalOperator*>(sub_oper)->get_check();
-      if(!is_relevant && is_check){
-        // 非相关子查询，且需要短路检查元素
-        rc = sub_oper->next();
-        if(rc != RC::SUCCESS){
-          LOG_WARN("Failed to execute next for child oper");
-          return rc;
+
+      // 考虑多层嵌套子查询，无论当前的查询是不是相关，需不需要检查，都需要进行一轮测试
+      if(parent_tuple_ != nullptr){
+        // A -> B -> C，B自身没有取到tuple，就只将A传给B的parent_tuple传给C
+        sub_oper->set_parent_tuple(parent_tuple_);
+      }
+
+      rc = sub_oper->next();
+      if(rc != RC::SUCCESS && rc != RC::NOTFOUND){
+        LOG_WARN("Failed to execute next for child oper");
+        return rc;
+      }
+      
+      if(rc != RC::NOTFOUND){
+        if(is_check){
+          Tuple* sub_tuple = sub_oper->current_tuple();
+          if (nullptr == sub_tuple) {
+            LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
+            return RC::INTERNAL;
+          }
+          ValueListTuple child_tuple_to_value;
+          rc = ValueListTuple::make(*sub_tuple, child_tuple_to_value);
+          if(child_tuple_to_value.cell_num() > 1){
+            LOG_WARN("sub query has more than one row");
+            return RC::INTERNAL;
+          }
         }
-        Tuple* sub_tuple = sub_oper->current_tuple();
-        if (nullptr == sub_tuple) {
-          LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
-          return RC::INTERNAL;
-        }
-        ValueListTuple child_tuple_to_value;
-        rc = ValueListTuple::make(*sub_tuple, child_tuple_to_value);
-        // child_tuple_to_value即当前非相关子查询返回的结果，元素数超过1时需要报错
-        if(child_tuple_to_value.cell_num() > 1){
-          LOG_WARN("sub query has more than one row");
-          return RC::INTERNAL;
-        }
+      }else{
+        rc = RC::SUCCESS;
+        continue;
       }
     }
   }

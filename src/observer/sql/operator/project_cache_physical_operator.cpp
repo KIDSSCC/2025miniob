@@ -36,10 +36,11 @@ RC ProjectCachePhysicalOperator::open(Trx *trx)
 
 RC ProjectCachePhysicalOperator::next()
 {
+  RC rc = RC::SUCCESS;
   if((is_finished && !is_relevant_) || children_.size() == 0){
     // is_finished代表已经完整迭代过一轮了，对于非相关子查询，此时可以省略本次迭代
     // curr_tuple中也依然维持着上一次的结果
-    return RC::SUCCESS;
+    return rc;
   }
 
   PhysicalOperator *child = children_[0].get();
@@ -49,14 +50,19 @@ RC ProjectCachePhysicalOperator::next()
     child->set_parent_tuple(this->parent_tuple_);
   }
   // groupby类算子，功能实现放在open中，因此需要在open之前就把parent_tuple传下去，对于predicate和tableget则没有影响。
-  child->open(trx_);
+  rc = child->open(trx_);
+  if(rc != RC::SUCCESS){
+    LOG_WARN("Project Cache failed to open sub oper");
+    child->close();
+    return rc;
+  }
 
-  RC rc = RC::SUCCESS;
   tuple_.clear();
   while(OB_SUCC(rc = child->next())){
     Tuple *child_tuple = child->current_tuple();
     if (nullptr == child_tuple) {
       LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
+      child->close();
       return RC::INTERNAL;
     }
     project_tuple_.set_tuple(child_tuple);
@@ -66,12 +72,17 @@ RC ProjectCachePhysicalOperator::next()
     rc = ValueListTuple::make(project_tuple_, child_tuple_to_value);
     if(rc != RC::SUCCESS){
       LOG_WARN("Failed to make valuelist tuple");
+      child->close();
       return rc;
     }
     tuple_.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
   }
-
   child->close();
+
+  if(rc != RC::SUCCESS && rc != RC::RECORD_EOF){
+    LOG_WARN("Project Cache failed to execute sub oper, rc is %s", strrc(rc));
+    return rc;
+  }
 
   is_finished = true;
   return RC::SUCCESS;

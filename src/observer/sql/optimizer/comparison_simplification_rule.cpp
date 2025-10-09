@@ -29,7 +29,6 @@ RC ComparisonSimplificationRule::rewrite(unique_ptr<Expression> &expr, bool &cha
 
     RC sub_rc = cmp_expr->try_get_value(value);
     if (sub_rc == RC::SUCCESS) {
-      LOG_INFO("try to get value success %d", value.get_boolean());
       unique_ptr<Expression> new_expr(new ValueExpr(value));
       expr.swap(new_expr);
       change_made = true;
