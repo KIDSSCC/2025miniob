@@ -153,6 +153,8 @@ RC PredicatePhysicalOperator::next()
       }
     }
   }
+
+  rc = RC::RECORD_EOF;
   return rc;
 }
 

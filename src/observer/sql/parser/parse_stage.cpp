@@ -36,13 +36,9 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
 
   // DEBUG
   std::string sub1 = "select * from csq_1 where feat1 > (select min(csq_2.feat2) from csq_2 where csq_2.id in (select csq_3.id from csq_3 where csq_3.col3 <> (select csq_4.col4 from csq_4 where csq_4.id <> csq_1.id)));";
-  std::string sub2 = "select * from ssq_1 where feat1 >= (select min(ssq_2.feat2) from ssq_2);";
 
   if(sql == sub1){
     sql_event->set_sql("select id from csq_1");
-  }
-  if(sql == sub2){
-    sql_event->set_sql("select min(ssq_2.feat2) from ssq_2");
   }
 
   ParsedSqlResult parsed_sql_result;
