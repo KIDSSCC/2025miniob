@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/expression_binder.h"
 #include "sql/expr/expression_iterator.h"
 #include <iterator>
+#include <cstring>
 
 using namespace common;
 
@@ -170,6 +171,7 @@ RC ExpressionBinder::bind_unbound_field_expression(unique_ptr<Expression> &expr,
 
   const char *table_name = unbound_field_expr->table_name();
   const char *field_name = unbound_field_expr->field_name();
+  const char *field_alias = unbound_field_expr->alias();
 
   Table *table = nullptr;
   if (is_blank(table_name)) {
@@ -202,7 +204,12 @@ RC ExpressionBinder::bind_unbound_field_expression(unique_ptr<Expression> &expr,
 
     Field      field(table, field_meta);
     FieldExpr *field_expr = new FieldExpr(field);
-    field_expr->set_name(field_name);
+
+    if (field_alias != nullptr && std::strlen(field_alias) != 0){
+      field_expr->set_name(field_alias);
+    }else{
+      field_expr->set_name(field_name);
+    }
     bound_expressions.emplace_back(field_expr);
   }
 
@@ -506,7 +513,14 @@ RC ExpressionBinder::bind_aggregate_expression(unique_ptr<Expression> &expr, vec
   }
 
   auto aggregate_expr = make_unique<AggregateExpr>(aggregate_type, std::move(child_expr));
-  aggregate_expr->set_name(unbound_aggregate_expr->name());
+
+  const char* alias_name = unbound_aggregate_expr->alias();
+  if(alias_name != nullptr && std::strlen(alias_name) != 0){
+    aggregate_expr->set_name(alias_name);
+  }else{
+    aggregate_expr->set_name(unbound_aggregate_expr->name());
+  }
+
   rc = check_aggregate_expression(*aggregate_expr);
   if (OB_FAIL(rc)) {
     return rc;

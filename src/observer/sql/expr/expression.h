@@ -185,7 +185,7 @@ protected:
 
 private:
   string name_;
-  string alias_;
+  string alias_ = "";
 };
 
 // StarExpr 会在resolve阶段绑定为确定的表达式
