@@ -115,9 +115,15 @@ struct ConditionSqlNode
   ConditionSqlNode& operator=(const ConditionSqlNode&) = delete;
 };
 
+struct TableNameNode{
+  string name = "";
+  string alias = "";
+};
+
 struct RelationNode {
   bool is_join;                                 // 标识当前RelationNode代表的是一张单独的表还是两个表join之后的结果
   string table_name;                            // 单独的一张表，表名
+  string table_alias;                           // 表的别名
   Table* table_ptr = nullptr;
   unique_ptr<RelationNode> left;
   unique_ptr<RelationNode> right;
@@ -154,9 +160,8 @@ struct RelationNode {
 
 struct SelectSqlNode
 {
-  vector<unique_ptr<Expression>> expressions;  ///< 查询的表达式
-  // vector<string>                 relations;    ///< 查询的表
-  unique_ptr<RelationNode>        relations;
+  vector<unique_ptr<Expression>> expressions;  ///< 查询的表达式 
+  unique_ptr<RelationNode>        relations;    ///< 查询的表
   vector<ConditionSqlNode>       conditions;   ///< 查询条件，使用AND串联起来多个条件
   vector<unique_ptr<Expression>> group_by;     ///< group by clause
   vector<ConditionSqlNode> having;

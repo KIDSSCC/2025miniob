@@ -122,7 +122,15 @@ public:
    * @brief 表达式的名字，比如是字段名称，或者用户在执行SQL语句时输入的内容
    */
   virtual const char *name() const { return name_.c_str(); }
-  virtual void        set_name(string name) { name_ = name; }
+  virtual void        set_name(string name) { 
+    name_ = name; 
+    alias_ = name;
+  }
+
+  virtual const char *alias() const { return alias_.c_str(); }
+  virtual void        set_alias(string alias) { 
+    alias_ = alias;
+  }
 
   /**
    * @brief 表达式在下层算子返回的 chunk 中的位置
@@ -177,6 +185,7 @@ protected:
 
 private:
   string name_;
+  string alias_;
 };
 
 // StarExpr 会在resolve阶段绑定为确定的表达式
@@ -200,7 +209,7 @@ private:
   string table_name_;
 };
 
-// UnboundFieldExpr 也需要再resolve阶段首先完成绑定
+// UnboundFieldExpr 也需要在resolve阶段首先完成绑定
 class UnboundFieldExpr : public Expression
 {
 public:
@@ -219,10 +228,14 @@ public:
 
   const char *table_name() const { return table_name_.c_str(); }
   const char *field_name() const { return field_name_.c_str(); }
+  // const char *table_alias() const { return table_alias_.c_str(); }
+  // const char *field_alias() const { return field_alias_.c_str(); }
 
 private:
   string table_name_;
   string field_name_;
+  // string table_alias_;
+  // string field_alias_;
 };
 
 /**

@@ -21,8 +21,25 @@ See the Mulan PSL v2 for more details. */
 
 using namespace common;
 
+/*
+* 在当前的查询上下文中，查找指定名称的表
+* @param table_name 表名
+* @param index      输出参数，返回找到的表在当前查询上下文中的索引位置
+* @return           找到则返回表指针，否则返回nullptr
+
+* index的意义在于标识出所查找的表在上下文中的索引位置。结合上下文中的separate，可以判断出该表是属于当前查询的，还是父查询的，或者更上层查询的
+*/
+
 Table *BinderContext::find_table(const char *table_name, int& index) const
 {
+  // 首先检查传入的表名是否是一个别名
+  for (const auto &pair : table_alias_map) {
+    if (0 == strcasecmp(table_name, pair.first.c_str())) {
+      table_name = pair.second.c_str();
+      break;
+    }
+  }
+  // 根据过滤后的表名执行查询操作
   auto pred = [table_name](Table *table) { return 0 == strcasecmp(table_name, table->name()); };
   auto iter = ranges::find_if(query_tables_, pred);
   if (iter == query_tables_.end()) {
@@ -105,8 +122,7 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
   return RC::INTERNAL;
 }
 
-RC ExpressionBinder::bind_star_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
+RC ExpressionBinder::bind_star_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -114,6 +130,7 @@ RC ExpressionBinder::bind_star_expression(
 
   auto star_expr = static_cast<StarExpr *>(expr.get());
 
+  // 对哪些表要执行*操作
   vector<Table *> tables_to_wildcard;
 
   const char *table_name = star_expr->table_name();
@@ -142,8 +159,7 @@ RC ExpressionBinder::bind_star_expression(
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_unbound_field_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
+RC ExpressionBinder::bind_unbound_field_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   // 确定未绑定字段
   if (nullptr == expr) {
@@ -193,22 +209,19 @@ RC ExpressionBinder::bind_unbound_field_expression(
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_field_expression(
-    unique_ptr<Expression> &field_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
+RC ExpressionBinder::bind_field_expression(unique_ptr<Expression> &field_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   bound_expressions.emplace_back(std::move(field_expr));
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_value_expression(
-    unique_ptr<Expression> &value_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
+RC ExpressionBinder::bind_value_expression(unique_ptr<Expression> &value_expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   bound_expressions.emplace_back(std::move(value_expr));
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_cast_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
+RC ExpressionBinder::bind_cast_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -239,8 +252,7 @@ RC ExpressionBinder::bind_cast_expression(
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_comparison_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
+RC ExpressionBinder::bind_comparison_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -287,8 +299,7 @@ RC ExpressionBinder::bind_comparison_expression(
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_valuelist_expression(unique_ptr<Expression> &expr,
-   vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
+RC ExpressionBinder::bind_valuelist_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -318,8 +329,7 @@ RC ExpressionBinder::bind_valuelist_expression(unique_ptr<Expression> &expr,
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_conjunction_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
+RC ExpressionBinder::bind_conjunction_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -452,8 +462,7 @@ RC check_aggregate_expression(AggregateExpr &expression)
   return rc;
 }
 
-RC ExpressionBinder::bind_aggregate_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
+RC ExpressionBinder::bind_aggregate_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions, int& max_index)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;

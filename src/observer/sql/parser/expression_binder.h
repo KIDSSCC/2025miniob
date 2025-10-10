@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <unordered_map>
 #include "sql/expr/expression.h"
 
 class BinderContext
@@ -35,9 +36,28 @@ public:
   const vector<Table *> &query_tables() const { return query_tables_; }
   const int separate() const { return separate_; }
 
+  void add_table_alias(string table_name, string table_alias) {
+    table_alias_map.emplace_back(table_alias, table_name);
+  }
+  void add_field_alias(string field_name, string field_alias) {
+    field_alias_map.emplace_back(field_alias, field_name);
+  }
+
+  const vector<std::pair<string, string>>& table_aliases() const {
+    return table_alias_map;
+  }
+  const vector<std::pair<string, string>>& field_aliases() const {
+    return field_alias_map;
+  }
+
 private:
   vector<Table *> query_tables_;
   int             separate_;
+
+  vector<std::pair<string, string>> table_alias_map;
+  vector<std::pair<string, string>> field_alias_map;
+
+
 };
 
 /**

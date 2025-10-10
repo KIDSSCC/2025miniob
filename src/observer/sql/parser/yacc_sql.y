@@ -148,6 +148,7 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
 %union {
   ParsedSqlNode *                            sql_node;
   ConditionSqlNode *                         condition;
+  TableNameNode*                              table_name_node;
   RelationNode *                              relation_node;
   Value *                                    value;
   enum CompOp                                comp;
@@ -209,7 +210,9 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
 %type <key_list>            attr_list
 // %type <relation_list>       rel_list
 %type <expression>          expression
+%type <expression>          alias_expression
 %type <expression_list>     expression_list
+%type <table_name_node>     table_name_node
 %type <order_list>          order_by
 %type <order_list>          order_expr_list
 %type <order_list>          order_expr
@@ -366,7 +369,6 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
       CreateTableSqlNode &create_table = $$->create_table;
       create_table.relation_name = $3;
-      //free($3);
 
       create_table.attr_infos.swap(*$5);
       delete $5;
@@ -572,20 +574,7 @@ update_stmt:      /*  update 语句的语法解析树*/
       }
     }
     ;
-    // UPDATE ID SET ID EQ value where 
-    // {
-    //   $$ = new ParsedSqlNode(SCF_UPDATE);
-    //   $$->update.relation_name = $2;
-    //   $$->update.attribute_name = $4;
-    //   $$->update.value = *$6;
-    //   if ($7 != nullptr) {
-    //     $$->update.conditions.swap(*$7);
-    //     delete $7;
-    //   }
-
-    //   delete $6;
-    // }
-    // ;
+    
 select_stmt:        /*  select 语句的语法解析树*/
     SELECT expression_list FROM relation_node where group_by have order_by
     {
@@ -633,12 +622,12 @@ expression_list:
     {
       $$ = nullptr;
     }
-    | expression
+    | alias_expression
     {
       $$ = new vector<unique_ptr<Expression>>;
       $$->emplace_back($1);
     }
-    | expression COMMA expression_list
+    | alias_expression COMMA expression_list
     {
       if ($3 != nullptr) {
         $$ = $3;
@@ -648,6 +637,21 @@ expression_list:
       $$->emplace($$->begin(), $1);
     }
     ;
+
+alias_expression:
+    expression {
+      $$ = $1;
+    }
+    | expression ID{
+      $$ = $1;
+      $$->set_alias($2);
+    }
+    | expression AS ID{
+      $$ = $1;
+      $$->set_alias($3);
+    }
+    ;
+
 expression:
     expression '+' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
@@ -757,38 +761,44 @@ expression:
     ;
 
 relation_node:
-    relation_node COMMA ID{
+    relation_node COMMA table_name_node{
       $$ = new RelationNode;
       $$->is_join = true;
       $$->join_type = JoinOp::CROSS_JOIN;
 
       RelationNode* right = new RelationNode;
       right->is_join = false;
-      right->table_name = $3;
+      right->table_name = $3->name;
+      right->table_alias = $3->alias;
+      delete $3;
 
       $$->left.reset($1);
       $$->right.reset(right);
     }
-    | relation_node INNER JOIN ID{
+    | relation_node INNER JOIN table_name_node{
       $$ = new RelationNode;
       $$->is_join = true;
       $$->join_type = JoinOp::CROSS_JOIN;
 
       RelationNode* right = new RelationNode;
       right->is_join = false;
-      right->table_name = $4;
+      right->table_name = $4->name;
+      right->table_alias = $4->alias;
+      delete $4;
 
       $$->left.reset($1);
       $$->right.reset(right);
     }
-    | relation_node INNER JOIN ID ON condition_list{
+    | relation_node INNER JOIN table_name_node ON condition_list{
       $$ = new RelationNode;
       $$->is_join = true;
       $$->join_type = JoinOp::INNER_JOIN;
 
       RelationNode* right = new RelationNode;
       right->is_join = false;
-      right->table_name = $4;
+      right->table_name = $4->name;
+      right->table_alias = $4->alias;
+      delete $4;
 
       $$->left.reset($1);
       $$->right.reset(right);
@@ -799,10 +809,30 @@ relation_node:
         delete $6;
       }
     }
-    | ID {
+    | table_name_node {
       $$ = new RelationNode;
       $$->is_join = false;
-      $$->table_name = $1;
+      $$->table_name = $1->name;
+      $$->table_alias = $1->alias;
+
+      delete $1;
+    }
+    ;
+
+table_name_node:
+    ID {
+      $$ = new TableNameNode;
+      $$->name = $1;
+    }
+    | ID AS ID {
+      $$ = new TableNameNode;
+      $$->name = $1;
+      $$->alias = $3;
+    }
+    | ID ID {
+      $$ = new TableNameNode;
+      $$->name = $1;
+      $$->alias = $2;
     }
     ;
 

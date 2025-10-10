@@ -68,6 +68,10 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   function<void(unique_ptr<RelationNode>&)> bind_table_ptr = [&](unique_ptr<RelationNode>&relation_node) -> void{
     if(!relation_node->is_join){
       relation_node->table_ptr = db->find_table(relation_node->table_name.c_str());
+      if(relation_node->table_alias != ""){
+        // 声明了一个表的别名
+        binder_context.add_table_alias(relation_node->table_name, relation_node->table_alias);
+      }
     }else{
       if (relation_node->left) {
         bind_table_ptr(relation_node->left);
@@ -78,6 +82,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
     }
   };
 
+  
   vector<string> table_names;
   bind_table_ptr(select_sql.relations);
   select_sql.relations->get_all_tables(table_names);
@@ -104,10 +109,19 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   // binder_context中以separate作为分界线，前一部分为子查询相关的表，后一部分为父查询相关的表
   binder_context.set_separate(binder_context.query_tables().size());
   if(parent_bind_context){
+    // 继承来自父查询的表指针
     for(size_t i=0;i<parent_bind_context->query_tables().size();i++){
       Table* parent_table = parent_bind_context->query_tables()[i];
       binder_context.add_table(parent_table);
       table_map.insert({parent_table->name(), parent_table});
+    }
+    // 继承来自父查询的表别名
+    for(size_t i=0;i<parent_bind_context->table_aliases().size();i++){
+      binder_context.add_table_alias(parent_bind_context->table_aliases()[i].second, parent_bind_context->table_aliases()[i].first);
+    }
+    // 继承来自父查询的字段别名
+    for(size_t i=0;i<parent_bind_context->field_aliases().size();i++){
+      binder_context.add_field_alias(parent_bind_context->field_aliases()[i].second, parent_bind_context->field_aliases()[i].first);
     }
   }
 
