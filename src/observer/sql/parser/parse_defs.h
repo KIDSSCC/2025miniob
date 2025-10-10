@@ -233,9 +233,11 @@ struct AttrInfoSqlNode
  */
 struct CreateTableSqlNode
 {
+  bool create_type;                       // false代表一般创建，true代表create_select
   string                  relation_name;  ///< Relation name
   vector<AttrInfoSqlNode> attr_infos;     ///< attributes
   vector<string>          primary_keys;   ///< primary keys
+  unique_ptr<Expression>  sub_select;
   // TODO: integrate to CreateTableOptions
   string storage_format;  ///< storage format
   string storage_engine;  ///< storage engine

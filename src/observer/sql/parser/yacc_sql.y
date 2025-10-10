@@ -368,6 +368,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
     {
       $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
       CreateTableSqlNode &create_table = $$->create_table;
+      create_table.create_type = false;
       create_table.relation_name = $3;
 
       create_table.attr_infos.swap(*$5);
@@ -381,9 +382,18 @@ create_table_stmt:    /*create table 语句的语法解析树*/
         create_table.storage_format = $8;
       }
     }
-    // | CREATE TABLE ID AS select_stmt{
+    | CREATE TABLE ID AS select_stmt{
+      $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.create_type = true;
+      create_table.relation_name = $3;
 
-    // }
+      ASSERT($5->flag == SCF_SELECT, "only select stmt can be converted to expr");
+      SelectExpr* sub_selection = new SelectExpr(std::move($5->selection));
+      SelectPackExpr* sub_selection_pack = new SelectPackExpr(sub_selection);
+
+      create_table.sub_select.reset(sub_selection_pack);
+    }
     ;
     
 attr_def_list:
@@ -682,7 +692,7 @@ expression:
         delete $2;
       }
     }
-    | LBRACE select_stmt RBRACE{
+    | LBRACE select_stmt RBRACE {
       ASSERT($2->flag == SCF_SELECT, "only select stmt can be converted to expr");
       SelectExpr* sub_selection = new SelectExpr(std::move($2->selection));
       $$ = new SelectPackExpr(sub_selection);
@@ -846,6 +856,11 @@ rel_attr:
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
       $$->attribute_name = $3;
+    }
+    | ID DOT '*' {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = "*";
     }
     ;
 
