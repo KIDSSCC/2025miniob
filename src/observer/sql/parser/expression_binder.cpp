@@ -131,6 +131,13 @@ RC ExpressionBinder::bind_star_expression(unique_ptr<Expression> &expr, vector<u
 
   auto star_expr = static_cast<StarExpr *>(expr.get());
 
+  // star 不可声明别名。
+  const char *field_alias = star_expr->alias();
+  if (field_alias != nullptr && std::strlen(field_alias) != 0){
+    LOG_WARN("* expr cannot use alias");
+    return RC::INTERNAL;
+  }
+
   // 对哪些表要执行*操作
   vector<Table *> tables_to_wildcard;
 
@@ -194,6 +201,10 @@ RC ExpressionBinder::bind_unbound_field_expression(unique_ptr<Expression> &expr,
 
   if (0 == strcmp(field_name, "*")) {
     wildcard_fields(table, bound_expressions);
+    if (field_alias != nullptr && std::strlen(field_alias) != 0){
+      LOG_WARN("* expr cannot use alias");
+      return RC::INTERNAL;
+    }
   } else {
     // 完整的Field字段需要包含表的指针和字段元数据的指针
     const FieldMeta *field_meta = table->table_meta().field(field_name);
