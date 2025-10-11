@@ -58,6 +58,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
     return RC::INVALID_ARGUMENT;
   }
 
+  RC rc = RC::SUCCESS;
   BinderContext binder_context;
 
   // collect tables in `from` statement
@@ -65,26 +66,41 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   unordered_map<string, Table *> table_map;
 
   // 将join部分涉及的所有table，获取其table指针绑定到relation_node上。这一步绑定的指针将直接用于逻辑计划生成阶段，生成tableget和join算子
-  function<void(unique_ptr<RelationNode>&)> bind_table_ptr = [&](unique_ptr<RelationNode>&relation_node) -> void{
+  function<RC(unique_ptr<RelationNode>&)> bind_table_ptr = [&](unique_ptr<RelationNode>&relation_node) -> RC{
     if(!relation_node->is_join){
       relation_node->table_ptr = db->find_table(relation_node->table_name.c_str());
       if(relation_node->table_alias != ""){
         // 声明了一个表的别名
-        binder_context.add_table_alias(relation_node->table_name, relation_node->table_alias);
+        bool alias_repeat = binder_context.add_table_alias(relation_node->table_name, relation_node->table_alias);
+        if(alias_repeat){
+          LOG_WARN("Table alias %s is already used", relation_node->table_alias.c_str());
+          return RC::INTERNAL;
+        }
       }
     }else{
       if (relation_node->left) {
-        bind_table_ptr(relation_node->left);
+        rc = bind_table_ptr(relation_node->left);
+        if(rc != RC::SUCCESS){
+          return rc;
+        }
       }
       if (relation_node->right) {
-        bind_table_ptr(relation_node->right);
+        rc = bind_table_ptr(relation_node->right);
+        if(rc != RC::SUCCESS){
+          return rc;
+        }
       }
     }
+    return RC::SUCCESS;
   };
 
   
   vector<string> table_names;
-  bind_table_ptr(select_sql.relations);
+  rc = bind_table_ptr(select_sql.relations);
+  if(rc != RC::SUCCESS){
+    LOG_WARN("Failed to bind table ptr");
+    return rc;
+  }
   select_sql.relations->get_all_tables(table_names);
 
   for (size_t i = 0; i < table_names.size(); i++) {
@@ -131,17 +147,20 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   int max_table = -1;
   
   // 对select部分的字段的绑定，主要涉及*绑定为全字段，unboundedfield绑定为field，unboundedaggregate绑定为aggregate
+  expression_binder.allow_alias_declare = true;
+  expression_binder.allow_alias_identify = false;
   for (unique_ptr<Expression> &expression : select_sql.expressions) {
-    RC rc = expression_binder.bind_expression(expression, bound_expressions, max_table);
+    rc = expression_binder.bind_expression(expression, bound_expressions, max_table);
     if (OB_FAIL(rc)) {
       LOG_WARN("bind expression failed. rc=%s", strrc(rc));
       return rc;
     }
   }
+  expression_binder.allow_alias_declare = false;
+  expression_binder.allow_alias_identify = false;
 
   function<RC(ConditionSqlNode&, vector<unique_ptr<Expression>>&)> bind_condition_node = [&](ConditionSqlNode& condition_node, vector<unique_ptr<Expression>>& expressions) -> RC{
     function<RC(int, unique_ptr<Expression>&)> check_expr =[&] (int is_attr, unique_ptr<Expression>& expr_node) -> RC{
-      RC rc = RC::SUCCESS;
       if(is_attr == 2 && expr_node->type() == ExprType::SELECT_T){
         // 对子查询表达式的特殊绑定: 子查询表达式生成一个单独的语句，保存在expr中
         Stmt *sub_select_stmt = nullptr;
@@ -181,7 +200,6 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
       return rc;
     };
 
-    RC rc = RC::SUCCESS;
     rc = check_expr(condition_node.left_is_attr, condition_node.left_expressions);
     if(rc != RC::SUCCESS){
       LOG_WARN("Failed to check_expr");
@@ -200,7 +218,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   // where谓词的condition部分也可能包含expression, 在stmt层面对其进行重新绑定
   vector<unique_ptr<Expression>> condition_expessions;
   for(ConditionSqlNode& condition_node : select_sql.conditions){
-    RC rc = bind_condition_node(condition_node, condition_expessions);
+    rc = bind_condition_node(condition_node, condition_expessions);
     if(rc != RC::SUCCESS){
       LOG_WARN("Cannot bind condition_node");
       return rc;
@@ -210,7 +228,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   // 绑定groupby部分的表达式, 暂时认为groupby部分不会出现子查询
   vector<unique_ptr<Expression>> group_by_expressions;
   for (unique_ptr<Expression> &expression : select_sql.group_by) {
-    RC rc = expression_binder.bind_expression(expression, group_by_expressions, max_table);
+    rc = expression_binder.bind_expression(expression, group_by_expressions, max_table);
     if (OB_FAIL(rc)) {
       LOG_WARN("bind expression failed. rc=%s", strrc(rc));
       return rc;
@@ -220,7 +238,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   // 绑定having部分的表达式
   vector<unique_ptr<Expression>> having_expessions;
   for(ConditionSqlNode& condition_node : select_sql.having){
-    RC rc = bind_condition_node(condition_node, having_expessions);
+    rc = bind_condition_node(condition_node, having_expessions);
     if(rc != RC::SUCCESS){
       LOG_WARN("Cannot bind condition_node");
       return rc;
@@ -229,8 +247,11 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
 
   // 绑定order by部分的表达式, 暂时认为orderby部分不会出现子查询
   vector<unique_ptr<Expression>> orderby_expessions;
+  expression_binder.allow_alias_declare = false;
+  expression_binder.allow_alias_identify = true;
+  LOG_INFO("prepare to bind order by expressions");
   for(pair<Order, unique_ptr<Expression>>& order_field : select_sql.order_by){
-    RC rc = expression_binder.bind_expression(order_field.second, orderby_expessions, max_table);
+    rc = expression_binder.bind_expression(order_field.second, orderby_expessions, max_table);
     if (OB_FAIL(rc)) {
       LOG_WARN("bind order by expression failed. rc=%s", strrc(rc));
       return rc;
@@ -241,8 +262,8 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
     }
     orderby_expessions.clear();
   }
-
-  RC rc = RC::SUCCESS;
+  expression_binder.allow_alias_declare = false;
+  expression_binder.allow_alias_identify = false;
 
   Table *default_table = nullptr;
   if (tables.size() == 1) {
@@ -316,7 +337,6 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
 
   // 先将having字段中涉及的表达式拷贝一份，用于在逻辑计划生成的时候，绑定聚合字段。
   function<RC(unique_ptr<Expression>&)> collector = [&](unique_ptr<Expression> &expr) -> RC {
-    RC rc = RC::SUCCESS;
     if (expr->type() == ExprType::AGGREGATION) {
       select_stmt->having_expressions_.emplace_back(move(expr->copy()));
       select_stmt->having_expressions_.back()->set_name(expr->name());
@@ -371,7 +391,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   select_stmt->having_stmt_ = having_stmt;
   select_stmt->is_relevant_ = is_relevant;
   stmt                      = select_stmt;
-  return RC::SUCCESS;
+  return rc;
 }
 
 AttrType SelectStmt::get_type(){

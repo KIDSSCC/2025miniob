@@ -36,8 +36,15 @@ public:
   const vector<Table *> &query_tables() const { return query_tables_; }
   const int separate() const { return separate_; }
 
-  void add_table_alias(string table_name, string table_alias) {
+  bool add_table_alias(string table_name, string table_alias) {
+    for (const auto &pair : table_alias_map) {
+      if (0 == strcasecmp(table_alias.c_str(), pair.first.c_str())) {
+        // 别名重复
+        return true;
+      }
+    }
     table_alias_map.emplace_back(table_alias, table_name);
+    return false;
   }
   void add_field_alias(string field_name, string field_alias) {
     field_alias_map.emplace_back(field_alias, field_name);
@@ -90,6 +97,10 @@ private:
 
   RC bind_valuelist_expression(unique_ptr<Expression> &valuelist, vector<unique_ptr<Expression>> &bound_expressions, int& max_index);
 
-private:
+public:
   BinderContext &context_;
+
+  // 仅针对字段的别名生效，用于判断当前绑定过程中是否允许声明别名 和 识别别名
+  bool  allow_alias_declare = false;
+  bool  allow_alias_identify = false;
 };

@@ -176,11 +176,30 @@ RC ExpressionBinder::bind_unbound_field_expression(unique_ptr<Expression> &expr,
 
   auto unbound_field_expr = static_cast<UnboundFieldExpr *>(expr.get());
 
+  Table *table = nullptr;
   const char *table_name = unbound_field_expr->table_name();
   const char *field_name = unbound_field_expr->field_name();
   const char *field_alias = unbound_field_expr->alias();
 
-  Table *table = nullptr;
+  string table_name_str;
+  string field_name_str;
+
+
+  if(is_blank(table_name) && allow_alias_identify){
+    for (const auto &pair : context_.field_aliases()) {
+      if (0 == strcasecmp(field_name, pair.first.c_str())) {
+        string parsed_str = pair.second;
+        size_t pos = parsed_str.find('.');
+        table_name_str = parsed_str.substr(0, pos);
+        field_name_str = parsed_str.substr(pos + 1);
+
+        table_name = table_name_str.c_str();
+        field_name = field_name_str.c_str();
+        break;
+      }
+    }
+  }
+
   if (is_blank(table_name)) {
     // 查询字段没有明确指明表名，此时要求from部分必须只包含一个表。
     if (context_.separate() != 1) {
@@ -189,6 +208,7 @@ RC ExpressionBinder::bind_unbound_field_expression(unique_ptr<Expression> &expr,
     }
 
     table = context_.query_tables()[0];
+    table_name = table->name();
   } else {
     int index = -1;
     table = context_.find_table(table_name, index);
@@ -218,6 +238,9 @@ RC ExpressionBinder::bind_unbound_field_expression(unique_ptr<Expression> &expr,
 
     if (field_alias != nullptr && std::strlen(field_alias) != 0){
       field_expr->set_name(field_alias);
+      if(allow_alias_declare){
+        context_.add_field_alias(string(table_name) + "." + string(field_name), string(field_alias));
+      }
     }else{
       field_expr->set_name(field_name);
     }
