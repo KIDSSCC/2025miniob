@@ -202,7 +202,7 @@ RC ExpressionBinder::bind_unbound_field_expression(unique_ptr<Expression> &expr,
   if (0 == strcmp(field_name, "*")) {
     wildcard_fields(table, bound_expressions);
     if (field_alias != nullptr && std::strlen(field_alias) != 0){
-      LOG_WARN("* expr cannot use alias");
+      LOG_WARN("* expr cannot use alias %s", field_alias);
       return RC::INTERNAL;
     }
   } else {

@@ -15,17 +15,39 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/types.h"
 #include "sql/stmt/create_table_stmt.h"
+#include "sql/stmt/select_stmt.h"
 #include "event/sql_debug.h"
 
-RC CreateTableStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *&stmt)
+RC CreateTableStmt::create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt)
 {
   StorageFormat storage_format = get_storage_format(create_table.storage_format.c_str());
   if (storage_format == StorageFormat::UNKNOWN_FORMAT) {
     return RC::INVALID_ARGUMENT;
   }
-  stmt = new CreateTableStmt(create_table.relation_name, create_table.attr_infos, create_table.primary_keys, storage_format);
-  sql_debug("create table statement: table name %s", create_table.relation_name.c_str());
-  return RC::SUCCESS;
+
+  if(!create_table.create_type){
+    // 普通创建模式，直接创建语句即可
+    stmt = new CreateTableStmt(create_table.relation_name, create_table.attr_infos, create_table.primary_keys, storage_format);
+    sql_debug("create table statement: table name %s", create_table.relation_name.c_str());
+    return RC::SUCCESS;
+  }
+  // create_table_select, 目前拥有的是还未形成selectstmt的SelectPackExpr
+  RC rc = RC::SUCCESS;
+  unique_ptr<Expression>& sub_select = create_table.sub_select;
+
+  Stmt *sub_select_stmt = nullptr;
+  Expression* expr = sub_select.get();
+  rc = SelectStmt::create(db, static_cast<SelectPackExpr*>(expr)->get_node(), sub_select_stmt);
+  if(rc != RC::SUCCESS){
+    LOG_WARN("Failed to create sub select node");
+    return rc;
+  }
+  std::unique_ptr<SelectStmt, void(*)(SelectStmt*)> raw(static_cast<SelectStmt*>(sub_select_stmt), manual_destruction);
+  static_cast<SelectPackExpr*>(expr)->select_expr_->value_type_ = raw->get_type();
+  static_cast<SelectPackExpr*>(expr)->select_expr_->select_stmt_ = std::move(raw);
+
+  // 构建select子查询语句后，需要从中解析出查询字段的名称和类型，构造成vector<AttrInfoSqlNode>用于创建表的结构
+  return rc;
 }
 
 StorageFormat CreateTableStmt::get_storage_format(const char *format_str) {

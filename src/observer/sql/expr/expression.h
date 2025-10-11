@@ -124,7 +124,6 @@ public:
   virtual const char *name() const { return name_.c_str(); }
   virtual void        set_name(string name) { 
     name_ = name; 
-    alias_ = name;
   }
 
   virtual const char *alias() const { return alias_.c_str(); }

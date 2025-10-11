@@ -710,7 +710,6 @@ expression:
     | rel_attr {
       RelAttrSqlNode *node = $1;
       $$ = new UnboundFieldExpr(node->relation_name, node->attribute_name);
-      LOG_INFO("rel_attr name is %s", token_name(sql_string, &@$).c_str());
       $$->set_name(token_name(sql_string, &@$));
       delete $1;
     }
