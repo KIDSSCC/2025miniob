@@ -243,6 +243,7 @@ struct CreateTableSqlNode
   string storage_engine;  ///< storage engine
 };
 
+
 /**
  * @brief 描述一个drop table语句
  * @ingroup SQLParser
