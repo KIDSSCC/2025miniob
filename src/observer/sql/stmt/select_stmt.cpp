@@ -249,7 +249,6 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, BinderCont
   vector<unique_ptr<Expression>> orderby_expessions;
   expression_binder.allow_alias_declare = false;
   expression_binder.allow_alias_identify = true;
-  LOG_INFO("prepare to bind order by expressions");
   for(pair<Order, unique_ptr<Expression>>& order_field : select_sql.order_by){
     rc = expression_binder.bind_expression(order_field.second, orderby_expessions, max_table);
     if (OB_FAIL(rc)) {

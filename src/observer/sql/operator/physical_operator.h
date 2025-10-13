@@ -56,6 +56,7 @@ enum class PhysicalOperatorType
   GROUP_BY_VEC,
   AGGREGATE_VEC,
   EXPR_VEC,
+  CREATE_TABLE,
   NOTHING
 };
 
@@ -83,6 +84,7 @@ inline const char *PhysicalOperatorType_to_string(PhysicalOperatorType type) {
     case PhysicalOperatorType::GROUP_BY_VEC:     return "GROUP_BY_VEC";
     case PhysicalOperatorType::AGGREGATE_VEC:    return "AGGREGATE_VEC";
     case PhysicalOperatorType::EXPR_VEC:         return "EXPR_VEC";
+    case PhysicalOperatorType::CREATE_TABLE:    return "CREATE_TABLE";
     case PhysicalOperatorType::NOTHING:           return "NOTHING";
     default:                                     return "UNKNOWN";
   }

@@ -42,7 +42,8 @@ enum class LogicalOperatorType
   DELETE,      ///< 删除，删除可能会有子查询
   EXPLAIN,     ///< 查看执行计划
   GROUP_BY,    ///< 分组
-  ORDER_BY      ///< 排序
+  ORDER_BY,     ///< 排序
+  CREATE_TABLE
 };
 
 inline const char *LogicType_to_string(LogicalOperatorType type) {
@@ -59,6 +60,7 @@ inline const char *LogicType_to_string(LogicalOperatorType type) {
     case LogicalOperatorType::EXPLAIN: return "EXPLAIN";
     case LogicalOperatorType::GROUP_BY: return "GROUP_BY";
     case LogicalOperatorType::ORDER_BY: return "ORDER_BY";
+    case LogicalOperatorType::CREATE_TABLE: return "CREATE_TABLE";
     default: return "UNKNOWN";
   }
 }

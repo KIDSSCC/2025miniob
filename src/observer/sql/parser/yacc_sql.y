@@ -391,8 +391,9 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       ASSERT($5->flag == SCF_SELECT, "only select stmt can be converted to expr");
       SelectExpr* sub_selection = new SelectExpr(std::move($5->selection));
       SelectPackExpr* sub_selection_pack = new SelectPackExpr(sub_selection);
-
       create_table.sub_select.reset(sub_selection_pack);
+
+      delete $5;
     }
     ;
     

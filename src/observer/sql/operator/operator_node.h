@@ -40,8 +40,9 @@ enum class OpType
   LOGICALLIMIT,
   LOGICALANALYZE,
   LOGICALEXPLAIN,
-  // Separation of logical and physical operators
   LOGICALPHYSICALDELIMITER,
+  LOGICALCREATE_TABLE,
+  // Separation of logical and physical operators
 
   // Physical Operators
   EXPLAIN,
@@ -63,6 +64,7 @@ enum class OpType
   ANALYZE,
   FILTER,
   SCALARGROUPBY,
+  CREATE_TABLE,
   NOTHING
 };
 

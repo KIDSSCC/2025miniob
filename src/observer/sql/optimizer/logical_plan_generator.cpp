@@ -29,6 +29,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/orderby_logical_operator.h"
 #include "sql/operator/table_get_logical_operator.h"
 #include "sql/operator/group_by_logical_operator.h"
+#include "sql/operator/create_table_logical_operator.h"
 
 #include "sql/stmt/calc_stmt.h"
 #include "sql/stmt/delete_stmt.h"
@@ -37,6 +38,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/insert_stmt.h"
 #include "sql/stmt/update_stmt.h"
 #include "sql/stmt/select_stmt.h"
+#include "sql/stmt/create_table_stmt.h"
 #include "sql/stmt/stmt.h"
 
 #include "sql/expr/expression_iterator.h"
@@ -82,6 +84,16 @@ RC LogicalPlanGenerator::create(Stmt *stmt, unique_ptr<LogicalOperator> &logical
       ExplainStmt *explain_stmt = static_cast<ExplainStmt *>(stmt);
 
       rc = create_plan(explain_stmt, logical_operator);
+    } break;
+    case StmtType::CREATE_TABLE:{
+      CreateTableStmt *create_table_stmt = static_cast<CreateTableStmt *>(stmt);
+      if(create_table_stmt->is_create_select_){
+        LOG_INFO("prepare to create create_table logical plan");
+        rc = create_plan(create_table_stmt, logical_operator);
+      }else{
+        LOG_INFO("prepare to create create_table logical plan without select");
+        rc = RC::UNIMPLEMENTED;
+      }
     } break;
     default: {
       rc = RC::UNIMPLEMENTED;
@@ -436,15 +448,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
       predicate_oper->add_child(std::move(sub_querys[i]));
     }
   }
-  
-  // if (!cmp_exprs.empty()) {
-    //   unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
-  //   predicate_oper = unique_ptr<PredicateLogicalOperator>(new PredicateLogicalOperator(std::move(conjunction_expr)));
-  //   // 构建PredicateLogicalOperator，将子查询部分的逻辑计划接入Predicate的子算子
-  //   for(size_t i=0;i<sub_querys.size();i++){
-  //     predicate_oper->add_child(std::move(sub_querys[i]));
-  //   }
-  // }
+
   logical_operator = std::move(predicate_oper);
   return rc;
 }
@@ -572,6 +576,30 @@ RC LogicalPlanGenerator::create_plan(ExplainStmt *explain_stmt, unique_ptr<Logic
 
   logical_operator = unique_ptr<LogicalOperator>(new ExplainLogicalOperator);
   logical_operator->add_child(std::move(child_oper));
+  return rc;
+}
+
+RC LogicalPlanGenerator::create_plan(CreateTableStmt *create_table_stmt, unique_ptr<LogicalOperator> &logical_operator)
+{
+  RC rc = RC::SUCCESS;
+  // create_table_select的逻辑结构 (select) -> project -> create_table
+  unique_ptr<LogicalOperator> child_oper;
+
+  // 生成的子算子为project而非project_cache
+  SelectStmt* sub_select_stmt = static_cast<SelectPackExpr*>(create_table_stmt->sub_select.get())->select_expr_->select_stmt_.get();
+  rc = create_plan(sub_select_stmt, child_oper);
+
+  // 构建create_table逻辑算子
+  unique_ptr<CreateTableLogicalOperator> create_table_oper = make_unique<CreateTableLogicalOperator>();
+  create_table_oper->db_ = create_table_stmt->db_;
+  create_table_oper->table_name_ = create_table_stmt->table_name();
+  create_table_oper->attr_infos_ = create_table_stmt->attr_infos();
+  create_table_oper->primary_keys_ = create_table_stmt->primary_keys();
+  create_table_oper->storage_format_ = create_table_stmt->storage_format();
+
+  create_table_oper->add_child(std::move(child_oper));
+  logical_operator = std::move(create_table_oper);
+
   return rc;
 }
 

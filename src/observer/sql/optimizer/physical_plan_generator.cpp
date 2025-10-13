@@ -49,6 +49,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/scalar_group_by_physical_operator.h"
 #include "sql/operator/table_scan_vec_physical_operator.h"
 #include "sql/operator/nothing_physical_operator.h"
+#include "sql/operator/create_table_physical_operator.h"
+#include "sql/operator/create_table_logical_operator.h"
 #include "sql/optimizer/physical_plan_generator.h"
 
 using namespace std;
@@ -104,6 +106,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
 
     case LogicalOperatorType::PROJECTION_CACHE:{
       return create_plan(static_cast<ProjectCacheLogicalOperator &>(logical_operator), oper, session);
+    }
+
+    case LogicalOperatorType::CREATE_TABLE:{
+      return create_plan(static_cast<CreateTableLogicalOperator &>(logical_operator), oper, session);
     }
 
     default: {
@@ -359,6 +365,37 @@ RC PhysicalPlanGenerator::create_plan(DeleteLogicalOperator &delete_oper, unique
   }
 
   oper = unique_ptr<PhysicalOperator>(new DeletePhysicalOperator(delete_oper.table()));
+
+  if (child_physical_oper) {
+    oper->add_child(std::move(child_physical_oper));
+  }
+  return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(CreateTableLogicalOperator &create_oper, unique_ptr<PhysicalOperator> &oper, Session* session)
+{
+  vector<unique_ptr<LogicalOperator>> &child_opers = create_oper.children();
+
+  unique_ptr<PhysicalOperator> child_physical_oper;
+
+  RC rc = RC::SUCCESS;
+  if (!child_opers.empty()) {
+    LogicalOperator *child_oper = child_opers.front().get();
+
+    rc = create(*child_oper, child_physical_oper, session);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create physical operator. rc=%s", strrc(rc));
+      return rc;
+    }
+  }
+
+  oper = unique_ptr<PhysicalOperator>(new CreateTablePhysicalOperator());
+  CreateTablePhysicalOperator* create_table_oper = static_cast<CreateTablePhysicalOperator*>(oper.get());
+  create_table_oper->db_ = create_oper.db_;
+  create_table_oper->table_name_ = create_oper.table_name_;
+  create_table_oper->attr_infos_ = std::move(create_oper.attr_infos_);
+  create_table_oper->primary_keys_ = std::move(create_oper.primary_keys_);
+  create_table_oper->storage_format_ = create_oper.storage_format_;
 
   if (child_physical_oper) {
     oper->add_child(std::move(child_physical_oper));

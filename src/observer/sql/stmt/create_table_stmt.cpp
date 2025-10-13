@@ -27,7 +27,7 @@ RC CreateTableStmt::create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt
 
   if(!create_table.create_type){
     // 普通创建模式，直接创建语句即可
-    stmt = new CreateTableStmt(create_table.relation_name, create_table.attr_infos, create_table.primary_keys, storage_format);
+    stmt = new CreateTableStmt(create_table.relation_name, create_table.attr_infos, create_table.primary_keys, storage_format, create_table.create_type);
     sql_debug("create table statement: table name %s", create_table.relation_name.c_str());
     return RC::SUCCESS;
   }
@@ -47,6 +47,21 @@ RC CreateTableStmt::create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt
   static_cast<SelectPackExpr*>(expr)->select_expr_->select_stmt_ = std::move(raw);
 
   // 构建select子查询语句后，需要从中解析出查询字段的名称和类型，构造成vector<AttrInfoSqlNode>用于创建表的结构
+  vector<unique_ptr<Expression>>& exprs = static_cast<SelectPackExpr*>(expr)->select_expr_->select_stmt_->query_expressions();
+  vector<AttrInfoSqlNode> attrs;
+  for(size_t i=0;i<exprs.size();i++){
+    AttrInfoSqlNode attr;
+    attr.name = exprs[i]->name();
+    attr.type = exprs[i]->value_type();
+    attr.length = exprs[i]->value_length();
+    attr.allow_null = true; // 默认允许null
+
+    attrs.push_back(attr);
+  }
+  stmt = new CreateTableStmt(create_table.relation_name, attrs, create_table.primary_keys, storage_format, create_table.create_type);
+  static_cast<CreateTableStmt*>(stmt)->sub_select = std::move(sub_select);
+  static_cast<CreateTableStmt*>(stmt)->db_ = db;
+  sql_debug("create table select statement: table name %s", create_table.relation_name.c_str());
   return rc;
 }
 
