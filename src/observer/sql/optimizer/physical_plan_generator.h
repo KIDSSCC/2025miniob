@@ -32,6 +32,18 @@ class CalcLogicalOperator;
 class GroupByLogicalOperator;
 class OrderByLogicalOperator;
 class CreateTableLogicalOperator;
+class CreateViewLogicalOperator;
+
+class ViewStruct{
+public:
+  ViewStruct(string view_name, std::shared_ptr<PhysicalOperator> read_node)
+    : view_name_(std::move(view_name)), read_node_(read_node) {}
+  ~ViewStruct() = default;
+  
+  public:
+    string view_name_;
+    std::shared_ptr<PhysicalOperator> read_node_;
+};
 
 /**
  * @brief 物理计划生成器
@@ -66,7 +78,11 @@ private:
   RC create_vec_plan(GroupByLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);
   RC create_vec_plan(ExplainLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);
   RC create_plan(CreateTableLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);
+  RC create_plan(CreateViewLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);
 
   // TODO: remove this and add CBO rules
   bool can_use_hash_join(JoinLogicalOperator &logical_oper);
+
+public:
+  std::vector<ViewStruct> views_;
 };

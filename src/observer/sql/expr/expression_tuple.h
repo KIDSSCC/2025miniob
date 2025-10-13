@@ -83,6 +83,7 @@ public:
 private:
   RC get_value(const ExprPointerType &expression, Value &value) const
   {
+    LOG_INFO("get value for expression %s, type is %d", expression->name(), expression->type());
     RC rc = RC::SUCCESS;
     if (child_tuple_ != nullptr) {
       rc = expression->get_value(*child_tuple_, value);

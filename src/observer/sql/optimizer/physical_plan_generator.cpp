@@ -51,6 +51,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/nothing_physical_operator.h"
 #include "sql/operator/create_table_physical_operator.h"
 #include "sql/operator/create_table_logical_operator.h"
+#include "sql/operator/create_view_physical_operator.h"
+#include "sql/operator/create_view_logical_operator.h"
+#include "sql/operator/projectpack_physical_operator.h"
 #include "sql/optimizer/physical_plan_generator.h"
 
 using namespace std;
@@ -112,6 +115,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
       return create_plan(static_cast<CreateTableLogicalOperator &>(logical_operator), oper, session);
     }
 
+    case LogicalOperatorType::CREATE_VIEW:{
+      return create_plan(static_cast<CreateViewLogicalOperator &>(logical_operator), oper, session);
+    }
+
     default: {
       ASSERT(false, "unknown logical operator type");
       return RC::INVALID_ARGUMENT;
@@ -148,6 +155,16 @@ RC PhysicalPlanGenerator::create_vec(LogicalOperator &logical_operator, unique_p
 
 RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, unique_ptr<PhysicalOperator> &oper, Session* session)
 {
+  // 检查是否有对应的视图结构，如果存在视图结构，则展开视图
+  for (const auto &view : this->views_) {
+    if (view.view_name_ == table_get_oper.table()->name()) {
+      LOG_INFO("find view %s", view.view_name_.c_str());
+      ProjectPackPhysicalOperator* pack_oper = new ProjectPackPhysicalOperator(view.read_node_);
+      oper = unique_ptr<PhysicalOperator>(pack_oper);
+      return RC::SUCCESS;
+    }
+  }
+
   vector<unique_ptr<Expression>> &predicates = table_get_oper.predicates();
   // 看看是否有可以用于索引查找的表达式
   Table *table = table_get_oper.table();
@@ -401,6 +418,38 @@ RC PhysicalPlanGenerator::create_plan(CreateTableLogicalOperator &create_oper, u
     oper->add_child(std::move(child_physical_oper));
   }
   return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(CreateViewLogicalOperator &create_oper, unique_ptr<PhysicalOperator> &oper, Session* session)
+{
+  vector<unique_ptr<LogicalOperator>> &child_opers = create_oper.children();
+  unique_ptr<PhysicalOperator> child_physical_oper;
+
+  RC rc = RC::SUCCESS;
+  if (!child_opers.empty()) {
+    LogicalOperator *child_oper = child_opers.front().get();
+
+    rc = create(*child_oper, child_physical_oper, session);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create physical operator. rc=%s", strrc(rc));
+      return rc;
+    }
+  }
+
+  // 注册视图的查询结构
+  shared_ptr<PhysicalOperator> shared_oper = std::move(child_physical_oper);
+  this->views_.emplace_back(create_oper.table_name_, shared_oper);
+
+
+  oper = unique_ptr<PhysicalOperator>(new CreateViewPhysicalOperator());
+  CreateViewPhysicalOperator* create_view_oper = static_cast<CreateViewPhysicalOperator*>(oper.get());
+  create_view_oper->db_ = create_oper.db_;
+  create_view_oper->table_name_ = create_oper.table_name_;
+  create_view_oper->attr_infos_ = std::move(create_oper.attr_infos_);
+  create_view_oper->primary_keys_ = std::move(create_oper.primary_keys_);
+  create_view_oper->storage_format_ = create_oper.storage_format_;
+
+  return RC::SUCCESS;
 }
 
 RC PhysicalPlanGenerator::create_plan(ExplainLogicalOperator &explain_oper, unique_ptr<PhysicalOperator> &oper, Session* session)

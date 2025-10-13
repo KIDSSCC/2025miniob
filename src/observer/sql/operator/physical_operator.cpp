@@ -42,7 +42,7 @@ string PhysicalOperator::name() const { return physical_operator_type_name(type(
 
 string PhysicalOperator::param() const { return ""; }
 
-void PhysicalOperator::print_tree(int depth) const {
+void PhysicalOperator::print_tree(int depth) {
   // 构造缩进字符串
   std::string indent(depth * 2, ' ');
 
@@ -50,7 +50,7 @@ void PhysicalOperator::print_tree(int depth) const {
   LOG_INFO("%s%s", indent.c_str(), PhysicalOperatorType_to_string(this->type()));
 
   // 遍历子节点
-  for (const auto &child : children_) {
+  for (auto &child : this->children()) {
     if (child) {
       child->print_tree(depth + 1);
     }

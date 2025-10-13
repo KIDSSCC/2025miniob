@@ -181,7 +181,7 @@ public:
 
   virtual TupleType type() const = 0;
 
-  inline const char *type_to_string()
+  inline const char *type_to_string() const
   {
       TupleType curr_type = type();
       switch (curr_type) {

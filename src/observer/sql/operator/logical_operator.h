@@ -43,7 +43,8 @@ enum class LogicalOperatorType
   EXPLAIN,     ///< 查看执行计划
   GROUP_BY,    ///< 分组
   ORDER_BY,     ///< 排序
-  CREATE_TABLE
+  CREATE_TABLE,
+  CREATE_VIEW
 };
 
 inline const char *LogicType_to_string(LogicalOperatorType type) {
@@ -61,6 +62,7 @@ inline const char *LogicType_to_string(LogicalOperatorType type) {
     case LogicalOperatorType::GROUP_BY: return "GROUP_BY";
     case LogicalOperatorType::ORDER_BY: return "ORDER_BY";
     case LogicalOperatorType::CREATE_TABLE: return "CREATE_TABLE";
+    case LogicalOperatorType::CREATE_VIEW: return "CREATE_VIEW";
     default: return "UNKNOWN";
   }
 }

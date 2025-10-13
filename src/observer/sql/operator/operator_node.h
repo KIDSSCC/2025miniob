@@ -42,6 +42,7 @@ enum class OpType
   LOGICALEXPLAIN,
   LOGICALPHYSICALDELIMITER,
   LOGICALCREATE_TABLE,
+  LOGICALCREATE_VIEW,
   // Separation of logical and physical operators
 
   // Physical Operators
@@ -65,6 +66,7 @@ enum class OpType
   FILTER,
   SCALARGROUPBY,
   CREATE_TABLE,
+  CREATE_VIEW,
   NOTHING
 };
 

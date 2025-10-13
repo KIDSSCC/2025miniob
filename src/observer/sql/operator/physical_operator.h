@@ -57,6 +57,7 @@ enum class PhysicalOperatorType
   AGGREGATE_VEC,
   EXPR_VEC,
   CREATE_TABLE,
+  CREATE_VIEW,
   NOTHING
 };
 
@@ -85,6 +86,7 @@ inline const char *PhysicalOperatorType_to_string(PhysicalOperatorType type) {
     case PhysicalOperatorType::AGGREGATE_VEC:    return "AGGREGATE_VEC";
     case PhysicalOperatorType::EXPR_VEC:         return "EXPR_VEC";
     case PhysicalOperatorType::CREATE_TABLE:    return "CREATE_TABLE";
+    case PhysicalOperatorType::CREATE_VIEW:     return "CREATE_VIEW";
     case PhysicalOperatorType::NOTHING:           return "NOTHING";
     default:                                     return "UNKNOWN";
   }
@@ -123,11 +125,11 @@ public:
 
   void add_child(unique_ptr<PhysicalOperator> oper) { children_.emplace_back(std::move(oper)); }
 
-  vector<unique_ptr<PhysicalOperator>> &children() { return children_; }
+  virtual vector<unique_ptr<PhysicalOperator>> &children() { return children_; }
 
   void set_parent_tuple(const Tuple* parent_tuple){ parent_tuple_ = parent_tuple; }
 
-  void print_tree(int depth = 0) const;
+  void print_tree(int depth = 0);
 
 protected:
   vector<unique_ptr<PhysicalOperator>> children_;

@@ -30,6 +30,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/table_get_logical_operator.h"
 #include "sql/operator/group_by_logical_operator.h"
 #include "sql/operator/create_table_logical_operator.h"
+#include "sql/operator/create_view_logical_operator.h"
 
 #include "sql/stmt/calc_stmt.h"
 #include "sql/stmt/delete_stmt.h"
@@ -87,7 +88,7 @@ RC LogicalPlanGenerator::create(Stmt *stmt, unique_ptr<LogicalOperator> &logical
     } break;
     case StmtType::CREATE_TABLE:{
       CreateTableStmt *create_table_stmt = static_cast<CreateTableStmt *>(stmt);
-      if(create_table_stmt->is_create_select_){
+      if(create_table_stmt->is_create_select_ >= 1){
         LOG_INFO("prepare to create create_table logical plan");
         rc = create_plan(create_table_stmt, logical_operator);
       }else{
@@ -590,15 +591,29 @@ RC LogicalPlanGenerator::create_plan(CreateTableStmt *create_table_stmt, unique_
   rc = create_plan(sub_select_stmt, child_oper);
 
   // 构建create_table逻辑算子
-  unique_ptr<CreateTableLogicalOperator> create_table_oper = make_unique<CreateTableLogicalOperator>();
-  create_table_oper->db_ = create_table_stmt->db_;
-  create_table_oper->table_name_ = create_table_stmt->table_name();
-  create_table_oper->attr_infos_ = create_table_stmt->attr_infos();
-  create_table_oper->primary_keys_ = create_table_stmt->primary_keys();
-  create_table_oper->storage_format_ = create_table_stmt->storage_format();
+  if(create_table_stmt->is_create_select_ == 1){
+    // 创建新表
+    unique_ptr<CreateTableLogicalOperator> create_table_oper = make_unique<CreateTableLogicalOperator>();
+    create_table_oper->db_ = create_table_stmt->db_;
+    create_table_oper->table_name_ = create_table_stmt->table_name();
+    create_table_oper->attr_infos_ = create_table_stmt->attr_infos();
+    create_table_oper->primary_keys_ = create_table_stmt->primary_keys();
+    create_table_oper->storage_format_ = create_table_stmt->storage_format();
+  
+    create_table_oper->add_child(std::move(child_oper));
+    logical_operator = std::move(create_table_oper);
+  }else{
+    // 创建视图
+    unique_ptr<CreateViewLogicalOperator> create_view_oper = make_unique<CreateViewLogicalOperator>();
+    create_view_oper->db_ = create_table_stmt->db_;
+    create_view_oper->table_name_ = create_table_stmt->table_name();
+    create_view_oper->attr_infos_ = create_table_stmt->attr_infos();
+    create_view_oper->primary_keys_ = create_table_stmt->primary_keys();
+    create_view_oper->storage_format_ = create_table_stmt->storage_format();
 
-  create_table_oper->add_child(std::move(child_oper));
-  logical_operator = std::move(create_table_oper);
+    create_view_oper->add_child(std::move(child_oper));
+    logical_operator = std::move(create_view_oper);
+  }
 
   return rc;
 }

@@ -233,7 +233,7 @@ struct AttrInfoSqlNode
  */
 struct CreateTableSqlNode
 {
-  bool create_type;                       // false代表一般创建，true代表create_select
+  int create_type;                       // 0代表一般创建，1代表create_select, 2代表create_view
   string                  relation_name;  ///< Relation name
   vector<AttrInfoSqlNode> attr_infos;     ///< attributes
   vector<string>          primary_keys;   ///< primary keys

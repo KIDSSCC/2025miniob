@@ -25,7 +25,7 @@ RC CreateTableStmt::create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt
     return RC::INVALID_ARGUMENT;
   }
 
-  if(!create_table.create_type){
+  if(create_table.create_type == 0){
     // 普通创建模式，直接创建语句即可
     stmt = new CreateTableStmt(create_table.relation_name, create_table.attr_infos, create_table.primary_keys, storage_format, create_table.create_type);
     sql_debug("create table statement: table name %s", create_table.relation_name.c_str());

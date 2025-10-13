@@ -44,7 +44,6 @@ RC ProjectPhysicalOperator::open(Trx *trx)
       return RC::INTERNAL;
     }
     tuple_.set_tuple(child_tuple);
-
     ValueListTuple child_tuple_to_value;
     rc = ValueListTuple::make(tuple_, child_tuple_to_value);
     if (OB_FAIL(rc)) {
@@ -85,6 +84,9 @@ RC ProjectPhysicalOperator::close()
   if (!children_.empty()) {
     children_[0]->close();
   }
+
+  all_tuple.clear();
+  first_emited_ = false;
   return RC::SUCCESS;
 }
 Tuple *ProjectPhysicalOperator::current_tuple()

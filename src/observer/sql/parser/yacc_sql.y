@@ -226,7 +226,6 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
 %type <sql_node>            update_stmt
 %type <sql_node>            delete_stmt
 %type <sql_node>            create_table_stmt
-%type <sql_node>            create_view_stmt
 %type <sql_node>            drop_table_stmt
 %type <sql_node>            analyze_table_stmt
 %type <sql_node>            show_tables_stmt
@@ -268,7 +267,6 @@ command_wrapper:
   | update_stmt
   | delete_stmt
   | create_table_stmt
-  | create_view_stmt
   | drop_table_stmt
   | analyze_table_stmt
   | show_tables_stmt
@@ -366,28 +364,12 @@ drop_index_stmt:      /*drop index 语句的语法解析树*/
       $$->drop_index.relation_name = $5;
     }
     ; 
-
-create_view_stmt:
-    CREATE VIEW ID AS select_stmt{
-      $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
-      CreateTableSqlNode &create_table = $$->create_table;
-      create_table.create_type = true;
-      create_table.relation_name = $3;
-
-      ASSERT($5->flag == SCF_SELECT, "only select stmt can be converted to expr");
-      SelectExpr* sub_selection = new SelectExpr(std::move($5->selection));
-      SelectPackExpr* sub_selection_pack = new SelectPackExpr(sub_selection);
-      create_table.sub_select.reset(sub_selection_pack);
-
-      delete $5;
-    }
-    ;
 create_table_stmt:    /*create table 语句的语法解析树*/
     CREATE TABLE ID LBRACE attr_def_list primary_key RBRACE storage_format
     {
       $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
       CreateTableSqlNode &create_table = $$->create_table;
-      create_table.create_type = false;
+      create_table.create_type = 0;
       create_table.relation_name = $3;
 
       create_table.attr_infos.swap(*$5);
@@ -404,7 +386,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
     | CREATE TABLE ID LBRACE attr_def_list primary_key RBRACE select_stmt{
       $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
       CreateTableSqlNode &create_table = $$->create_table;
-      create_table.create_type = true;
+      create_table.create_type = 1;
       create_table.relation_name = $3;
 
       create_table.attr_infos.swap(*$5);
@@ -425,7 +407,20 @@ create_table_stmt:    /*create table 语句的语法解析树*/
     | CREATE TABLE ID AS select_stmt{
       $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
       CreateTableSqlNode &create_table = $$->create_table;
-      create_table.create_type = true;
+      create_table.create_type = 1;
+      create_table.relation_name = $3;
+
+      ASSERT($5->flag == SCF_SELECT, "only select stmt can be converted to expr");
+      SelectExpr* sub_selection = new SelectExpr(std::move($5->selection));
+      SelectPackExpr* sub_selection_pack = new SelectPackExpr(sub_selection);
+      create_table.sub_select.reset(sub_selection_pack);
+
+      delete $5;
+    }
+    | CREATE VIEW ID AS select_stmt{
+      $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.create_type = 2;
       create_table.relation_name = $3;
 
       ASSERT($5->flag == SCF_SELECT, "only select stmt can be converted to expr");

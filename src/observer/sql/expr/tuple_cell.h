@@ -30,7 +30,17 @@ public:
 
   bool equals(const TupleCellSpec &other) const
   {
-    return table_name_ == other.table_name_ && field_name_ == other.field_name_ && alias_ == other.alias_;
+    // this一侧是已经构造好的某一个tuple中的tuplecellspec。如果其中的table_name_与field_name_均为空，说明该tuple是已经被expression擦除过原始信息的tuple,仅保留了映射后结果。
+    // 此时只需要比较传入的TupleCellSpec的field与alias是否相等即可。
+
+    bool res = table_name_ == other.table_name_ && field_name_ == other.field_name_ && alias_ == other.alias_;
+    if(!res){
+      if(table_name_ == "" && field_name_ == ""){
+        res = alias_ == other.field_name_;
+      }
+    }
+    
+    return res;
   }
 
   string to_string(){
