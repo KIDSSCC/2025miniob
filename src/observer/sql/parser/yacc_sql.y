@@ -382,6 +382,27 @@ create_table_stmt:    /*create table 语句的语法解析树*/
         create_table.storage_format = $8;
       }
     }
+    | CREATE TABLE ID LBRACE attr_def_list primary_key RBRACE select_stmt{
+      $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.create_type = true;
+      create_table.relation_name = $3;
+
+      create_table.attr_infos.swap(*$5);
+      delete $5;
+
+      if ($6 != nullptr) {
+        create_table.primary_keys.swap(*$6);
+        delete $6;
+      }
+
+      ASSERT($8->flag == SCF_SELECT, "only select stmt can be converted to expr");
+      SelectExpr* sub_selection = new SelectExpr(std::move($8->selection));
+      SelectPackExpr* sub_selection_pack = new SelectPackExpr(sub_selection);
+      create_table.sub_select.reset(sub_selection_pack);
+
+      delete $8;
+    }
     | CREATE TABLE ID AS select_stmt{
       $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
       CreateTableSqlNode &create_table = $$->create_table;

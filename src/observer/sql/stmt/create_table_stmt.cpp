@@ -58,7 +58,26 @@ RC CreateTableStmt::create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt
 
     attrs.push_back(attr);
   }
-  stmt = new CreateTableStmt(create_table.relation_name, attrs, create_table.primary_keys, storage_format, create_table.create_type);
+
+  // create table可能预先定义了表的结构，需要检查一下子查询返回的结构和声明的结构能不能对得上
+  if(!create_table.attr_infos.empty()){
+    if(create_table.attr_infos.size() != attrs.size()){
+      LOG_WARN("Attribute number not match. create table define %lu, but select return %lu", create_table.attr_infos.size(), attrs.size());
+      return RC::SCHEMA_FIELD_MISSING;
+    }
+    for(size_t i=0;i<attrs.size();i++){
+      if(create_table.attr_infos[i].type != attrs[i].type){
+        LOG_WARN("Attribute type not match for attr %s. create table define %d, but select return %d", attrs[i].name.c_str(), (int)create_table.attr_infos[i].type, (int)attrs[i].type);
+        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+      }
+    }
+  }else{
+    // 没有预定义表结构，直接使用子查询的结果作为表结构
+    create_table.attr_infos = std::move(attrs);
+  }
+
+
+  stmt = new CreateTableStmt(create_table.relation_name, create_table.attr_infos, create_table.primary_keys, storage_format, create_table.create_type);
   static_cast<CreateTableStmt*>(stmt)->sub_select = std::move(sub_select);
   static_cast<CreateTableStmt*>(stmt)->db_ = db;
   sql_debug("create table select statement: table name %s", create_table.relation_name.c_str());
