@@ -124,9 +124,12 @@ RC NestedLoopJoinPhysicalOperator::next()
     }
   }
 
-
-  joined_tuple_.set_right((*right_cache_iter).get());
-  right_cache_iter++;
+  if(right_cache_iter != right_cache.end()) {
+    joined_tuple_.set_right((*right_cache_iter).get());
+    right_cache_iter++;
+  }else{
+    return RC::RECORD_EOF;
+  }
   return RC::SUCCESS;
 }
 
