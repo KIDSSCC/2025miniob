@@ -488,7 +488,8 @@ RC PhysicalPlanGenerator::create_plan(JoinLogicalOperator &join_oper, unique_ptr
     // your code here
     // hash join 暂不支持
   } else {
-    unique_ptr<PhysicalOperator> join_physical_oper(new NestedLoopJoinPhysicalOperator());
+    unique_ptr<PhysicalOperator> join_physical_oper;
+    join_physical_oper = make_unique<NestedLoopJoinPhysicalOperator>();
     for (auto &child_oper : child_opers) {
       unique_ptr<PhysicalOperator> child_physical_oper;
       rc = create(*child_oper, child_physical_oper, session);
