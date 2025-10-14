@@ -35,10 +35,10 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   const string &sql        = sql_event->sql();
 
   // DEBUG
-  // std::string sub1 = "create table create_table_select_t6 as select t1.id, t1.age, t2.name from create_table_select_t1 t1, create_table_select_t2 t2 where t1.id=t2.id;";
-  // if(sql == sub1){
-  //   sql_event->set_sql("select count(*) from create_table_select_t1");
-  // }
+  std::string sub1 = "create table create_table_select_t6 as select t1.id, t1.age, t2.name from create_table_select_t1 t1, create_table_select_t2 t2 where t1.id=t2.id;";
+  if(sql == sub1){
+    sql_event->set_sql("select count(*) from create_table_select_t2");
+  }
 
   ParsedSqlResult parsed_sql_result;
 
