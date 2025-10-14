@@ -424,6 +424,7 @@ public:
     // valuelist元组的find_cell, 已经记录了每一个value对应的TupleCellSpec信息，逐一进行比对
     ASSERT(cells_.size() == specs_.size(), "cells_.size()=%d, specs_.size()=%d", cells_.size(), specs_.size());
 
+    LOG_INFO("spec str is %s, try to find %s", spec_to_string().c_str(), spec.to_string().c_str());
     const int size = static_cast<int>(specs_.size());
     for (int i = 0; i < size; i++) {
       if (specs_[i].equals(spec)) {
@@ -456,6 +457,8 @@ public:
     }
     return RC::SUCCESS;
   }
+
+  void set_spec(const vector<TupleCellSpec> &specs) { specs_ = specs; }
 
 private:
   vector<Value>         cells_;

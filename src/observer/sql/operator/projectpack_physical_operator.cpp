@@ -19,19 +19,43 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-ProjectPackPhysicalOperator::ProjectPackPhysicalOperator(shared_ptr<PhysicalOperator> content)
+ProjectPackPhysicalOperator::ProjectPackPhysicalOperator(string table_name, shared_ptr<PhysicalOperator> content)
   : content_(content)
 {
+  table_name_ = table_name;
 }
 
 RC ProjectPackPhysicalOperator::open(Trx *trx)
 {
+  vector<unique_ptr<Expression>>& expressions = static_cast<ProjectPhysicalOperator*>(content_.get())->expressions();
+  int cell_num = static_cast<int>(expressions.size());
+  for(int i=0;i<cell_num;i++){
+    TupleCellSpec spec(table_name_.c_str(), expressions[i]->name());
+    specs_.push_back(spec);
+  }
   return content_->open(trx);
 }
 
 RC ProjectPackPhysicalOperator::next()
 {
-  return content_->next();
+  RC rc = RC::SUCCESS;
+  bool filter_result = false;
+  while((rc = content_->next()) == RC::SUCCESS){
+    Tuple* curr_tuple = content_->current_tuple();
+    static_cast<ValueListTuple*>(curr_tuple)->set_spec(specs_);
+    
+    rc = filter(*curr_tuple, filter_result);
+    LOG_INFO("in projectpack, get tuple %s, filter result is %d", curr_tuple->to_string().c_str(), filter_result);
+    if (rc != RC::SUCCESS) {
+      LOG_TRACE("record filtered failed=%s", strrc(rc));
+      return rc;
+    }
+
+    if (filter_result) {
+      break;
+    }
+  }
+  return rc;
 }
 
 RC ProjectPackPhysicalOperator::close()
@@ -40,10 +64,39 @@ RC ProjectPackPhysicalOperator::close()
 }
 Tuple *ProjectPackPhysicalOperator::current_tuple()
 {
-  return content_->current_tuple();
+  Tuple* curr_tuple = content_->current_tuple();
+  if(curr_tuple != nullptr && curr_tuple->type() == TupleType::VALUELIST){
+    // 重新设置spec
+    static_cast<ValueListTuple*>(curr_tuple)->set_spec(specs_);
+  }else{
+    LOG_WARN("current tuple is not valuelist type, it's %s", curr_tuple->type_to_string());
+  }
+
+  return curr_tuple;
 }
 
 RC ProjectPackPhysicalOperator::tuple_schema(TupleSchema &schema) const
 {
   return content_->tuple_schema(schema);
+}
+
+RC ProjectPackPhysicalOperator::filter(Tuple &tuple, bool &result)
+{
+  RC    rc = RC::SUCCESS;
+  Value value;
+  for (unique_ptr<Expression> &expr : predicates_) {
+    rc = expr->get_value(tuple, value);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+
+    bool tmp_result = (value.get_boolean() == 1);
+    if (!tmp_result) {
+      result = false;
+      return rc;
+    }
+  }
+
+  result = true;
+  return rc;
 }

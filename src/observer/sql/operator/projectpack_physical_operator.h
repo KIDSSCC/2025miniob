@@ -25,7 +25,7 @@ See the Mulan PSL v2 for more details. */
 class ProjectPackPhysicalOperator : public PhysicalOperator
 {
 public:
-  ProjectPackPhysicalOperator(shared_ptr<PhysicalOperator> content);
+  ProjectPackPhysicalOperator(string table_name, shared_ptr<PhysicalOperator> content);
 
   virtual ~ProjectPackPhysicalOperator() = default;
 
@@ -50,6 +50,15 @@ public:
 
   vector<unique_ptr<PhysicalOperator>> &children() override { return content_->children(); }
 
+  RC filter(Tuple &tuple, bool &result);
+
+  void set_predicates(vector<unique_ptr<Expression>> &&exprs) { predicates_ = std::move(exprs); }
+
 private:
   shared_ptr<PhysicalOperator> content_;
+  string table_name_;
+
+  vector<TupleCellSpec> specs_;
+
+  vector<unique_ptr<Expression>> predicates_;
 };

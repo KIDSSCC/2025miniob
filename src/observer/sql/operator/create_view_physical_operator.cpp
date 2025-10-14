@@ -23,6 +23,12 @@ RC CreateViewPhysicalOperator::open(Trx *trx)
   RC rc = RC::SUCCESS;
   // 先创建好表的结构，再逐一遍历底层算子插入数据
   rc = db_->create_table(table_name_.c_str(), attr_infos_, primary_keys_, storage_format_);
+  LOG_INFO("create table %s", table_name_.c_str());
+  for(size_t i=0;i<attr_infos_.size();i++){
+    const AttrInfoSqlNode &attr = attr_infos_[i];
+    LOG_INFO("attr type is %d, name is %s", attr.type, attr.name.c_str());
+  }
+
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create view table %s. rc=%s", table_name_.c_str(), strrc(rc));
     return rc;

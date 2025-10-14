@@ -62,6 +62,7 @@ RC PredicatePhysicalOperator::next()
       LOG_WARN("failed to get tuple from operator");
       break;
     }
+    LOG_INFO("self tuple is %s", tuple->to_string().c_str());
 
     // 遍历访问所有子查询的算子返回的tuple
     CompositeTuple sub_query_tuple;
@@ -111,6 +112,8 @@ RC PredicatePhysicalOperator::next()
       rc = ValueListTuple::make(*parent_tuple_, parent_tuple_pack);
       sub_query_tuple.add_tuple(make_unique<ValueListTuple>(std::move(parent_tuple_pack)));
     }
+
+    LOG_INFO("final subquery is %s, spec is %s", sub_query_tuple.to_string().c_str(), sub_query_tuple.spec_to_string().c_str());
 
     // 谓词算子的表达式一般可以是 ConjunctionExpr，通过ConjunctionExpr计算tuple的值
     Value value;

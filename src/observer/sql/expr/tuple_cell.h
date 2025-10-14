@@ -34,16 +34,16 @@ public:
     // 此时只需要比较传入的TupleCellSpec的field与alias是否相等即可。
 
     bool res = table_name_ == other.table_name_ && field_name_ == other.field_name_ && alias_ == other.alias_;
-    if(!res){
-      if(table_name_ == "" && field_name_ == ""){
-        res = alias_ == other.field_name_;
-      }
-    }
+    // if(!res){
+    //   if(table_name_ == "" && field_name_ == ""){
+    //     res = alias_ == other.field_name_;
+    //   }
+    // }
     
     return res;
   }
 
-  string to_string(){
+  string to_string() const {
     string res = "[" + table_name_;
     if(field_name_ != ""){
       res += "." + field_name_;
