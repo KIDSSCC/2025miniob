@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/operator/nested_loop_join_physical_operator.h"
+#include <chrono>
 
 NestedLoopJoinPhysicalOperator::NestedLoopJoinPhysicalOperator() {}
 
@@ -68,36 +69,39 @@ RC NestedLoopJoinPhysicalOperator::open(Trx *trx)
   }
 
   return RC::SUCCESS;
+
+  // return rc;
 }
 
 // RC NestedLoopJoinPhysicalOperator::next()
 // {
-//   // 最外层的while不是很理解其含义
+//   bool left_need_step = (left_tuple_ == nullptr);
 //   RC   rc             = RC::SUCCESS;
-//   while (RC::SUCCESS == rc) {
-//     bool left_need_step = (left_tuple_ == nullptr);
-//     if (round_done_) {
-//       left_need_step = true;
-//     }
-
-//     if (left_need_step) {
-//       rc = left_next();
-//       if (rc != RC::SUCCESS) {
-//         return rc;
-//       }
-//     }
-
+//   if (round_done_) {
+//     // 如果右表已经结束了一轮遍历，则左表需要向前，获取下一条记录
+//     left_need_step = true;
+//   } else {
+//     // 如果右表未完成一轮遍历，当前仅需要从右表中获取下一条记录
 //     rc = right_next();
 //     if (rc != RC::SUCCESS) {
 //       if (rc == RC::RECORD_EOF) {
-//         rc = RC::SUCCESS;
-//         round_done_ = true;
-//         continue;
+//         left_need_step = true;
 //       } else {
 //         return rc;
 //       }
+//     } else {
+//       return rc;  // got one tuple from right
 //     }
 //   }
+
+//   if (left_need_step) {
+//     rc = left_next();
+//     if (rc != RC::SUCCESS) {
+//       return rc;
+//     }
+//   }
+
+//   rc = right_next();
 //   return rc;
 // }
 
