@@ -12,20 +12,20 @@ See the Mulan PSL v2 for more details. */
 // Created by WangYunlai on 2022/07/01.
 //
 
-#include "sql/operator/projectpack_physical_operator.h"
+#include "sql/operator/view_translate_physical_operator.h"
 #include "common/log/log.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
 
 using namespace std;
 
-ProjectPackPhysicalOperator::ProjectPackPhysicalOperator(string table_name, shared_ptr<PhysicalOperator> content)
+ViewTranslatePhysicalOperator::ViewTranslatePhysicalOperator(string table_name, shared_ptr<PhysicalOperator> content)
   : content_(content)
 {
   table_name_ = table_name;
 }
 
-RC ProjectPackPhysicalOperator::open(Trx *trx)
+RC ViewTranslatePhysicalOperator::open(Trx *trx)
 {
   vector<unique_ptr<Expression>>& expressions = static_cast<ProjectPhysicalOperator*>(content_.get())->expressions();
   int cell_num = static_cast<int>(expressions.size());
@@ -36,7 +36,7 @@ RC ProjectPackPhysicalOperator::open(Trx *trx)
   return content_->open(trx);
 }
 
-RC ProjectPackPhysicalOperator::next()
+RC ViewTranslatePhysicalOperator::next()
 {
   RC rc = RC::SUCCESS;
   bool filter_result = false;
@@ -58,11 +58,11 @@ RC ProjectPackPhysicalOperator::next()
   return rc;
 }
 
-RC ProjectPackPhysicalOperator::close()
+RC ViewTranslatePhysicalOperator::close()
 {
   return content_->close();
 }
-Tuple *ProjectPackPhysicalOperator::current_tuple()
+Tuple *ViewTranslatePhysicalOperator::current_tuple()
 {
   Tuple* curr_tuple = content_->current_tuple();
   if(curr_tuple != nullptr && curr_tuple->type() == TupleType::VALUELIST){
@@ -75,12 +75,12 @@ Tuple *ProjectPackPhysicalOperator::current_tuple()
   return curr_tuple;
 }
 
-RC ProjectPackPhysicalOperator::tuple_schema(TupleSchema &schema) const
+RC ViewTranslatePhysicalOperator::tuple_schema(TupleSchema &schema) const
 {
   return content_->tuple_schema(schema);
 }
 
-RC ProjectPackPhysicalOperator::filter(Tuple &tuple, bool &result)
+RC ViewTranslatePhysicalOperator::filter(Tuple &tuple, bool &result)
 {
   RC    rc = RC::SUCCESS;
   Value value;
@@ -98,5 +98,11 @@ RC ProjectPackPhysicalOperator::filter(Tuple &tuple, bool &result)
   }
 
   result = true;
+  return rc;
+}
+
+RC ViewTranslatePhysicalOperator::need_row() {
+
+  RC rc = content_->need_row();
   return rc;
 }

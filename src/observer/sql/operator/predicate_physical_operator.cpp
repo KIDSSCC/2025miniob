@@ -190,3 +190,9 @@ RC PredicatePhysicalOperator::tuple_schema(TupleSchema &schema) const
 {
   return children_.back()->tuple_schema(schema);
 }
+
+RC PredicatePhysicalOperator::need_row() {
+
+  RC rc = children_.back()->need_row();
+  return rc;
+}

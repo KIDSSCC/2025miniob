@@ -34,6 +34,7 @@ class Trx;
  */
 enum class PhysicalOperatorType
 {
+  PIPELINE_CACHE,
   TABLE_SCAN,
   TABLE_SCAN_VEC,
   INDEX_SCAN,
@@ -58,6 +59,7 @@ enum class PhysicalOperatorType
   EXPR_VEC,
   CREATE_TABLE,
   CREATE_VIEW,
+  VIEW_TRANSLATE,
   NOTHING
 };
 
@@ -88,6 +90,8 @@ inline const char *PhysicalOperatorType_to_string(PhysicalOperatorType type) {
     case PhysicalOperatorType::CREATE_TABLE:    return "CREATE_TABLE";
     case PhysicalOperatorType::CREATE_VIEW:     return "CREATE_VIEW";
     case PhysicalOperatorType::NOTHING:           return "NOTHING";
+    case PhysicalOperatorType::PIPELINE_CACHE:    return "PIPELINE_CACHE";
+    case PhysicalOperatorType::VIEW_TRANSLATE:   return "VIEW_TRANSLATE";
     default:                                     return "UNKNOWN";
   }
 }
@@ -130,6 +134,8 @@ public:
   void set_parent_tuple(const Tuple* parent_tuple){ parent_tuple_ = parent_tuple; }
 
   void print_tree(int depth = 0);
+
+  virtual RC need_row() { return RC::SUCCESS; }
 
 protected:
   vector<unique_ptr<PhysicalOperator>> children_;

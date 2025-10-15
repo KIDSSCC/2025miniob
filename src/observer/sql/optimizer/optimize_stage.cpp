@@ -103,6 +103,11 @@ RC OptimizeStage::generate_physical_plan(
     LOG_TRACE("use tuple iterator");
     session->set_used_chunk_mode(false);
     rc = physical_plan_generator_.create(*logical_operator, physical_operator, session);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create physical operator. rc=%s", strrc(rc));
+    }
+
+    rc = physical_plan_generator_.physical_operator_pack(physical_operator);
   }
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create physical operator. rc=%s", strrc(rc));

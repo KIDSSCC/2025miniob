@@ -22,15 +22,15 @@ See the Mulan PSL v2 for more details. */
  * @brief 选择/投影物理算子
  * @ingroup PhysicalOperator
  */
-class ProjectPackPhysicalOperator : public PhysicalOperator
+class ViewTranslatePhysicalOperator : public PhysicalOperator
 {
 public:
-  ProjectPackPhysicalOperator(string table_name, shared_ptr<PhysicalOperator> content);
+  ViewTranslatePhysicalOperator(string table_name, shared_ptr<PhysicalOperator> content);
 
-  virtual ~ProjectPackPhysicalOperator() = default;
+  virtual ~ViewTranslatePhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::PROJECT; }
-  OpType               get_op_type() const override { return OpType::PROJECTION; }
+  PhysicalOperatorType type() const override { return PhysicalOperatorType::VIEW_TRANSLATE; }
+  OpType               get_op_type() const override { return OpType::VIEW_TRANSLATE; }
 
   virtual double calculate_cost(
       LogicalProperty *prop, const vector<LogicalProperty *> &child_log_props, CostModel *cm) override
@@ -52,13 +52,15 @@ public:
 
   RC filter(Tuple &tuple, bool &result);
 
+  // 逻辑计划优化阶段，会尝试将部分谓词下推到tableget，在对正常表的访问中，谓词右table_scan算子处理。在视图处理中，将谓词绑定到viewtranslate层。
   void set_predicates(vector<unique_ptr<Expression>> &&exprs) { predicates_ = std::move(exprs); }
+
+  RC need_row() override;
 
 private:
   shared_ptr<PhysicalOperator> content_;
   string table_name_;
 
   vector<TupleCellSpec> specs_;
-
   vector<unique_ptr<Expression>> predicates_;
 };

@@ -42,6 +42,8 @@ public:
 
   RC tuple_schema(TupleSchema &schema) const override;
 
+  RC need_row() override;
+
 private:
   // 谓词算子围绕该表达式展开过滤
   unique_ptr<Expression> expression_;

@@ -53,10 +53,24 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/create_table_logical_operator.h"
 #include "sql/operator/create_view_physical_operator.h"
 #include "sql/operator/create_view_logical_operator.h"
-#include "sql/operator/projectpack_physical_operator.h"
+#include "sql/operator/view_translate_physical_operator.h"
+#include "sql/operator/pipeline_cache_physical_operator.h"
 #include "sql/optimizer/physical_plan_generator.h"
 
 using namespace std;
+
+RC PhysicalPlanGenerator::physical_operator_pack(unique_ptr<PhysicalOperator> &oper)
+{
+  if(oper->type() != PhysicalOperatorType::PROJECT){
+    return RC::SUCCESS;
+  }else{
+    unique_ptr<PhysicalOperator> project_oper = std::move(oper);
+    auto project_cache_oper = new PipelineCachePhysicalOperator();
+    project_cache_oper->add_child(std::move(project_oper));
+    oper = unique_ptr<PhysicalOperator>(project_cache_oper);
+    return RC::SUCCESS;
+  }
+}
 
 RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<PhysicalOperator> &oper, Session* session)
 {
@@ -159,7 +173,7 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
   for (const auto &view : this->views_) {
     if (view.view_name_ == table_get_oper.table()->name()) {
       LOG_INFO("find view %s", view.view_name_.c_str());
-      ProjectPackPhysicalOperator* pack_oper = new ProjectPackPhysicalOperator(table_get_oper.table()->name(), view.read_node_);
+      ViewTranslatePhysicalOperator* pack_oper = new ViewTranslatePhysicalOperator(table_get_oper.table()->name(), view.read_node_);
       pack_oper->set_predicates(std::move(table_get_oper.predicates()));
       oper = unique_ptr<PhysicalOperator>(pack_oper);
       return RC::SUCCESS;
@@ -336,6 +350,7 @@ RC PhysicalPlanGenerator::create_plan(InsertLogicalOperator &insert_oper, unique
 
 RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique_ptr<PhysicalOperator> &oper, Session* session)
 {
+  // UpdateLogicalOperator的子节点排布逻辑：最后一个子节点是向下一层的predicate或table_get。其余节点为子查询节点，用于获取更新的值。
   vector<unique_ptr<LogicalOperator>> &child_opers = update_oper.children();
 
   RC rc = RC::SUCCESS;
@@ -352,6 +367,11 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique
     all_children_oper.emplace_back(std::move(child_phy_oper));
   }
   
+  rc = all_children_oper.back()->need_row();
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to set need row for update operator's child. rc=%s", strrc(rc));
+    return rc;
+  }
 
   Table* table = update_oper.table();
   vector<int> field_idx = update_oper.field_index();
@@ -423,6 +443,7 @@ RC PhysicalPlanGenerator::create_plan(CreateTableLogicalOperator &create_oper, u
 
 RC PhysicalPlanGenerator::create_plan(CreateViewLogicalOperator &create_oper, unique_ptr<PhysicalOperator> &oper, Session* session)
 {
+  // create_view的子节点是一个select查询，生成物理节点后注册到physical_plan_generator的views_中。
   vector<unique_ptr<LogicalOperator>> &child_opers = create_oper.children();
   unique_ptr<PhysicalOperator> child_physical_oper;
 

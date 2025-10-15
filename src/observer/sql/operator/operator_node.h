@@ -46,6 +46,7 @@ enum class OpType
   // Separation of logical and physical operators
 
   // Physical Operators
+  PIPELINE_CACHE,
   EXPLAIN,
   CALCULATE,
   SEQSCAN,
@@ -67,6 +68,7 @@ enum class OpType
   SCALARGROUPBY,
   CREATE_TABLE,
   CREATE_VIEW,
+  VIEW_TRANSLATE,
   NOTHING
 };
 

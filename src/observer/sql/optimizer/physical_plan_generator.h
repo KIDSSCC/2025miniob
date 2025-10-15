@@ -60,6 +60,9 @@ public:
   RC create(LogicalOperator &logical_operator, unique_ptr<PhysicalOperator> &oper, Session *session);
   RC create_vec(LogicalOperator &logical_operator, unique_ptr<PhysicalOperator> &oper, Session *session);
 
+  // 针对select查询语句的封装，在project算子的外层套一个pipeline_cache算子
+  RC physical_operator_pack(unique_ptr<PhysicalOperator> &oper);
+
 private:
   RC create_plan(TableGetLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);
   RC create_plan(PredicateLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session *session);

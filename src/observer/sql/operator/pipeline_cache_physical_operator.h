@@ -15,21 +15,21 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "sql/operator/physical_operator.h"
-#include "sql/expr/expression_tuple.h"
+#include "sql/operator/project_physical_operator.h"
 
 /**
  * @brief 选择/投影物理算子
  * @ingroup PhysicalOperator
  */
-class ProjectPhysicalOperator : public PhysicalOperator
+class PipelineCachePhysicalOperator : public PhysicalOperator
 {
 public:
-  ProjectPhysicalOperator(vector<unique_ptr<Expression>> &&expressions);
+  PipelineCachePhysicalOperator();
 
-  virtual ~ProjectPhysicalOperator() = default;
+  virtual ~PipelineCachePhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::PROJECT; }
-  OpType               get_op_type() const override { return OpType::PROJECTION; }
+  PhysicalOperatorType type() const override { return PhysicalOperatorType::PIPELINE_CACHE; }
+  OpType               get_op_type() const override { return OpType::PIPELINE_CACHE; }
 
   virtual double calculate_cost(
       LogicalProperty *prop, const vector<LogicalProperty *> &child_log_props, CostModel *cm) override
@@ -41,20 +41,23 @@ public:
   RC next() override;
   RC close() override;
 
-  int cell_num() const { return tuple_.cell_num(); }
+  int cell_num() const {
+    ProjectPhysicalOperator* content_ = static_cast<ProjectPhysicalOperator*>(children_[0].get());
+    return content_->cell_num(); 
+  }
 
   Tuple *current_tuple() override;
 
   RC tuple_schema(TupleSchema &schema) const override;
 
-  vector<unique_ptr<Expression>>& expressions() { return expressions_; }
-
-  RC need_row() override;
+  vector<unique_ptr<Expression>>& expressions() { 
+    ProjectPhysicalOperator* content_ = static_cast<ProjectPhysicalOperator*>(children_[0].get());
+    return content_->expressions(); 
+  }
 
 private:
-  vector<unique_ptr<Expression>>          expressions_;
-  ExpressionTuple<unique_ptr<Expression>> tuple_;
 
-
-  bool reserver_row = false;
+  vector<unique_ptr<ValueListTuple>>                  all_tuple;
+  vector<unique_ptr<ValueListTuple>>::iterator        curr_tuple_;
+  bool                                                first_emited_ = false;
 };
