@@ -70,6 +70,8 @@ public:
 
   void set_predicates(vector<unique_ptr<Expression>> &&exprs);
 
+  RC get_row_tuple(Table* table, Tuple*& tuple) override;
+
 private:
   RC filter(Tuple &tuple, bool &result);
 

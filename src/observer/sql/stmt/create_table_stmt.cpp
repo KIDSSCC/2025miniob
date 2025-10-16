@@ -27,7 +27,8 @@ RC CreateTableStmt::create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt
 
   if(create_table.create_type == 0){
     // 普通创建模式，直接创建语句即可
-    stmt = new CreateTableStmt(create_table.relation_name, create_table.attr_infos, create_table.primary_keys, storage_format, create_table.create_type);
+    vector<string> empty_src;
+    stmt = new CreateTableStmt(create_table.relation_name, empty_src, create_table.attr_infos, create_table.primary_keys, storage_format, create_table.create_type);
     sql_debug("create table statement: table name %s", create_table.relation_name.c_str());
     return RC::SUCCESS;
   }
@@ -49,14 +50,23 @@ RC CreateTableStmt::create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt
   // 构建select子查询语句后，需要从中解析出查询字段的名称和类型，构造成vector<AttrInfoSqlNode>用于创建表的结构
   vector<unique_ptr<Expression>>& exprs = static_cast<SelectPackExpr*>(expr)->select_expr_->select_stmt_->query_expressions();
   vector<AttrInfoSqlNode> attrs;
+  vector<string> src_fields; 
   for(size_t i=0;i<exprs.size();i++){
     AttrInfoSqlNode attr;
     attr.name = exprs[i]->name();
     attr.type = exprs[i]->value_type();
     attr.length = exprs[i]->value_length();
     attr.allow_null = true; // 默认允许null
-
     attrs.push_back(attr);
+
+    // 尝试记录字段的来源，用于视图插入更新
+    if(exprs[i]->type() == ExprType::FIELD){
+      FieldExpr* field_expr = static_cast<FieldExpr*>(exprs[i].get());
+      src_fields.push_back(string(field_expr->table_name()) + "." + string(field_expr->field_name()));
+    }else{
+      // 非FIELD字段，大概率是聚合字段或其他计算表达式，此时该视图不可更新
+      src_fields.push_back("");
+    }
   }
 
   // create table可能预先定义了表的结构，需要检查一下子查询返回的结构和声明的结构能不能对得上
@@ -77,7 +87,7 @@ RC CreateTableStmt::create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt
   }
 
 
-  stmt = new CreateTableStmt(create_table.relation_name, create_table.attr_infos, create_table.primary_keys, storage_format, create_table.create_type);
+  stmt = new CreateTableStmt(create_table.relation_name, src_fields, create_table.attr_infos, create_table.primary_keys, storage_format, create_table.create_type);
   static_cast<CreateTableStmt*>(stmt)->sub_select = std::move(sub_select);
   static_cast<CreateTableStmt*>(stmt)->db_ = db;
   sql_debug("create table select statement: table name %s", create_table.relation_name.c_str());

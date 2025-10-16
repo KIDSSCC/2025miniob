@@ -51,6 +51,8 @@ public:
 
   RC need_row() override;
 
+  RC get_row_tuple(Table* table, Tuple*& tuple) override;
+
 private:
   vector<unique_ptr<Expression>>          expressions_;
   ExpressionTuple<unique_ptr<Expression>> tuple_;

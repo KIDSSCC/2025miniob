@@ -16,6 +16,8 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/logical_operator.h"
 
+class Db;
+
 /**
  * @brief 逻辑算子，用于执行update语句
  * @ingroup LogicalOperator
@@ -31,6 +33,9 @@ public:
   Table              *table() const { return table_; }
   vector<int>                           field_index() const { return field_index_; }
   vector<unique_ptr<Expression>>&       value()  { return update_value_; }
+
+public:
+  Db *db_ = nullptr;
 
 private:
   Table *table_ = nullptr;

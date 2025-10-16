@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/stmt.h"
 #include "sql/parser/expression_binder.h"
 
+class Db;
 class Table;
 class FilterStmt;
 
@@ -40,6 +41,9 @@ public:
   vector<unique_ptr<Expression>>& values() { return values_; }
   vector<int> value_amount() { return value_amount_; }
   FilterStmt *filter_stmt() const { return filter_stmt_; }
+
+public:
+  Db *db_ = nullptr;
 
 private:
   Table *table_        = nullptr;

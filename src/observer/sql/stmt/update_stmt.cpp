@@ -183,5 +183,6 @@ RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
 
 
   stmt = new UpdateStmt(table, update.values, field_indexs, filter_stmt);
+  static_cast<UpdateStmt*>(stmt)->db_ = db;
   return rc;
 }

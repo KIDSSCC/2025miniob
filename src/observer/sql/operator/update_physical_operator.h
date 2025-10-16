@@ -38,7 +38,15 @@ public:
   RC next() override;
   RC close() override;
 
+  RC update_table(Trx *trx);
+  RC update_view(Trx *trx);
+
   Tuple *current_tuple() override { return nullptr; }
+
+  RC generate_new_value(vector<Value>& new_values);
+
+public:
+  Db            *db_   = nullptr;
 
 private:
   Table         *table_ = nullptr;

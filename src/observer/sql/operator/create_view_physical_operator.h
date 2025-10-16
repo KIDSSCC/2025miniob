@@ -44,6 +44,7 @@ public:
 
   Db            *db_ = nullptr;
   string table_name_;
+  vector<string>          src_fields_;
   vector<AttrInfoSqlNode> attr_infos_;
   vector<string>          primary_keys_;
   StorageFormat           storage_format_;

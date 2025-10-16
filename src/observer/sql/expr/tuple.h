@@ -459,6 +459,11 @@ public:
 
   void set_spec(const vector<TupleCellSpec> &specs) { specs_ = specs; }
 
+  void clear() {
+    cells_.clear();
+    specs_.clear();
+  }
+
 private:
   vector<Value>         cells_;
   vector<TupleCellSpec> specs_;

@@ -44,6 +44,8 @@ public:
 
   RC need_row() override;
 
+  RC get_row_tuple(Table* table, Tuple*& tuple) override;
+
 private:
   // 谓词算子围绕该表达式展开过滤
   unique_ptr<Expression> expression_;

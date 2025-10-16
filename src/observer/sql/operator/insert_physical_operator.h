@@ -40,6 +40,9 @@ public:
 
   Tuple *current_tuple() override { return nullptr; }
 
+  RC insert_table(Trx* trx);
+  RC insert_view(Trx* trx);
+
 private:
   Table        *table_ = nullptr;
   vector<Value> values_;

@@ -33,6 +33,7 @@ public:
 public:
   Db            *db_ = nullptr;
   string table_name_;
+  vector<string>          src_fields_; // 用于视图的更新和插入，记录字段的来源
   vector<AttrInfoSqlNode> attr_infos_;
   vector<string>          primary_keys_;
   StorageFormat           storage_format_;

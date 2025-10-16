@@ -137,6 +137,8 @@ public:
 
   virtual RC need_row() { return RC::SUCCESS; }
 
+  virtual RC get_row_tuple(Table* table, Tuple*& tuple) { return RC::UNIMPLEMENTED; }
+
 protected:
   vector<unique_ptr<PhysicalOperator>> children_;
   const Tuple*                          parent_tuple_ = nullptr;

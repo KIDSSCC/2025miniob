@@ -74,3 +74,7 @@ RC ProjectPhysicalOperator::need_row() {
   reserver_row = true;
   return RC::SUCCESS;
 }
+
+RC ProjectPhysicalOperator::get_row_tuple(Table* table, Tuple*& tuple) {
+  return children_[0]->get_row_tuple(table, tuple);
+}

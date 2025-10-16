@@ -130,9 +130,17 @@ public:
   Index *find_index(const char *index_name) const;
   Index *find_index_by_field(const char *field_name) const;
 
+  bool is_view() const { return is_view_; }
+  void set_view(bool v) { is_view_ = v; }
+
+  vector<string>& src_fields() { return src_fields_; }
+  void set_src_fields(const vector<string> &fields) { src_fields_ = fields; }
+
 private:
   Db       *db_ = nullptr;
   TableMeta table_meta_;
+  bool      is_view_ = false;
+  vector<string> src_fields_;
   // DiskBufferPool    *data_buffer_pool_ = nullptr;  /// 数据文件关联的buffer pool
   // RecordFileHandler *record_handler_   = nullptr;  /// 记录操作
   // vector<Index *>    indexes_;

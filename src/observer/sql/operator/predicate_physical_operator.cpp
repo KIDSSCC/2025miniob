@@ -196,3 +196,7 @@ RC PredicatePhysicalOperator::need_row() {
   RC rc = children_.back()->need_row();
   return rc;
 }
+
+RC PredicatePhysicalOperator::get_row_tuple(Table* table, Tuple*& tuple) {
+  return children_.back()->get_row_tuple(table, tuple);
+}

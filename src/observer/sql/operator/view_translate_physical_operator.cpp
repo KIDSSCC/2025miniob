@@ -42,10 +42,11 @@ RC ViewTranslatePhysicalOperator::next()
   bool filter_result = false;
   while((rc = content_->next()) == RC::SUCCESS){
     Tuple* curr_tuple = content_->current_tuple();
-    static_cast<ValueListTuple*>(curr_tuple)->set_spec(specs_);
+    tuple_.clear();
+    ValueListTuple::make(*curr_tuple, tuple_);
+    tuple_.set_spec(specs_);
     
-    rc = filter(*curr_tuple, filter_result);
-    LOG_INFO("in projectpack, get tuple %s, filter result is %d", curr_tuple->to_string().c_str(), filter_result);
+    rc = filter(tuple_, filter_result);
     if (rc != RC::SUCCESS) {
       LOG_TRACE("record filtered failed=%s", strrc(rc));
       return rc;
@@ -64,15 +65,7 @@ RC ViewTranslatePhysicalOperator::close()
 }
 Tuple *ViewTranslatePhysicalOperator::current_tuple()
 {
-  Tuple* curr_tuple = content_->current_tuple();
-  if(curr_tuple != nullptr && curr_tuple->type() == TupleType::VALUELIST){
-    // 重新设置spec
-    static_cast<ValueListTuple*>(curr_tuple)->set_spec(specs_);
-  }else{
-    LOG_WARN("current tuple is not valuelist type, it's %s", curr_tuple->type_to_string());
-  }
-
-  return curr_tuple;
+  return &tuple_;
 }
 
 RC ViewTranslatePhysicalOperator::tuple_schema(TupleSchema &schema) const
@@ -105,4 +98,8 @@ RC ViewTranslatePhysicalOperator::need_row() {
 
   RC rc = content_->need_row();
   return rc;
+}
+
+RC ViewTranslatePhysicalOperator::get_row_tuple(Table* table, Tuple*& tuple) {
+  return content_->get_row_tuple(table, tuple);
 }

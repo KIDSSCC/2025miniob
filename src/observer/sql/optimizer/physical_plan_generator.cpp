@@ -367,16 +367,20 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique
     all_children_oper.emplace_back(std::move(child_phy_oper));
   }
   
-  rc = all_children_oper.back()->need_row();
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to set need row for update operator's child. rc=%s", strrc(rc));
-    return rc;
+  Table* table = update_oper.table();
+
+  if(table->is_view()){
+    rc = all_children_oper.back()->need_row();
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to set need row for update operator's child. rc=%s", strrc(rc));
+      return rc;
+    }
   }
 
-  Table* table = update_oper.table();
   vector<int> field_idx = update_oper.field_index();
   vector<unique_ptr<Expression>>& new_value = update_oper.value();
   oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(table, new_value, field_idx));
+  static_cast<UpdatePhysicalOperator*>(oper.get())->db_ = update_oper.db_;
 
   for(size_t i=0;i<all_children_oper.size();i++){
     oper->add_child(std::move(all_children_oper[i]));
@@ -467,6 +471,7 @@ RC PhysicalPlanGenerator::create_plan(CreateViewLogicalOperator &create_oper, un
   CreateViewPhysicalOperator* create_view_oper = static_cast<CreateViewPhysicalOperator*>(oper.get());
   create_view_oper->db_ = create_oper.db_;
   create_view_oper->table_name_ = create_oper.table_name_;
+  create_view_oper->src_fields_ = create_oper.src_fields_;
   create_view_oper->attr_infos_ = std::move(create_oper.attr_infos_);
   create_view_oper->primary_keys_ = std::move(create_oper.primary_keys_);
   create_view_oper->storage_format_ = create_oper.storage_format_;

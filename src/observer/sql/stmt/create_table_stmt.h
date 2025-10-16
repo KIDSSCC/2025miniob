@@ -28,9 +28,9 @@ class Db;
 class CreateTableStmt : public Stmt
 {
 public:
-  CreateTableStmt(const string &table_name, const vector<AttrInfoSqlNode> &attr_infos, const vector<string> &pks,
+  CreateTableStmt(const string &table_name, const vector<string> src_field, const vector<AttrInfoSqlNode> &attr_infos, const vector<string> &pks,
       StorageFormat storage_format, int is_create_select = false)
-      : table_name_(table_name), attr_infos_(attr_infos), primary_keys_(pks), storage_format_(storage_format)
+      : table_name_(table_name), src_fields_(src_field),attr_infos_(attr_infos), primary_keys_(pks), storage_format_(storage_format)
   {
     is_create_select_ = is_create_select;
   }
@@ -42,6 +42,7 @@ public:
   const vector<AttrInfoSqlNode> &attr_infos() const { return attr_infos_; }
   const vector<string>          &primary_keys() const { return primary_keys_; }
   const StorageFormat            storage_format() const { return storage_format_; }
+  const vector<string>          &src_fields() const { return src_fields_; }
 
   static RC            create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt);
   static StorageFormat get_storage_format(const char *format_str);
@@ -53,6 +54,7 @@ public:
 
 private:
   string                  table_name_;
+  vector<string>          src_fields_; // 用于视图的更新和插入，记录字段的来源
   vector<AttrInfoSqlNode> attr_infos_;
   vector<string>          primary_keys_;
   StorageFormat           storage_format_;

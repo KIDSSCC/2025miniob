@@ -57,9 +57,12 @@ public:
 
   RC need_row() override;
 
+  RC get_row_tuple(Table* table, Tuple*& tuple) override;
+
 private:
   shared_ptr<PhysicalOperator> content_;
   string table_name_;
+  ValueListTuple tuple_;
 
   vector<TupleCellSpec> specs_;
   vector<unique_ptr<Expression>> predicates_;

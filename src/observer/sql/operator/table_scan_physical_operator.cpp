@@ -112,3 +112,13 @@ RC TableScanPhysicalOperator::filter(Tuple &tuple, bool &result)
   result = true;
   return rc;
 }
+
+RC TableScanPhysicalOperator::get_row_tuple(Table* table, Tuple*& tuple){
+  if(0 == strcmp(table->name(), table_->name())){
+    // 确实要找的是当前表的行元祖
+    tuple = &tuple_;
+    return RC::SUCCESS;
+  }else{
+    return RC::NOTFOUND;
+  }
+}

@@ -520,6 +520,7 @@ RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, unique_ptr<Logical
 
   // 子查询的project_cache接入update作为分支
   unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, field_index, value));
+  static_cast<UpdateLogicalOperator*>(update_oper.get())->db_ = update_stmt->db_;
   for(size_t i=0;i<sub_querys.size();i++){
     update_oper->add_child(std::move(sub_querys[i]));
   }
@@ -607,6 +608,7 @@ RC LogicalPlanGenerator::create_plan(CreateTableStmt *create_table_stmt, unique_
     unique_ptr<CreateViewLogicalOperator> create_view_oper = make_unique<CreateViewLogicalOperator>();
     create_view_oper->db_ = create_table_stmt->db_;
     create_view_oper->table_name_ = create_table_stmt->table_name();
+    create_view_oper->src_fields_ = create_table_stmt->src_fields();
     create_view_oper->attr_infos_ = create_table_stmt->attr_infos();
     create_view_oper->primary_keys_ = create_table_stmt->primary_keys();
     create_view_oper->storage_format_ = create_table_stmt->storage_format();

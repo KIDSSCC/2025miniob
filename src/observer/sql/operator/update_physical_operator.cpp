@@ -16,9 +16,29 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
+#include "storage/db/db.h"
 
 RC UpdatePhysicalOperator::open(Trx *trx)
 {
+
+  if(table_->is_view()){
+    return update_view(trx);
+  }else{
+    return update_table(trx);
+  }
+}
+
+RC UpdatePhysicalOperator::next()
+{
+  return RC::RECORD_EOF;
+}
+
+RC UpdatePhysicalOperator::close()
+{
+  return RC::SUCCESS;
+}
+
+RC UpdatePhysicalOperator::update_table(Trx *trx){
   RC rc = RC::SUCCESS;
   if (children_.empty()) {
     return rc;
@@ -51,6 +71,148 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   child->close();
 
   vector<Value> new_values;
+  rc = generate_new_value(new_values);
+  if(rc != RC::SUCCESS){
+    LOG_WARN("Failed to generate new value, rc %s", strrc(rc));
+    return rc;
+  }
+
+  // 先收集记录再进行更新
+  // 记录的有效性由事务来保证，如果事务不保证删除的有效性，那说明此事务类型不支持并发控制，比如VacuousTrx
+  for (Record &record : records_) {
+    // 根据旧的record创建新的record
+    Record new_record;
+    rc = table_->make_record_from_record(record, new_record, field_index_, new_values);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to make record from record: %s", strrc(rc));
+      return rc;
+    }
+
+
+    rc = trx_->update_record(table_, record, new_record);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to update record: %s", strrc(rc));
+      return rc;
+    }
+  }
+
+  return RC::SUCCESS;
+}
+
+
+RC UpdatePhysicalOperator::update_view(Trx *trx){
+  RC rc = RC::SUCCESS;
+
+  // 更新视图，需要先通过更新字段情况分析出本次更新所涉及的表。目前只考虑视图关联一张表的情况。多表join后面再说
+  vector<string>& src_fields = table_->src_fields();
+
+  Table* related_table = nullptr;
+  vector<int> src_field_index_;
+  for(size_t i=0;i<field_index_.size();i++){
+    int view_field_idx = field_index_[i] - table_->table_meta().sys_field_num();
+    string src_field = src_fields[view_field_idx];
+
+    if(src_field == ""){
+      // 不可更新视图
+      LOG_WARN("The view is not updatable");
+      return RC::INTERNAL;
+    }
+
+    // 解析关联表中的字段
+    size_t dot_pos = src_field.find('.');
+    string table_name = "";
+    string field_name = "";
+    if (dot_pos != std::string::npos){
+      table_name = src_field.substr(0, dot_pos);
+      field_name = src_field.substr(dot_pos + 1);
+    }else{
+      LOG_WARN("invalid src_field in view");
+      return RC::INTERNAL;
+    }
+
+    // 检查是否是单表更新
+    Table* src_table = db_->find_table(table_name.c_str());
+    if(related_table == nullptr){
+      related_table = src_table;
+    }else{
+      if(related_table->name() != table_name){
+        // 目前仅支持单表更新
+        LOG_WARN("The view is not updatable");
+        return RC::INTERNAL;
+      }
+    }
+
+    const vector<FieldMeta>* src_table_fields = src_table->table_meta().field_metas();
+    for(size_t j=0;j<src_table_fields->size();j++){
+      if(src_table_fields->at(j).name() == field_name){
+        src_field_index_.push_back(j);
+        break;
+      }
+    }
+  }
+
+  // 先收集所有的待更新的record
+  if (children_.empty()) {
+    return rc;
+  }
+  unique_ptr<PhysicalOperator> &child = children_.back();
+  rc = child->open(trx);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to open child operator: %s", strrc(rc));
+    return rc;
+  }
+  trx_ = trx;
+
+  while(OB_SUCC(rc = child->next())){
+    Tuple *tuple = child->current_tuple();
+    if (nullptr == tuple) {
+      LOG_WARN("failed to get current record: %s", strrc(rc));
+      return rc;
+    }
+
+    // 在成功拿到tuple的时候，底层也一定转到一个合适的row上了，尝试抓取原始record
+    Tuple* curr_tuple = nullptr;
+    rc = child->get_row_tuple(related_table, curr_tuple);
+    if(rc != RC::SUCCESS){
+      LOG_WARN("Failed to get row tuple, rc: %s", strrc(rc));
+      return rc;
+    }
+    RowTuple *row_tuple = static_cast<RowTuple *>(curr_tuple);
+    Record   &record    = row_tuple->record();
+    records_.emplace_back(std::move(record));
+  }
+  child->close();
+
+  vector<Value> new_values;
+  rc = generate_new_value(new_values);
+  if(rc != RC::SUCCESS){
+    LOG_WARN("Failed to generate new value, rc %s", strrc(rc));
+    return rc;
+  }
+
+  LOG_INFO("records_ size: %d", records_.size());
+
+  for(Record &record : records_){
+    Record new_record;
+    rc = related_table->make_record_from_record(record, new_record, field_index_, new_values);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to make record from record: %s", strrc(rc));
+      return rc;
+    }
+
+    rc = trx_->update_record(related_table, record, new_record);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to update record: %s", strrc(rc));
+      return rc;
+    }
+  }
+
+  return rc;
+}
+
+RC UpdatePhysicalOperator::generate_new_value(vector<Value>& new_values)
+{
+  RC rc = RC::SUCCESS;
   if(!records_.empty()){
     // 只有record不为空的情况下再去获取更新值
     for(size_t i=0;i<new_expr_.size();i++){
@@ -59,7 +221,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         // 子查询,需要先通过子节点拿到tuple，将tuple解析成值列表
         int node_pos = expr->pos();
         unique_ptr<PhysicalOperator>& sub_oper = children_[node_pos];
-        rc = sub_oper->open(trx);
+        rc = sub_oper->open(trx_);
         if(rc != RC::SUCCESS){
           LOG_WARN("Failed to execute open for child oper");
           return rc;
@@ -107,34 +269,5 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     }
   }
 
-  // 先收集记录再进行更新
-  // 记录的有效性由事务来保证，如果事务不保证删除的有效性，那说明此事务类型不支持并发控制，比如VacuousTrx
-  for (Record &record : records_) {
-    // 根据旧的record创建新的record
-    Record new_record;
-    rc = table_->make_record_from_record(record, new_record, field_index_, new_values);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to make record from record: %s", strrc(rc));
-      return rc;
-    }
-
-
-    rc = trx_->update_record(table_, record, new_record);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to update record: %s", strrc(rc));
-      return rc;
-    }
-  }
-
-  return RC::SUCCESS;
-}
-
-RC UpdatePhysicalOperator::next()
-{
-  return RC::RECORD_EOF;
-}
-
-RC UpdatePhysicalOperator::close()
-{
-  return RC::SUCCESS;
+  return rc;
 }
