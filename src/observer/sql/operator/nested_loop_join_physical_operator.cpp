@@ -145,6 +145,8 @@ RC NestedLoopJoinPhysicalOperator::close()
     LOG_WARN("failed to close left oper. rc=%s", strrc(rc));
   }
 
+  right_cache.clear();
+
   // if (!right_closed_) {
   //   rc = right_->close();
   //   if (rc != RC::SUCCESS) {
