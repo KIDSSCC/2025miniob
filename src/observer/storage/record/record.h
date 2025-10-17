@@ -50,6 +50,7 @@ struct RID
 
   bool operator!=(const RID &other) const { return !(*this == other); }
 
+  // 计算两个RID之间的距离，不同的页面，返回页面之间的距离，相同的页面，返回slot之间的距离
   static int compare(const RID *rid1, const RID *rid2)
   {
     int page_diff = rid1->page_num - rid2->page_num;
@@ -144,6 +145,7 @@ public:
 
   Record(Record &&other)
   {
+    // 移动构造，接管了对方的内存
     rid_ = other.rid_;
     key_ = other.key_;
     if (!other.owner_) {

@@ -450,6 +450,11 @@ RC ExpressionBinder::bind_arithmetic_expression(
     if (right.get() != right_expr.get()) {
       right_expr.reset(right.release());
     }
+
+    const char* alias = arithmetic_expr->alias();
+    if(alias != nullptr && std::strlen(alias) != 0){
+      arithmetic_expr->set_name(alias);
+    }
   }
   
 

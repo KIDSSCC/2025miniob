@@ -255,6 +255,8 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   char *record_data = (char *)malloc(record_size);
   memset(record_data, 0, record_size);
 
+  LOG_INFO("record size %d", record_size);
+
   // 事务字段部分的最后一个字段，是null_bitmap
   const FieldMeta * null_bit_field = table_meta_.field(normal_field_start_index - 1);
   int bitmap_len = null_bit_field->len();

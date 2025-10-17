@@ -113,7 +113,6 @@ UnboundAggregateExpr *create_aggregate_expression_with_ptr(const char *aggregate
         SET
         ON
         LOAD
-        DATA
         INFILE
         EXPLAIN
         STORAGE
@@ -1086,7 +1085,8 @@ order_expr:
     }
     ;
 load_data_stmt:
-    LOAD DATA INFILE SSS INTO TABLE ID 
+    // LOAD DATA INFILE SSS INTO TABLE ID 
+    LOAD ID INFILE SSS INTO TABLE ID 
     {
       char *tmp_file_name = common::substr($4, 1, strlen($4) - 2);
       

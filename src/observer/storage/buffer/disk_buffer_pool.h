@@ -95,6 +95,7 @@ public:
 
   /**
    * @brief 获取指定的页面
+   * 获取某一个文件中的某一个页面，目前来看所有的文件可能共用一个FrameManager
    *
    * @param buffer_pool_id buffer Pool标识
    * @param page_num  页面号
@@ -104,6 +105,7 @@ public:
 
   /**
    * @brief 列出所有指定文件的页面
+   * 从当前LRU Cache中所有打开的frame 查找属于当前buffer pool的frame
    *
    * @param buffer_pool_id buffer Pool标识
    * @return list<Frame *> 页帧列表
