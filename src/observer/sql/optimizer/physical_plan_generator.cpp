@@ -173,7 +173,7 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
   for (const auto &view : this->views_) {
     if (view.view_name_ == table_get_oper.table()->name()) {
       LOG_INFO("find view %s", view.view_name_.c_str());
-      ViewTranslatePhysicalOperator* pack_oper = new ViewTranslatePhysicalOperator(table_get_oper.table()->name(), view.read_node_);
+      ViewTranslatePhysicalOperator* pack_oper = new ViewTranslatePhysicalOperator(table_get_oper.table(), view.read_node_);
       pack_oper->set_predicates(std::move(table_get_oper.predicates()));
       oper = unique_ptr<PhysicalOperator>(pack_oper);
       return RC::SUCCESS;

@@ -19,18 +19,17 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-ViewTranslatePhysicalOperator::ViewTranslatePhysicalOperator(string table_name, shared_ptr<PhysicalOperator> content)
+ViewTranslatePhysicalOperator::ViewTranslatePhysicalOperator(Table* table, shared_ptr<PhysicalOperator> content)
   : content_(content)
 {
-  table_name_ = table_name;
+  table_ = table;
 }
 
 RC ViewTranslatePhysicalOperator::open(Trx *trx)
 {
-  vector<unique_ptr<Expression>>& expressions = static_cast<ProjectPhysicalOperator*>(content_.get())->expressions();
-  int cell_num = static_cast<int>(expressions.size());
-  for(int i=0;i<cell_num;i++){
-    TupleCellSpec spec(table_name_.c_str(), expressions[i]->name());
+  const vector<FieldMeta>* field_metas = table_->table_meta().field_metas();
+  for(size_t i=table_->table_meta().sys_field_num();i<field_metas->size();i++){
+    TupleCellSpec spec(table_->name(), field_metas->at(i).name());
     specs_.push_back(spec);
   }
   return content_->open(trx);
@@ -65,6 +64,7 @@ RC ViewTranslatePhysicalOperator::close()
 }
 Tuple *ViewTranslatePhysicalOperator::current_tuple()
 {
+  LOG_INFO("view tuple %s, spec %s", tuple_.to_string().c_str(), tuple_.spec_to_string().c_str());
   return &tuple_;
 }
 

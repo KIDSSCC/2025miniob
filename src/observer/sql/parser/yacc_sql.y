@@ -430,6 +430,22 @@ create_table_stmt:    /*create table 语句的语法解析树*/
 
       delete $5;
     }
+    | CREATE VIEW ID LBRACE attr_def_list RBRACE AS select_stmt{
+      $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.create_type = 2;
+      create_table.relation_name = $3;
+
+      create_table.attr_infos.swap(*$5);
+      delete $5;
+
+      ASSERT($8->flag == SCF_SELECT, "only select stmt can be converted to expr");
+      SelectExpr* sub_selection = new SelectExpr(std::move($8->selection));
+      SelectPackExpr* sub_selection_pack = new SelectPackExpr(sub_selection);
+      create_table.sub_select.reset(sub_selection_pack);
+
+      delete $8;
+    }
     ;
     
 attr_def_list:
@@ -477,6 +493,13 @@ attr_def:
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = 4;
+    }
+    | ID
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = AttrType::UNDEFINED;
       $$->name = $1;
       $$->length = 4;
     }

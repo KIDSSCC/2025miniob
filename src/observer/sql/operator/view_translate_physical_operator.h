@@ -25,7 +25,7 @@ See the Mulan PSL v2 for more details. */
 class ViewTranslatePhysicalOperator : public PhysicalOperator
 {
 public:
-  ViewTranslatePhysicalOperator(string table_name, shared_ptr<PhysicalOperator> content);
+  ViewTranslatePhysicalOperator(Table* table, shared_ptr<PhysicalOperator> content);
 
   virtual ~ViewTranslatePhysicalOperator() = default;
 
@@ -61,7 +61,7 @@ public:
 
 private:
   shared_ptr<PhysicalOperator> content_;
-  string table_name_;
+  Table* table_;
   ValueListTuple tuple_;
 
   vector<TupleCellSpec> specs_;

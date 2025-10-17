@@ -75,10 +75,19 @@ RC CreateTableStmt::create(Db *db, CreateTableSqlNode &create_table, Stmt *&stmt
       LOG_WARN("Attribute number not match. create table define %lu, but select return %lu", create_table.attr_infos.size(), attrs.size());
       return RC::SCHEMA_FIELD_MISSING;
     }
-    for(size_t i=0;i<attrs.size();i++){
-      if(create_table.attr_infos[i].type != attrs[i].type){
-        LOG_WARN("Attribute type not match for attr %s. create table define %d, but select return %d", attrs[i].name.c_str(), (int)create_table.attr_infos[i].type, (int)attrs[i].type);
-        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+
+    // 对于create_table，其创建字段的同时指定了类型，所以需要同时进行类型检查。对于create view，其在创建的过程中未指定类型，从下层推断的字段中获取类型和长度
+    if(create_table.create_type == 1){
+      for(size_t i=0;i<attrs.size();i++){
+        if(create_table.attr_infos[i].type != attrs[i].type){
+          LOG_WARN("Attribute type not match for attr %s. create table define %d, but select return %d", attrs[i].name.c_str(), (int)create_table.attr_infos[i].type, (int)attrs[i].type);
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
+      }
+    }else{
+      for(size_t i=0;i<attrs.size();i++){
+        create_table.attr_infos[i].type = attrs[i].type;
+        create_table.attr_infos[i].length = attrs[i].length;
       }
     }
   }else{
