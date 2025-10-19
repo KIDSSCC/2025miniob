@@ -169,6 +169,19 @@ struct SelectSqlNode
 };
 
 /**
+ * @brief 描述一个属性
+ * @ingroup SQLParser
+ * @details 属性，或者说字段(column, field)
+ */
+struct AttrInfoSqlNode
+{
+  AttrType type;    ///< Type of attribute
+  string   name;    ///< Attribute name
+  size_t   length;  ///< Length of attribute
+  bool    allow_null;   // 该字段是否可以为null
+};
+
+/**
  * @brief 算术表达式计算的语法树
  * @ingroup SQLParser
  */
@@ -185,6 +198,7 @@ struct CalcSqlNode
 struct InsertSqlNode
 {
   string        relation_name;  ///< Relation to insert into
+  vector<AttrInfoSqlNode> attr_infos;   /// 要插入的列，在视图场景下，可能涉及向部分列的插入
   vector<Value> values;         ///< 要插入的值
 };
 
@@ -211,19 +225,6 @@ struct UpdateSqlNode
   vector<string>          attribute_names;
   vector<unique_ptr<Expression>> values;
   vector<ConditionSqlNode> conditions;
-};
-
-/**
- * @brief 描述一个属性
- * @ingroup SQLParser
- * @details 属性，或者说字段(column, field)
- */
-struct AttrInfoSqlNode
-{
-  AttrType type;    ///< Type of attribute
-  string   name;    ///< Attribute name
-  size_t   length;  ///< Length of attribute
-  bool    allow_null;   // 该字段是否可以为null
 };
 
 /**

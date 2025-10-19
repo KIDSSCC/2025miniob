@@ -18,6 +18,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/trx/trx.h"
 #include "storage/db/db.h"
 
+#include <numeric>
+
 using namespace std;
 
 InsertPhysicalOperator::InsertPhysicalOperator(Table *table, vector<Value> &&values)
@@ -60,8 +62,34 @@ RC InsertPhysicalOperator::insert_view(Trx* trx){
   Table* related_table = nullptr;
   Db* db = table_->db();
 
-  for(size_t i=0;i<src_fields.size();i++){
-    string src_field = src_fields[i];
+  // attr_infos为空时，即向视图默认的所有列添加内容。
+  // attr_infos不为空时，即仅向视图中部分列添加内容。这些列需来自同一张表
+  vector<int> related_field;
+  if(attr_infos_.empty()){
+    for(size_t i=0;i<src_fields.size();i++){
+      related_field.push_back(i);
+    }
+  }else{
+    const vector<FieldMeta> * all_field = table_->table_meta().field_metas();
+    int start_idx = table_->table_meta().sys_field_num();
+    for(size_t i=0;i<attr_infos_.size();i++){
+      string& insert_field_name = attr_infos_[i].name;
+      for(size_t j=0;j<all_field->size();j++){
+        if(all_field->at(j).name() == insert_field_name){
+          related_field.push_back(j - start_idx);
+          break;
+        }
+      }
+    }
+
+    if(related_field.size() != attr_infos_.size()){
+      LOG_WARN("Failed to parse view field");
+      return RC::INTERNAL;
+    }
+  }
+
+  for(size_t i=0;i<related_field.size();i++){
+    string src_field = src_fields[related_field[i]];
     if(src_field == ""){
       // 不可更新视图
       LOG_WARN("The view is not updatable");

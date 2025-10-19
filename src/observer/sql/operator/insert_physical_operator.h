@@ -43,6 +43,7 @@ public:
   RC insert_table(Trx* trx);
   RC insert_view(Trx* trx);
 
+  vector<AttrInfoSqlNode> attr_infos_;
 private:
   Table        *table_ = nullptr;
   vector<Value> values_;

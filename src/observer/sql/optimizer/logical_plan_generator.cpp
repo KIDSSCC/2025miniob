@@ -474,8 +474,9 @@ RC LogicalPlanGenerator::create_plan(InsertStmt *insert_stmt, unique_ptr<Logical
 {
   Table        *table = insert_stmt->table();
   vector<Value> values(insert_stmt->values(), insert_stmt->values() + insert_stmt->value_amount());
+  vector<AttrInfoSqlNode> attr_infos = insert_stmt->attr_infos();
 
-  InsertLogicalOperator *insert_operator = new InsertLogicalOperator(table, values);
+  InsertLogicalOperator *insert_operator = new InsertLogicalOperator(table, values, attr_infos);
   logical_operator.reset(insert_operator);
   return RC::SUCCESS;
 }

@@ -24,7 +24,7 @@ See the Mulan PSL v2 for more details. */
 class InsertLogicalOperator : public LogicalOperator
 {
 public:
-  InsertLogicalOperator(Table *table, vector<Value> values);
+  InsertLogicalOperator(Table *table, vector<Value> values, vector<AttrInfoSqlNode> attr_infos);
   virtual ~InsertLogicalOperator() = default;
 
   LogicalOperatorType type() const override { return LogicalOperatorType::INSERT; }
@@ -34,8 +34,10 @@ public:
   Table               *table() const { return table_; }
   const vector<Value> &values() const { return values_; }
   vector<Value>       &values() { return values_; }
+  vector<AttrInfoSqlNode>&    attr_infos() { return attr_infos_; }
 
 private:
   Table        *table_ = nullptr;
   vector<Value> values_;
+  vector<AttrInfoSqlNode> attr_infos_;
 };

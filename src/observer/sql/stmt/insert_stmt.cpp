@@ -17,8 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 
-InsertStmt::InsertStmt(Table *table, const Value *values, int value_amount)
-    : table_(table), values_(values), value_amount_(value_amount)
+InsertStmt::InsertStmt(Table *table, const Value *values, vector<AttrInfoSqlNode> attr_infos, int value_amount)
+    : table_(table), values_(values), attr_infos_(std::move(attr_infos)), value_amount_(value_amount)
 {}
 
 RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
@@ -42,12 +42,21 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   const int        value_num  = static_cast<int>(inserts.values.size());
   const TableMeta &table_meta = table->table_meta();
   const int        field_num  = table_meta.field_num() - table_meta.sys_field_num();
-  if (field_num != value_num) {
-    LOG_WARN("schema mismatch. value num=%d, field num in schema=%d", value_num, field_num);
-    return RC::SCHEMA_FIELD_MISSING;
+
+  if(inserts.attr_infos.empty()){
+    // attr_infos为空，即默认向所有字段进行插入
+    if (field_num != value_num) {
+      LOG_WARN("schema mismatch. value num=%d, field num in schema=%d", value_num, field_num);
+      return RC::SCHEMA_FIELD_MISSING;
+    }
+    // everything alright
+    stmt = new InsertStmt(table, values, inserts.attr_infos, value_num);
+    return RC::SUCCESS;
+  }else{
+    // attr_infos不为空，即视图场景下，仅向view中的部分列进行插入
+    stmt = new InsertStmt(table, values, inserts.attr_infos, value_num);
+    return RC::SUCCESS;
   }
 
-  // everything alright
-  stmt = new InsertStmt(table, values, value_num);
-  return RC::SUCCESS;
+
 }
