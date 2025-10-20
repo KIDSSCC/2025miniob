@@ -190,8 +190,6 @@ RC UpdatePhysicalOperator::update_view(Trx *trx){
     return rc;
   }
 
-  LOG_INFO("records_ size: %d", records_.size());
-
   for(Record &record : records_){
     Record new_record;
     rc = related_table->make_record_from_record(record, new_record, field_index_, new_values);

@@ -38,6 +38,9 @@ public:
   RC next() override;
   RC close() override;
 
+  RC delete_from_table(Trx *trx);
+  RC delete_from_view(Trx *trx);
+
   Tuple *current_tuple() override { return nullptr; }
 
 private:
