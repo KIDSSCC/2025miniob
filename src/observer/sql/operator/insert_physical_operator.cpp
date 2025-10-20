@@ -62,6 +62,17 @@ RC InsertPhysicalOperator::insert_view(Trx* trx){
   Table* related_table = nullptr;
   Db* db = table_->db();
 
+
+  // 视图不可更新的一种情况，映射字段中存在聚合函数或表达式计算
+  for(size_t i=0;i<src_fields.size();i++){
+    string src_field = src_fields[i];
+    if(src_field == ""){
+      // 不可更新视图
+      LOG_WARN("The view is not updatable");
+      return RC::INTERNAL;
+    }
+  }
+
   // attr_infos为空时，即向视图默认的所有列添加内容。
   // attr_infos不为空时，即仅向视图中部分列添加内容。这些列需来自同一张表
   vector<int> related_field;

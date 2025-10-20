@@ -215,10 +215,10 @@ void Frame::pin()
   [[maybe_unused]] intptr_t xid       = get_default_debug_xid();
   [[maybe_unused]] int      pin_count = ++pin_count_;
 
-  TRACE("after frame pin. "
-        "this=%p, write locker=%lx, read locker has xid %d? pin=%d, frameId=%s, xid=%lx, lbt=%s",
-        this, write_locker_, read_lockers_.find(xid) != read_lockers_.end(), 
-        pin_count, frame_id_.to_string().c_str(), xid, lbt());
+  // TRACE("after frame pin. "
+  //       "this=%p, write locker=%lx, read locker has xid %d? pin=%d, frameId=%s, xid=%lx, lbt=%s",
+  //       this, write_locker_, read_lockers_.find(xid) != read_lockers_.end(), 
+  //       pin_count, frame_id_.to_string().c_str(), xid, lbt());
 }
 
 int Frame::unpin()

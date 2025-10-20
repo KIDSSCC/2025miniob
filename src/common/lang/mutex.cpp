@@ -280,7 +280,7 @@ void Mutex::lock()
 {
 #ifdef CONCURRENCY
   lock_.lock();
-  LOG_DEBUG("lock %p, lbt=%s", &lock_, lbt());
+  // LOG_DEBUG("lock %p, lbt=%s", &lock_, lbt());
 #endif
 }
 
@@ -300,7 +300,7 @@ bool Mutex::try_lock()
 void Mutex::unlock()
 {
 #ifdef CONCURRENCY
-  LOG_DEBUG("unlock %p, lbt=%s", &lock_, lbt());
+  // LOG_DEBUG("unlock %p, lbt=%s", &lock_, lbt());
   lock_.unlock();
 #endif
 }
