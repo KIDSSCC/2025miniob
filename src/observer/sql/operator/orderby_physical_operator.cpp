@@ -56,6 +56,11 @@ RC OrderByPhysicalOperator::open(Trx *trx)
     }
     all_tuple.emplace_back(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
   }
+
+  // 调用底层后马上关闭
+  if(!children_.empty()){
+    children_[0]->close();
+  }
   
   // 构建排序规则
   function<bool(unique_ptr<ValueListTuple>&, unique_ptr<ValueListTuple>&)> generate_filter = [&](unique_ptr<ValueListTuple>& t1, unique_ptr<ValueListTuple>& t2) -> bool{
@@ -136,9 +141,12 @@ RC OrderByPhysicalOperator::next()
 RC OrderByPhysicalOperator::close()
 {
   // close不需要做调整
-  if (!children_.empty()) {
-    children_[0]->close();
-  }
+  // if (!children_.empty()) {
+  //   children_[0]->close();
+  // }
+
+  all_tuple.clear();
+  all_tuple.shrink_to_fit();
   return RC::SUCCESS;
 }
 

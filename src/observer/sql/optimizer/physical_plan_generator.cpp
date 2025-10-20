@@ -59,15 +59,42 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
+bool PhysicalPlanGenerator::have_orderby_in_main(unique_ptr<PhysicalOperator> &oper){
+  if(oper->type() == PhysicalOperatorType::ORDER_BY){
+    return true;
+  }
+
+  if(oper->type() == PhysicalOperatorType::PREDICATE){
+    // PREDICATE的最后一个子节点算作主分支，其余分支为子查询
+    return have_orderby_in_main(oper->children().back());
+  }
+
+  if(oper->type() == PhysicalOperatorType::NESTED_LOOP_JOIN || oper->type() == PhysicalOperatorType::HASH_JOIN){
+    return have_orderby_in_main(oper->children()[0]) || have_orderby_in_main(oper->children()[1]);
+  }
+
+  if(oper->children().empty()){
+    return false;
+  }else{
+    return have_orderby_in_main(oper->children()[0]);
+  }
+}
+
 RC PhysicalPlanGenerator::physical_operator_pack(unique_ptr<PhysicalOperator> &oper)
 {
+  // project本身没有缓存管线的功能，在project外层再套一层pipelinecache用于检查扫描过程中是否出现了问题。
+  // 一类特殊情况，如果算子树的主结构中已经包含了orderby算子，则缓存管线的功能已经由orderby实现了
   if(oper->type() != PhysicalOperatorType::PROJECT){
     return RC::SUCCESS;
   }else{
-    unique_ptr<PhysicalOperator> project_oper = std::move(oper);
-    auto project_cache_oper = new PipelineCachePhysicalOperator();
-    project_cache_oper->add_child(std::move(project_oper));
-    oper = unique_ptr<PhysicalOperator>(project_cache_oper);
+    // 检查物理算子树的主分支中是否包含了orderby部分
+    bool check = have_orderby_in_main(oper);
+    if(!check){
+      unique_ptr<PhysicalOperator> project_oper = std::move(oper);
+      auto project_cache_oper = new PipelineCachePhysicalOperator();
+      project_cache_oper->add_child(std::move(project_oper));
+      oper = unique_ptr<PhysicalOperator>(project_cache_oper);
+    }
     return RC::SUCCESS;
   }
 }

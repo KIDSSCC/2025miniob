@@ -25,8 +25,13 @@ RC NestedLoopJoinPhysicalOperator::open(Trx *trx)
   }
 
   RC rc         = RC::SUCCESS;
-  left_         = children_[0].get();
-  right_        = children_[1].get();
+
+  // join算子在构建的时候是左规约，尝试将下层的join算子转到right的位置上，使其被调用后能够立即被回收
+  // left_         = children_[0].get();
+  // right_        = children_[1].get();
+  left_         = children_[1].get();
+  right_        = children_[0].get();
+
   right_closed_ = true;
   round_done_   = true;
 
@@ -116,7 +121,7 @@ RC NestedLoopJoinPhysicalOperator::next()
     right_cache_iter = right_cache.begin();
   }else{
     // 如果右表未完成一轮遍历，当前仅需要从右表中获取下一条记录
-    joined_tuple_.set_right((*right_cache_iter).get());
+    joined_tuple_.set_left((*right_cache_iter).get());
     right_cache_iter++;
     return RC::SUCCESS;  // got one tuple from right
   }
@@ -129,7 +134,7 @@ RC NestedLoopJoinPhysicalOperator::next()
   }
 
   if(right_cache_iter != right_cache.end()) {
-    joined_tuple_.set_right((*right_cache_iter).get());
+    joined_tuple_.set_left((*right_cache_iter).get());
     right_cache_iter++;
   }else{
     return RC::RECORD_EOF;
@@ -145,7 +150,9 @@ RC NestedLoopJoinPhysicalOperator::close()
     LOG_WARN("failed to close left oper. rc=%s", strrc(rc));
   }
 
+  // 清理已有资源的同时尝试回收内存
   right_cache.clear();
+  right_cache.shrink_to_fit();
 
   // if (!right_closed_) {
   //   rc = right_->close();
@@ -169,7 +176,8 @@ RC NestedLoopJoinPhysicalOperator::left_next()
   }
 
   left_tuple_ = left_->current_tuple();
-  joined_tuple_.set_left(left_tuple_);
+  // joined_tuple_.set_left(left_tuple_);
+  joined_tuple_.set_right(left_tuple_);
   return rc;
 }
 

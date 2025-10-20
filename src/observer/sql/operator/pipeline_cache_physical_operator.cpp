@@ -53,6 +53,8 @@ RC PipelineCachePhysicalOperator::open(Trx *trx)
     all_tuple.emplace_back(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
   }
 
+  child->close();
+
   if(rc != RC::RECORD_EOF && rc != RC::SUCCESS){
     LOG_WARN("Error when open project");
     return rc;
@@ -80,11 +82,12 @@ RC PipelineCachePhysicalOperator::next()
 
 RC PipelineCachePhysicalOperator::close()
 {
-  if (!children_.empty()) {
-    children_[0]->close();
-  }
+  // if (!children_.empty()) {
+  //   children_[0]->close();
+  // }
 
   all_tuple.clear();
+  all_tuple.shrink_to_fit();
   first_emited_ = false;
   return RC::SUCCESS;
 }
