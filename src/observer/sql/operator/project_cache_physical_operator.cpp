@@ -91,6 +91,7 @@ RC ProjectCachePhysicalOperator::next()
 RC ProjectCachePhysicalOperator::close()
 {
   // 关闭子算子的功能上提至next部分
+  is_finished = false;
   return RC::SUCCESS;
 }
 Tuple *ProjectCachePhysicalOperator::current_tuple()
