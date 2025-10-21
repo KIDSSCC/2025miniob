@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 
 RC HashJoinRewriter::rewrite(unique_ptr<LogicalOperator> &oper, bool &change_made)
 {
+  // LOG_INFO("logical oper type is %d", oper->type());
   RC rc = RC::SUCCESS;
 
   bool sign = false;
@@ -45,18 +46,23 @@ RC HashJoinRewriter::rewrite(unique_ptr<LogicalOperator> &oper, bool &change_mad
   // join_oper需为两张表的连接
   // pred_oper中的两个比较字段需分别对应join_oper的两张表
 
-  sign = (pred_oper->expressions().size() == 1) && (pred_oper->expressions()[0]->type() == ExprType::CONJUNCTION);
+  sign = (pred_oper->expressions().size() == 1) && (pred_oper->expressions()[0]->type() == ExprType::CONJUNCTION || pred_oper->expressions()[0]->type() == ExprType::COMPARISON);
   if(!sign){
     return rc;
   }
 
-  ConjunctionExpr* conj_expr = static_cast<ConjunctionExpr*>(pred_oper->expressions()[0].get());
-  sign = (conj_expr->children().size() == 1) && (conj_expr->children()[0]->type() == ExprType::COMPARISON);
-  if(!sign){
-    return rc;
+  ComparisonExpr* comp_expr = nullptr;
+  if(pred_oper->expressions()[0]->type() == ExprType::CONJUNCTION){
+    ConjunctionExpr* conj_expr = static_cast<ConjunctionExpr*>(pred_oper->expressions()[0].get());
+    sign = (conj_expr->children().size() == 1) && (conj_expr->children()[0]->type() == ExprType::COMPARISON);
+    if(!sign){
+      return rc;
+    }
+    comp_expr = static_cast<ComparisonExpr*>(conj_expr->children()[0].get());
+  }else{
+    comp_expr = static_cast<ComparisonExpr*>(pred_oper->expressions()[0].get());
   }
 
-  ComparisonExpr* comp_expr = static_cast<ComparisonExpr*>(conj_expr->children()[0].get());
   sign = (comp_expr->comp() == CompOp::EQUAL_TO) && (comp_expr->left()->type() == ExprType::FIELD) && (comp_expr->right()->type() == ExprType::FIELD);
   if(!sign){
     return rc;

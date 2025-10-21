@@ -23,7 +23,7 @@ See the Mulan PSL v2 for more details. */
 Rewriter::Rewriter()
 {
   // 默认三条重写规则
-  // rewrite_rules_.emplace_back(new HashJoinRewriter);
+  rewrite_rules_.emplace_back(new HashJoinRewriter);
   rewrite_rules_.emplace_back(new ExpressionRewriter);
   rewrite_rules_.emplace_back(new PredicateRewriteRule);
   rewrite_rules_.emplace_back(new PredicatePushdownRewriter);
