@@ -32,6 +32,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/update_physical_operator.h"
 #include "sql/operator/join_logical_operator.h"
 #include "sql/operator/nested_loop_join_physical_operator.h"
+#include "sql/operator/hash_join_physical_operator.h"
 #include "sql/operator/predicate_logical_operator.h"
 #include "sql/operator/predicate_physical_operator.h"
 #include "sql/operator/project_logical_operator.h"
@@ -539,34 +540,33 @@ RC PhysicalPlanGenerator::create_plan(JoinLogicalOperator &join_oper, unique_ptr
     LOG_WARN("join operator should have 2 children, but have %d", child_opers.size());
     return RC::INTERNAL;
   }
-  if (session->hash_join_on() && can_use_hash_join(join_oper)) {
-    // your code here
-    // hash join 暂不支持
-  } else {
-    unique_ptr<PhysicalOperator> join_physical_oper;
-    join_physical_oper = make_unique<NestedLoopJoinPhysicalOperator>();
-    for (auto &child_oper : child_opers) {
-      unique_ptr<PhysicalOperator> child_physical_oper;
-      rc = create(*child_oper, child_physical_oper, session);
-      if (rc != RC::SUCCESS) {
-        LOG_WARN("failed to create physical child oper. rc=%s", strrc(rc));
-        return rc;
-      }
 
-      join_physical_oper->add_child(std::move(child_physical_oper));
+  
+  unique_ptr<PhysicalOperator> join_physical_oper;
+  if (can_use_hash_join(join_oper)) {
+    join_physical_oper = make_unique<HashJoinPhysicalOperator>(join_oper.left_expr_, join_oper.right_expr_);
+  } else {
+    join_physical_oper = make_unique<NestedLoopJoinPhysicalOperator>();
+  }
+
+  for (auto &child_oper : child_opers) {
+    unique_ptr<PhysicalOperator> child_physical_oper;
+    rc = create(*child_oper, child_physical_oper, session);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create physical child oper. rc=%s", strrc(rc));
+      return rc;
     }
 
-    // 根据逻辑算子中是否存在条件谓词，此处需要在join算子前叠一层predicate
-
-    oper = std::move(join_physical_oper);
+    join_physical_oper->add_child(std::move(child_physical_oper));
   }
+
+  oper = std::move(join_physical_oper);
   return rc;
 }
 
 bool PhysicalPlanGenerator::can_use_hash_join(JoinLogicalOperator &join_oper)
 {
-  // your code here
-  return false;
+  return join_oper.can_use_hash_join_;
 }
 
 RC PhysicalPlanGenerator::create_plan(CalcLogicalOperator &logical_oper, unique_ptr<PhysicalOperator> &oper, Session* session)

@@ -73,6 +73,11 @@ public:
     return make_unique<LogicalProperty>(card);
   }
 
+public:
+  bool can_use_hash_join_ = false;
+  unique_ptr<Expression> left_expr_;
+  unique_ptr<Expression> right_expr_;
+
 private:
   // join 算子的两个成员，predicate_op_ 为连接条件的predicate算子，join_predicates_ 为连接条件的表达式
   unique_ptr<LogicalOperator> predicate_op_;
